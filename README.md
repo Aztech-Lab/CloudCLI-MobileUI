@@ -1,3 +1,5 @@
+> **CloudCLI-Mobile** — this is an independent downstream fork of [siteboon/claudecodeui](https://github.com/siteboon/claudecodeui), tuned for self-hosting and phone use. It is not affiliated with the upstream project; please report issues with this fork here, not upstream. What differs and how to run it: **[FORK.md](FORK.md)**.
+
 <div align="center">
  <img src="public/logo.svg" alt="CloudCLI UI" width="64" height="64">
  <h1>Cloud CLI (aka Claude Code UI)</h1>
