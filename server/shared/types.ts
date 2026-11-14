@@ -1506,6 +1506,8 @@ export type FileTreeNode = {
   permissionsRwx: string;
   isSymlink?: boolean;
   children?: FileTreeNode[];
+  /** [local] Children were not (fully) listed; the browser loads them on expand. */
+  incomplete?: boolean;
 };
 
 /**
@@ -1649,7 +1651,7 @@ export type FileTreeServices = {
   }>;
   listProjectFiles(
     projectId: string,
-    options?: { respectGitignore: boolean },
+    options?: { respectGitignore: boolean; subPath?: string | null },
   ): Promise<FileTreeNode[]>;
   createEntry(input: {
     projectId: string;

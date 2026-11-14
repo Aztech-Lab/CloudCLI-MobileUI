@@ -1042,6 +1042,8 @@ export type FileTreeNode = {
   modified?: string;
   permissionsRwx?: string;
   children?: FileTreeNode[];
+  /** [local] Server did not (fully) list this directory; load it on expand. */
+  incomplete?: boolean;
   [key: string]: unknown;
 };
 

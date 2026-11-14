@@ -248,7 +248,8 @@ test('listProjectFiles falls back to conventional directory names when no gitign
   assert.equal(readDirectories.includes(buildDocumentationDirectory), false);
 });
 
-test('listProjectFiles rejects a tree that exceeds the server entry limit', async () => {
+// [local] Past the entry limit the tree is truncated instead of rejected.
+test('listProjectFiles truncates a tree that exceeds the server entry limit', async () => {
   const projectRoot = path.resolve('file-tree-test-project');
   const fileSystem = createFakeFileSystem({
     access: async () => undefined,
@@ -259,12 +260,8 @@ test('listProjectFiles rejects a tree that exceeds the server entry limit', asyn
   });
   const service = createFileTreeService(createDependencies(fileSystem, projectRoot));
 
-  await assert.rejects(
-    service.listProjectFiles('project-1'),
-    (error: unknown) => error instanceof AppError
-      && error.code === 'FILE_TREE_TOO_LARGE'
-      && error.statusCode === 413,
-  );
+  const tree = await service.listProjectFiles('project-1');
+  assert.equal(tree.length, 10_000);
 });
 
 test('listProjectFiles abandons a directory stream as soon as the entry limit is passed', async () => {
@@ -287,12 +284,8 @@ test('listProjectFiles abandons a directory stream as soon as the entry limit is
   });
   const service = createFileTreeService(createDependencies(fileSystem, projectRoot));
 
-  await assert.rejects(
-    service.listProjectFiles('project-1'),
-    (error: unknown) => error instanceof AppError
-      && error.code === 'FILE_TREE_TOO_LARGE'
-      && error.statusCode === 413,
-  );
+  const tree = await service.listProjectFiles('project-1');
+  assert.equal(tree.length, 10_000);
   // The budget plus the single entry that proves it was exceeded.
   assert.equal(streamedEntries, 10_001);
 });
@@ -323,11 +316,37 @@ test('listProjectFiles shares the entry limit across nested directories', async 
   });
   const service = createFileTreeService(createDependencies(fileSystem, projectRoot));
 
+  const tree = await service.listProjectFiles('project-1');
+  const childCount = tree.reduce((sum, entry) => sum + (entry.children?.length ?? 0), 0);
+  // Budget is shared: 2 directories + 9,998 files in total.
+  assert.equal(tree.length + childCount, 10_000);
+  // Directories cut off by the budget (listed in parallel, so possibly both) are flagged
+  // so the browser can fetch them on expand; a fully listed one is not.
+  for (const entry of tree) {
+    assert.equal(Boolean(entry.incomplete), (entry.children?.length ?? 0) < 5_000);
+  }
+  assert.ok(tree.some((entry) => entry.incomplete));
+});
+
+// [local] Lazy expansion of one directory inside the project.
+test('listProjectFiles lists a single sub-directory and refuses paths outside the project', async () => {
+  const projectRoot = path.resolve('file-tree-test-project');
+  const subDirectory = path.join(projectRoot, 'data');
+  const fileSystem = createFakeFileSystem({
+    access: async () => undefined,
+    openDirectory: createDirectoryReader((directoryPath) => directoryPath === subDirectory
+      ? [createDirectoryEntry('a.png', false), createDirectoryEntry('b.png', false)]
+      : [createDirectoryEntry('data', true)]),
+    lstat: async (candidatePath) => createStats(candidatePath === subDirectory, 0o644),
+  });
+  const service = createFileTreeService(createDependencies(fileSystem, projectRoot));
+
+  const tree = await service.listProjectFiles('project-1', { respectGitignore: false, subPath: subDirectory });
+  assert.deepEqual(tree.map((entry) => entry.name), ['a.png', 'b.png']);
+
   await assert.rejects(
-    service.listProjectFiles('project-1'),
-    (error: unknown) => error instanceof AppError
-      && error.code === 'FILE_TREE_TOO_LARGE'
-      && error.statusCode === 413,
+    service.listProjectFiles('project-1', { respectGitignore: false, subPath: path.resolve(projectRoot, '..', 'elsewhere') }),
+    (error: unknown) => error instanceof AppError && error.statusCode === 403,
   );
 });
 

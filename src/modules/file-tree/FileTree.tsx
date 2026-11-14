@@ -52,9 +52,27 @@ export default function FileTree({ selectedProject, onFileOpen, revealDirectory 
     }
   }, [toast]);
 
-  const { files, loading, error, refreshFiles } = useFileTreeData(selectedProject);
+  const { files, loading, error, refreshFiles, loadingDirs, loadDirectory } = useFileTreeData(selectedProject);
   const { viewMode, changeViewMode } = useFileTreeViewMode();
   const { expandedDirs, toggleDirectory, expandDirectories, collapseAll } = useExpandedDirectories();
+
+  // [local] Load any expanded directory the server flagged `incomplete` (cut off by the
+  // entry budget or the depth limit), whether it was opened by click, search or reveal.
+  useEffect(() => {
+    if (expandedDirs.size === 0) return;
+    const pending: string[] = [];
+    const walk = (nodes: FileTreeNode[]) => {
+      for (const node of nodes) {
+        if (node.type !== 'directory') continue;
+        if (expandedDirs.has(node.path)) {
+          if (node.incomplete && !loadingDirs.has(node.path)) pending.push(node.path);
+          if (node.children) walk(node.children);
+        }
+      }
+    };
+    walk(files);
+    pending.forEach((directoryPath) => { void loadDirectory(directoryPath); });
+  }, [files, expandedDirs, loadingDirs, loadDirectory]);
   const { searchQuery, setSearchQuery, filteredFiles } = useFileTreeSearch({
     files,
     expandDirectories,

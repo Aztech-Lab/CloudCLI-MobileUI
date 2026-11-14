@@ -315,8 +315,11 @@ export const api = {
     get(fileContentPath(projectId, filePath), options),
   saveFile: (projectId: string, filePath: string, content: string) =>
     put(`/api/file-tree/projects/${projectId}/file`, { filePath, content }),
-  getFiles: (projectId: string, options: ApiRequestOptions = {}) =>
-    get(`/api/file-tree/projects/${projectId}/files${query({ respectGitignore: true })}`, options),
+  getFiles: (projectId: string, options: ApiRequestOptions = {}, subPath?: string) =>
+    get(
+      `/api/file-tree/projects/${projectId}/files${query({ respectGitignore: true, path: subPath })}`,
+      options,
+    ),
 
   // File operations
   createFile: (

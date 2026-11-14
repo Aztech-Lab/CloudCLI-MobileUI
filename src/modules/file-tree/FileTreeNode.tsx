@@ -243,6 +243,15 @@ export default function FileTreeNode({
         rowContent
       )}
 
+      {isDirectory && isOpen && !hasChildren && item.incomplete && (
+        <div
+          className="py-[3px] text-xs italic text-muted-foreground"
+          style={{ paddingLeft: `${(level + 1) * 16 + 22}px` }}
+        >
+          {t('fileTree.loading', 'Loading…')}
+        </div>
+      )}
+
       {isDirectory && isOpen && hasChildren && (
         <div className="relative">
           <span

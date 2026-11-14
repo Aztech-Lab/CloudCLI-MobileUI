@@ -8,6 +8,10 @@ type UseFileTreeDataResult = {
   loading: boolean;
   error: string | null;
   refreshFiles: () => void;
+  /** [local] Directories whose contents are being fetched on demand. */
+  loadingDirs: Set<string>;
+  /** [local] Fetch one directory flagged `incomplete` and splice it into the tree. */
+  loadDirectory: (directoryPath: string) => Promise<void>;
 };
 
 const DEFAULT_LOAD_ERROR = 'Unable to load the file tree for this project.';
@@ -27,22 +31,73 @@ function readResponseErrorMessage(responseBody: string): string | null {
   }
 }
 
+// [local] Replace the children of the node at `directoryPath` (or, with `children`
+// undefined, keep them and just clear `incomplete`), returning a new tree.
+function replaceDirectoryChildren(
+  nodes: FileTreeNode[],
+  directoryPath: string,
+  children: FileTreeNode[] | undefined,
+): FileTreeNode[] {
+  let changed = false;
+  const next = nodes.map((node) => {
+    if (node.type !== 'directory') return node;
+    if (node.path === directoryPath) {
+      changed = true;
+      return { ...node, children: children ?? node.children, incomplete: false };
+    }
+    if (node.children && directoryPath.startsWith(node.path)) {
+      const updated = replaceDirectoryChildren(node.children, directoryPath, children);
+      if (updated !== node.children) {
+        changed = true;
+        return { ...node, children: updated };
+      }
+    }
+    return node;
+  });
+  return changed ? next : nodes;
+}
+
 export function useFileTreeData(selectedProject: Project | null): UseFileTreeDataResult {
   const [files, setFiles] = useState<FileTreeNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [loadingDirs, setLoadingDirs] = useState<Set<string>>(() => new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const refreshFiles = useCallback(() => {
     setRefreshKey((prev) => prev + 1);
   }, []);
 
+  const projectId = selectedProject?.projectId;
+
+  const loadDirectory = useCallback(async (directoryPath: string) => {
+    if (!projectId) return;
+    setLoadingDirs((previous) => new Set(previous).add(directoryPath));
+    let children: FileTreeNode[] | undefined;
+    try {
+      const response = await api.getFiles(projectId, {}, directoryPath);
+      if (response.ok) {
+        children = (await response.json()) as FileTreeNode[];
+      } else {
+        console.error('Directory fetch failed:', response.status, await response.text());
+      }
+    } catch (loadError) {
+      console.error('Error fetching directory:', loadError);
+    } finally {
+      // Clear `incomplete` even on failure so the expand effect does not retry in a loop.
+      setFiles((previous) => replaceDirectoryChildren(previous, directoryPath, children));
+      setLoadingDirs((previous) => {
+        const next = new Set(previous);
+        next.delete(directoryPath);
+        return next;
+      });
+    }
+  }, [projectId]);
+
   useEffect(() => {
     // File-tree requests use the DB projectId; the backend resolves it to the
     // project's absolute path through the projects table.
-    const projectId = selectedProject?.projectId;
-
     if (!projectId) {
       setFiles([]);
       setLoading(false);
@@ -104,12 +159,14 @@ export function useFileTreeData(selectedProject: Project | null): UseFileTreeDat
       isActive = false;
       abortControllerRef.current?.abort();
     };
-  }, [selectedProject?.projectId, refreshKey]);
+  }, [projectId, refreshKey]);
 
   return {
     files,
     loading,
     error,
     refreshFiles,
+    loadingDirs,
+    loadDirectory,
   };
 }
