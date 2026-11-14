@@ -1,6 +1,10 @@
 import { readFile } from 'node:fs/promises';
+import os from 'node:os';
+
+import { query, type ModelInfo } from '@anthropic-ai/claude-agent-sdk';
 
 import { sessionsDb } from '@/modules/database/index.js';
+import { resolveClaudeCodeExecutablePath } from '@/shared/claude-cli-path.js';
 import type { IProviderModels } from '@/shared/interfaces.js';
 import type {
   ProviderCurrentActiveModel,
@@ -289,20 +293,101 @@ const readClaudeSessionModelFromJsonl = async (
   return null;
 };
 
+/*
+ * [local] Ask the Claude Agent SDK for the same model list the Claude Code client shows in
+ * /model, instead of the hard-coded alias list above. No prompt is ever sent (the prompt
+ * stream never yields) and persistSession:false keeps it from writing a session .jsonl.
+ * Cached for 10 minutes; falls back to the built-in list on any error or timeout.
+ */
+const SDK_MODELS_TTL_MS = 10 * 60 * 1000;
+const SDK_MODELS_TIMEOUT_MS = 20_000;
+let sdkModelsCache: { at: number; value: ProviderModelsDefinition } | null = null;
+let sdkModelsInflight: Promise<ProviderModelsDefinition> | null = null;
+
+async function querySdkModels(): Promise<ModelInfo[]> {
+  let release: () => void = () => {};
+  const idle = new Promise<void>((resolve) => { release = resolve; });
+  // A prompt stream that never yields a message and ends once `release` is called.
+  const noPrompt: AsyncIterable<never> = {
+    [Symbol.asyncIterator]: () => ({
+      next: async () => {
+        await idle;
+        return { done: true as const, value: undefined as never };
+      },
+    }),
+  };
+
+  const options: Record<string, unknown> = { cwd: os.tmpdir(), persistSession: false };
+  const cliPath = resolveClaudeCodeExecutablePath(process.env.CLAUDE_CLI_PATH);
+  if (cliPath) options.pathToClaudeCodeExecutable = cliPath;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const instance = query({ prompt: noPrompt as any, options: options as any });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      instance.supportedModels(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('supportedModels timeout')), SDK_MODELS_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+    release();
+    try { instance.close(); } catch { /* already closed */ }
+  }
+}
+
+export function buildClaudeModelsDefinition(models: ModelInfo[]): ProviderModelsDefinition {
+  const OPTIONS: ProviderModelOption[] = models
+    .filter((model) => typeof model?.value === 'string' && model.value.trim())
+    .map((model) => {
+      const option: ProviderModelOption = {
+        value: model.value,
+        label: model.displayName || model.value,
+        description: model.description || (model as { resolvedModel?: string }).resolvedModel || '',
+      };
+      const levels = Array.isArray(model.supportedEffortLevels) ? model.supportedEffortLevels : [];
+      if (levels.length > 0) {
+        // Same policy as the upstream Haiku entry: default `medium`, no Ultracode.
+        const resolved = (model as { resolvedModel?: string }).resolvedModel ?? model.value;
+        const isHaiku = /haiku/i.test(resolved);
+        const values: Array<{ value: string; description?: string }> = levels.map((value) => ({ value }));
+        if (levels.includes('xhigh') && !isHaiku) values.push(ULTRACODE_EFFORT_OPTION);
+        const preferred = isHaiku ? 'medium' : 'high';
+        option.effort = { default: levels.includes(preferred) ? preferred : levels[levels.length - 1], values };
+      }
+      return option;
+    });
+  if (OPTIONS.length === 0) throw new Error('SDK returned no models');
+  const DEFAULT = OPTIONS.some((option) => option.value === 'default') ? 'default' : OPTIONS[0].value;
+  return { OPTIONS, DEFAULT };
+}
+
+async function loadClaudeModels(): Promise<ProviderModelsDefinition> {
+  if (sdkModelsCache && Date.now() - sdkModelsCache.at < SDK_MODELS_TTL_MS) {
+    return sdkModelsCache.value;
+  }
+  if (!sdkModelsInflight) {
+    sdkModelsInflight = (async () => {
+      try {
+        const value = buildClaudeModelsDefinition(await querySdkModels());
+        sdkModelsCache = { at: Date.now(), value };
+        return value;
+      } catch (error) {
+        console.warn('[local] Claude model list from SDK failed, using built-in list:', error instanceof Error ? error.message : error);
+        return sdkModelsCache?.value ?? CLAUDE_PREDEFINED_MODELS;
+      } finally {
+        sdkModelsInflight = null;
+      }
+    })();
+  }
+  return sdkModelsInflight;
+}
+
 export class ClaudeProviderModels implements IProviderModels {
   async getSupportedModels(): Promise<ProviderModelsDefinition> {
-    // claude creates a new jsonl file as a separate session for this request.
-    // As a result, it lists the workspace where this is invoked when it shouldn't.
-    //
-    // Disabled for now:
-    // const queryInstance = query({
-    //   prompt: 'Get supported models',
-    //   options: buildClaudeQueryOptions(),
-    // });
-    // const supportedModels = await queryInstance.supportedModels();
-    // queryInstance.close();
-    // return buildClaudeModelsDefinition(supportedModels);
-    return CLAUDE_PREDEFINED_MODELS;
+    return loadClaudeModels();
   }
 
   async getCurrentActiveModel(sessionId?: string): Promise<ProviderCurrentActiveModel> {
