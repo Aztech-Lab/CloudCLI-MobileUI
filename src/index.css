@@ -177,10 +177,32 @@
 
   /* Adjust fixed inset positioning in PWA mode */
   body.pwa-mode .fixed.inset-0 {
-    top: var(--header-total-padding);
+    /* [local] was safe-top + 8px. The reported inset (82px on the user's device) is
+       taller than the status-bar content, so tuck the header 12px into it. */
+    top: max(0px, calc(var(--safe-area-inset-top) - 12px));
     left: var(--safe-area-inset-left);
     right: var(--safe-area-inset-right);
     bottom: 0;
+  }
+
+  /* [local] iOS standalone (seen on 18.7) with the translucent status bar reports a
+     layout viewport short by the status-bar height, so fixed elements stop above the
+     physical bottom and a blank band remains. Sizing the document to the large
+     viewport makes iOS lay out over the whole screen (verified on device: the shell
+     then spans to the bottom edge). Standalone only; Safari tabs are unaffected. */
+  @media (display-mode: standalone) {
+    html,
+    body,
+    #root {
+      height: 100lvh;
+      min-height: 100lvh;
+    }
+  }
+
+  /* [local] Once the viewport reaches the physical bottom edge (index.html sets
+     pwa-full-height), keep the composer clear of the home indicator. */
+  body.pwa-mode.pwa-full-height .chat-composer-shell {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
   
   /* Global transition defaults */
@@ -602,6 +624,17 @@
   .chat-message.tool,
   .chat-message.error {
     contain-intrinsic-size: auto 96px;
+  }
+
+  /* [local] Touch devices: render every message. With content-visibility:auto the
+     transcript opens at the bottom, so messages above were never rendered; scrolling
+     up renders them for the first time, their real height replaces the 96-240px
+     placeholder, and the content above the viewport keeps resizing. iOS Safari has
+     no scroll anchoring to compensate, so upward scrolling stutters. */
+  @media (pointer: coarse) {
+    .chat-message {
+      content-visibility: visible;
+    }
   }
 
   /* Mobile touch optimization and safe areas */

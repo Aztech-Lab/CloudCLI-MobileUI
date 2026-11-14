@@ -36,6 +36,24 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      /* [local] Mark when the standalone viewport really reaches the bottom edge
+         (innerHeight == 100lvh), so the composer only reserves home-indicator space then. */
+      (function () {
+        var standalone = navigator.standalone === true ||
+          (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+        if (!standalone) return;
+        var probe = document.createElement('div');
+        probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:100lvh;visibility:hidden;pointer-events:none';
+        document.body.appendChild(probe);
+        function update() {
+          var full = window.innerHeight >= probe.getBoundingClientRect().height - 2;
+          document.body.classList.toggle('pwa-full-height', full);
+        }
+        update();
+        window.addEventListener('resize', update);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     
     <!-- Service Worker Registration -->
