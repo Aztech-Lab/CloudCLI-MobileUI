@@ -308,7 +308,8 @@
         "description": "Un mensaje nuevo inicia un turno nuevo y detiene ese trabajo; lo que aún no haya informado se pierde. Pon el mensaje en cola para enviarlo cuando termine.",
         "cancel": "Cancelar",
         "queue": "Encolar",
-        "sendAnyway": "Enviar igualmente"
+        "sendAnyway": "Enviar igualmente",
+        "adoptRefused": "Este mensaje no se pudo añadir a la sesión en curso sin detener su trabajo en segundo plano."
       }
     },
     "controls": {
@@ -431,5 +432,11 @@
     "customModelsOnlyHint": "Oculta los modelos integrados de {{provider}} en todos los selectores de modelos y convierte tu primer modelo en el predeterminado. Los integrados siguen visibles hasta que añadas un modelo.",
     "builtInModelsHidden": "Ocultos en los selectores de modelos mientras «Usar solo mis modelos» esté activado.",
     "customModelsOnlyFailed": "No se pudo cambiar este ajuste."
+  },
+  "sendMenu": {
+    "sendKeepsWork": {
+      "label": "Enviar",
+      "description": "Enviar ahora; el trabajo en segundo plano sigue en marcha"
+    }
   }
 }

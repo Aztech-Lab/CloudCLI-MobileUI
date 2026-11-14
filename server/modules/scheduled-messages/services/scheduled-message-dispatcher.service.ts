@@ -3,7 +3,7 @@ import type { QueuedSessionMessageRecord, ScheduledMessageRow } from '@/modules/
 import { announceScheduledMessagesChanged } from '@/modules/scheduled-messages/services/scheduled-messages.service.js';
 import { chatRunRegistry, onRunSettled, runDetachedChatTurn } from '@/modules/websocket/index.js';
 import type { ProviderRuntimeGateway } from '@/modules/websocket/index.js';
-import { readQueuedChatMessage } from '@/shared/utils.js';
+import { ADOPT_UNAVAILABLE_ERROR_CODE, readQueuedChatMessage } from '@/shared/utils.js';
 
 /**
  * How often due messages are looked for.
@@ -66,6 +66,15 @@ async function sendClaimedQueuedMessage(
     sessionDraftsDb.restoreQueuedMessage(candidate);
     return;
   }
+  // [local] The message asked to go into the held process, which could not
+  // take it while its background work was still running; nothing ran. Put it
+  // back without `adoptHeld`, so it waits for that work like any queued
+  // message instead of being retried (and refused) every time a run settles.
+  if (result.code === ADOPT_UNAVAILABLE_ERROR_CODE) {
+    const waiting = { ...message, options: { ...message.options, adoptHeld: false } };
+    sessionDraftsDb.restoreQueuedMessage({ ...candidate, queuedMessage: waiting, claimToken: JSON.stringify(waiting) });
+    return;
+  }
   sessionDraftsDb.deleteEmptyDraft(candidate.userId, candidate.sessionId);
 }
 
@@ -77,8 +86,15 @@ async function sendClaimedQueuedMessage(
  * that work can report back. A new turn replaces that process and stops the
  * work, which is why the composer asks before an interactive send. A queued
  * turn was promised to go "when this finishes", so it waits for that work too.
+ *
+ * [local] Except a turn queued with `adoptHeld` (the composer sets it when the
+ * provider can adopt the held process): the runtime writes that turn into the
+ * live process and the work keeps running, so it only waits for the turn.
  */
-function isSessionBusy(sessionId: string, runtime: ProviderRuntimeGateway): boolean {
+function isSessionBusy(sessionId: string, runtime: ProviderRuntimeGateway, adoptsHeldProcess = false): boolean {
+  if (adoptsHeldProcess) {
+    return chatRunRegistry.isProcessing(sessionId) || sessionsSending.has(sessionId);
+  }
   // sessionsSending too: a scheduled turn can complete before its send settles,
   // and the session's next due row would then interrupt this queued turn.
   return chatRunRegistry.isProcessing(sessionId) || runtime.hasBackgroundWork(sessionId) || sessionsSending.has(sessionId);
@@ -98,7 +114,9 @@ export async function dispatchQueuedMessages(
   let claimed = 0;
 
   await Promise.all(candidates.map(async (candidate) => {
-    if (isSessionBusy(candidate.sessionId, runtime)) {
+    // [local] A12: see isSessionBusy.
+    const adoptsHeldProcess = readQueuedChatMessage(candidate.queuedMessage)?.options?.adoptHeld === true;
+    if (isSessionBusy(candidate.sessionId, runtime, adoptsHeldProcess)) {
       return;
     }
     if (!sessionDraftsDb.claimQueuedMessage(candidate)) {

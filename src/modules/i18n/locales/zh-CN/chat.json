@@ -250,6 +250,11 @@
     },
     "providers": {
       "assistant": "Assistant"
+    },
+    "backgroundTask": {
+      "prompt": {
+        "adoptRefused": "无法在不停止后台任务的情况下将此消息加入正在运行的会话。"
+      }
     }
   },
   "projectSelection": {
@@ -314,5 +319,11 @@
     "customModelsOnlyHint": "在所有模型选择器中隐藏 {{provider}} 的内置模型，并将您的第一个模型设为默认模型。在您添加模型之前，内置模型仍会显示。",
     "builtInModelsHidden": "开启“仅使用我的模型”时，这些模型不会出现在模型选择器中。",
     "customModelsOnlyFailed": "无法更改此设置。"
+  },
+  "sendMenu": {
+    "sendKeepsWork": {
+      "label": "发送",
+      "description": "立即发送；后台任务将继续运行"
+    }
   }
 }

@@ -313,7 +313,10 @@
       "count_one": "{{count}} úloha",
       "count_few": "{{count}} úlohy",
       "count_many": "{{count}} úlohy",
-      "count_other": "{{count}} úloh"
+      "count_other": "{{count}} úloh",
+      "prompt": {
+        "adoptRefused": "Tuto zprávu nebylo možné přidat do běžící relace, aniž by se zastavila její práce na pozadí."
+      }
     },
     "controls": {
       "stopGeneration": "Zastavit generování",
@@ -433,5 +436,11 @@
     "customModelsOnlyHint": "Skryje vestavěné modely {{provider}} ve všech výběrech modelu a nastaví váš první model jako výchozí. Vestavěné modely zůstanou v seznamu, dokud nepřidáte model.",
     "builtInModelsHidden": "Skryto ve výběrech modelu, dokud je zapnuto „Používat jen mé modely“.",
     "customModelsOnlyFailed": "Toto nastavení se nepodařilo změnit."
+  },
+  "sendMenu": {
+    "sendKeepsWork": {
+      "label": "Odeslat",
+      "description": "Odeslat hned; práce na pozadí poběží dál"
+    }
   }
 }

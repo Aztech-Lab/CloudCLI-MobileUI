@@ -29,7 +29,13 @@ import type {
   SideQuestionEvent,
   SideQuestionRuntime,
 } from '@/shared/types.js';
-import { parseIncomingJsonObject, SIDE_QUESTION_ID_PATTERN } from '@/shared/utils.js';
+import {
+  ADOPT_UNAVAILABLE_ERROR_CODE,
+  AppError,
+  parseIncomingJsonObject,
+  SIDE_QUESTION_ID_PATTERN,
+  UUID_PATTERN,
+} from '@/shared/utils.js';
 
 /**
  * Trust boundary for client-supplied image attachments: chat.send options come
@@ -233,6 +239,13 @@ function readVerifiedAttachments(clientOptions: AnyRecord): ChatAttachmentDescri
 }
 
 /**
+ * What a dispatched run came to. `code` is set only for a failure the caller
+ * may act on: [local] `ADOPT_UNAVAILABLE` when the send asked to adopt a held
+ * process the runtime could not adopt without stopping its background work.
+ */
+type DispatchRunResult = { started: boolean; error: string | null; code?: string };
+
+/**
  * Registers the run and hands the turn to the provider runtime.
  *
  * `extraRuntimeOptions` is how an edited message asks the provider to resume
@@ -247,7 +260,7 @@ async function dispatchRun(
   dependencies: ChatWebSocketDependencies,
   extraRuntimeOptions: AnyRecord = {},
   beforeRun?: (run: NonNullable<ReturnType<typeof chatRunRegistry.startRun>>) => void | Promise<void>,
-): Promise<{ started: boolean; error: string | null }> {
+): Promise<DispatchRunResult> {
   const provider = session.provider as LLMProvider;
 
   const run = chatRunRegistry.startRun({
@@ -302,9 +315,16 @@ async function dispatchRun(
     sessionId,
     cwd: clientOptions.cwd ?? session.project_path ?? undefined,
     projectPath: session.project_path ?? clientOptions.projectPath,
+    // [local] Server-controlled, set after the client's options so a client
+    // can never set or clear it: only a run dispatched here (an interactive or
+    // queued chat turn) may later have its held process adopted by a send
+    // carrying `adoptHeld`. The agent API and commit-message generation call
+    // the runtime directly and never set it.
+    adoptable: true,
   };
 
   let failure: string | null = null;
+  let failureCode: string | undefined;
   try {
     // Runs only now that the session is reserved, because an edit rewinds the
     // conversation here and a rewind for a run that was never admitted cannot
@@ -314,7 +334,23 @@ async function dispatchRun(
     await dependencies.runtime.run(provider, command, runtimeOptions, run.writer);
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error);
-    console.error(`[Chat] Provider runtime "${provider}" failed`, { sessionId, error: failure });
+    if (error instanceof AppError && error.code === ADOPT_UNAVAILABLE_ERROR_CODE) {
+      // [local] The send asked to go into the held process, which still has
+      // background work and could not take it. Nothing was stopped and
+      // nothing was spawned; the sender learns which message it was (like
+      // STEER_UNAVAILABLE) so it can put it back and ask the user. The run
+      // still ends below with the safety-net complete.
+      failureCode = ADOPT_UNAVAILABLE_ERROR_CODE;
+      const details = (error.details ?? {}) as AnyRecord;
+      console.warn(`[Chat] Held process of session ${sessionId} could not be adopted:`, failure);
+      if (ws) {
+        sendProtocolError(ws, ADOPT_UNAVAILABLE_ERROR_CODE, failure, sessionId, {
+          messageId: typeof details.messageId === 'string' ? details.messageId : null,
+        });
+      }
+    } else {
+      console.error(`[Chat] Provider runtime "${provider}" failed`, { sessionId, error: failure });
+    }
   } finally {
     // Safety net: a runtime that crashed (or resolved) without emitting its
     // terminal `complete` would otherwise leave the session stuck in
@@ -324,7 +360,7 @@ async function dispatchRun(
     chatRunRegistry.completeRunIfCurrent(run, { exitCode: 1 });
   }
 
-  return { started: true, error: failure };
+  return failureCode ? { started: true, error: failure, code: failureCode } : { started: true, error: failure };
 }
 
 /**
@@ -587,8 +623,8 @@ async function handleChatEditSend(
 }
 
 // The id a steered message is tracked by becomes its transcript uuid, so it has
-// to be one.
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// to be one ([local] UUID_PATTERN moved to shared utils: the Claude runtime
+// checks the id of an adopting send against it too).
 
 /**
  * Handles `chat.steer`: delivers a message into the session's running turn
@@ -858,7 +894,9 @@ function handlePermissionResponse(data: AnyRecord, dependencies: ChatWebSocketDe
  *
  * Resolves when the provider run settles. Returns false when the session has
  * gone away or is busy without `interruptActiveRun`, which the caller reports
- * on the schedule.
+ * on the schedule. [local] `code` is `ADOPT_UNAVAILABLE` when the turn asked to
+ * adopt a held process (`options.adoptHeld`) that could not take it; nothing
+ * ran, so the queued-message dispatcher puts the message back.
  */
 export async function runDetachedChatTurn(
   input: {
@@ -874,7 +912,7 @@ export async function runDetachedChatTurn(
     interruptActiveRun?: boolean;
   },
   dependencies: ChatWebSocketDependencies,
-): Promise<{ started: boolean; error: string | null }> {
+): Promise<DispatchRunResult> {
   const session = sessionsDb.getSessionById(input.sessionId);
   if (!session) {
     return { started: false, error: 'The session no longer exists.' };

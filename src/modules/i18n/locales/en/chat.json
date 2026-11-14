@@ -290,6 +290,10 @@
     "sendAnyway": {
       "label": "Send anyway",
       "description": "Send now; this stops the background work"
+    },
+    "sendKeepsWork": {
+      "label": "Send",
+      "description": "Send now; the background work keeps running"
     }
   },
   "shell": {
@@ -354,7 +358,8 @@
         "cancel": "Cancel",
         "queue": "Queue",
         "sendAnyway": "Send anyway",
-        "sideQuestion": "Side question"
+        "sideQuestion": "Side question",
+        "adoptRefused": "This message could not join the running session without stopping its background work."
       }
     },
     "controls": {

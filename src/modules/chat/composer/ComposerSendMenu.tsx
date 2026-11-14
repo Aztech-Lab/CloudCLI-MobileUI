@@ -33,6 +33,14 @@ type ComposerSendMenuProps = {
   supportsSideQuestions?: boolean;
   /** Same gate for the Steer row: whether the provider can take a message into the turn being written. Only `responding` has a turn to steer, so the row never shows for background work. */
   supportsSteering?: boolean;
+  /**
+   * [local] Whether a send over background work joins the session's running
+   * process rather than stopping the work. Only changes the `background`
+   * state's last row: a plain Send, not destructive, that Enter also does.
+   * Defaults to false, so the row stays "Send anyway" for every provider and
+   * every message (an edit, a slash command) that still stops the work.
+   */
+  adoptsBackground?: boolean;
   /** Mirrors the composer's "send with Ctrl+Enter" setting, so Queue's hint names the key that actually sends; defaults to false, Enter-to-send, like the composer's own default. */
   sendByCtrlEnter?: boolean;
   onSelect: (choice: ComposerSendMenuChoice) => void;
@@ -58,7 +66,7 @@ function ShortcutHint({ children }: { children: string }) {
  * background-send dialog, so a tap on the first row can never stop or
  * override anything.
  */
-export default function ComposerSendMenu({ state, hasInput, hasText = hasInput, supportsSideQuestions = false, supportsSteering = false, canAbortSession = true, sendByCtrlEnter = false, onSelect }: ComposerSendMenuProps) {
+export default function ComposerSendMenu({ state, hasInput, hasText = hasInput, supportsSideQuestions = false, supportsSteering = false, adoptsBackground = false, canAbortSession = true, sendByCtrlEnter = false, onSelect }: ComposerSendMenuProps) {
   const { t } = useTranslation('chat');
   const [isOpen, setIsOpen] = useState(false);
   const close = useCallback(() => setIsOpen(false), []);
@@ -70,12 +78,20 @@ export default function ComposerSendMenu({ state, hasInput, hasText = hasInput, 
     onSelect(choice);
   };
 
+  // [local] Over background work, a send that joins the running process stops
+  // nothing: it is the plain Send, not the destructive "Send anyway".
+  const sendKeepsBackgroundWork = state === 'background' && adoptsBackground;
+  const enterShortcut = sendByCtrlEnter ? (isApplePlatform ? '⌘↵' : 'Ctrl+↵') : '↵';
   const lastLabel = state === 'responding'
     ? t('sendMenu.stop.label', { defaultValue: 'Stop' })
-    : t('sendMenu.sendAnyway.label', { defaultValue: 'Send anyway' });
+    : sendKeepsBackgroundWork
+      ? t('sendMenu.sendKeepsWork.label', { defaultValue: 'Send' })
+      : t('sendMenu.sendAnyway.label', { defaultValue: 'Send anyway' });
   const lastDescription = state === 'responding'
     ? t('sendMenu.stop.description', { defaultValue: 'End the response being written' })
-    : t('sendMenu.sendAnyway.description', { defaultValue: 'Send now; this stops the background work' });
+    : sendKeepsBackgroundWork
+      ? t('sendMenu.sendKeepsWork.description', { defaultValue: 'Send now; the background work keeps running' })
+      : t('sendMenu.sendAnyway.description', { defaultValue: 'Send now; this stops the background work' });
   const lastChoice: ComposerSendMenuChoice = state === 'responding' ? 'stop' : 'send';
   const queueDescription = state === 'responding'
     ? t('sendMenu.queue.descriptionResponding', { defaultValue: 'Send when this turn ends' })
@@ -83,12 +99,11 @@ export default function ComposerSendMenu({ state, hasInput, hasText = hasInput, 
   // Enter only queues while a turn is written; during background work it
   // opens the "send anyway?" confirm dialog instead, so Queue gets no hint
   // there, matching that row's own description above.
-  const queueShortcut = state === 'responding'
-    ? (sendByCtrlEnter ? (isApplePlatform ? '⌘↵' : 'Ctrl+↵') : '↵')
-    : null;
+  const queueShortcut = state === 'responding' ? enterShortcut : null;
   // Esc stops a running turn; background work has no key for Send anyway,
   // so the last row's hint follows the same gate as Queue's.
-  const lastShortcut = state === 'responding' ? 'esc' : null;
+  // [local] A send that keeps the work running is what Enter does there.
+  const lastShortcut = state === 'responding' ? 'esc' : sendKeepsBackgroundWork ? enterShortcut : null;
 
   return (
     <>
@@ -159,7 +174,7 @@ export default function ComposerSendMenu({ state, hasInput, hasText = hasInput, 
             description={lastDescription}
             trailing={lastShortcut ? <ShortcutHint>{lastShortcut}</ShortcutHint> : undefined}
             onSelect={() => select(lastChoice)}
-            destructive
+            destructive={!sendKeepsBackgroundWork}
           />
         </ComposerMenuSurface>,
         document.body,

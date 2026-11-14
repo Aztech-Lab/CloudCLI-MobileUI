@@ -140,6 +140,27 @@ export class ChatSessionWriter {
     this.connections.add(newConnection);
   }
 
+  /**
+   * [local] Takes over the open sockets of the writer this run replaces.
+   *
+   * Called by the Claude runtime when a send adopts a held process: from then
+   * on every event of that process (the adopted turn, task progress, relay
+   * turns, approvals) goes through this run's writer, so a tab that subscribed
+   * to the held run during its background work would otherwise freeze until
+   * it re-subscribed. Closed sockets are left behind. Anything that is not a
+   * `ChatSessionWriter` has no sockets to take and is ignored.
+   */
+  adoptConnectionsFrom(previous: unknown): void {
+    if (!(previous instanceof ChatSessionWriter) || previous === this) {
+      return;
+    }
+    for (const connection of previous.connections) {
+      if (connection.readyState === WS_OPEN_STATE) {
+        this.connections.add(connection);
+      }
+    }
+  }
+
   setSessionId(sessionId: string): void {
     this.captureProviderSessionId(sessionId);
   }

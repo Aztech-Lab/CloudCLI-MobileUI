@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { api, ApiRequestError } from '@/shared/api';
 import { PROVIDER_PERMISSION_PREFERENCE_KEYS } from '@/shared/constants';
 import { readUserPreference } from '@/shared/userSettings';
-import type { BackgroundSendChoice, BackgroundSendPrompt, CommandModalPayload, CostCommandData, HelpCommandData, MarkSessionProcessing, ModelCommandData, PendingSteer, QueuedDraft, SessionActivityMap, StatusCommandData, SteerOutcome,QueuedSendOptions,ChatAttachment,ChatMessage,PendingPermissionRequest,PermissionMode,SessionEstablishedContext,Project,ProjectSession,LLMProvider,SlashCommand } from '@/shared/types';
+import type { BackgroundSendChoice, BackgroundSendPrompt, BackgroundTaskSummary, CommandModalPayload, CostCommandData, HelpCommandData, MarkSessionBackground, MarkSessionProcessing, ModelCommandData, PendingSteer, QueuedDraft, SessionActivityMap, StatusCommandData, SteerOutcome,QueuedSendOptions,ChatAttachment,ChatMessage,PendingPermissionRequest,PermissionMode,SessionEstablishedContext,Project,ProjectSession,LLMProvider,SlashCommand } from '@/shared/types';
 import { grantClaudeToolPermission } from '@/modules/chat/utils/chatPermissions';
 import {
   appendQueuedMessage,
@@ -57,7 +57,18 @@ type UseChatComposerStateArgs = {
   sendByCtrlEnter?: boolean;
   /** From the capability matrix, like `supportsSideQuestions`: whether the provider can take a message into a running turn (`chat.steer`). Gates the send menu's Steer choice. */
   supportsSteering?: boolean;
+  /**
+   * [local] From the capability matrix, like `supportsSteering`: whether a
+   * message sent while the session's background work runs joins the process
+   * that work runs under, so the work keeps running. Such sends carry
+   * `adoptHeld` and skip the background-work dialog.
+   */
+  supportsBackgroundAdoption?: boolean;
   onSessionProcessing?: MarkSessionProcessing;
+  /** [local] Puts a session back to its background work when the server refused to add a message to it. */
+  onSessionBackground?: MarkSessionBackground;
+  /** [local] Withdraws one optimistic transcript row by id: the echo of a send the server refused before it became a turn. */
+  removeOptimisticMessage?: (sessionId: string, messageId: string) => void;
   /**
    * Invoked with the freshly allocated session id when the user sends the
    * first message of a brand-new conversation. The backend allocates the id
@@ -116,7 +127,37 @@ type SubmitOptions = {
    * Falls through to the ordinary send when no turn is running any more.
    */
   steerIntoTurn?: boolean;
+  /**
+   * [local] Asks the background-work question again for a message the server
+   * could not add to the session's running process (`ADOPT_UNAVAILABLE`). The
+   * message is back in the composer; these are its files (already uploaded)
+   * and the session's tasks. The dialog always opens, and its "send" no
+   * longer asks to join the process, so it stops the work as it says.
+   */
+  retryWithoutAdopting?: { attachments: File[]; uploadedAttachments: unknown[]; tasks: BackgroundTaskSummary[] };
 };
+
+/**
+ * [local] A send that asked to join the session's running process. Kept until
+ * the server can no longer refuse it, so a refusal can take the message back.
+ */
+type PendingAdoptedSend = {
+  sessionKey: string;
+  content: string;
+  /** Browser files kept so the message can go back into the composer intact. */
+  attachments: File[];
+  /** Their uploaded descriptors, reused if the message is sent again. */
+  uploadedAttachments: unknown[];
+  /** Id of the message's optimistic transcript row, withdrawn on a refusal. */
+  rowId: string;
+  /** The session's background tasks when it was sent, to put the session back to them. */
+  tasks: BackgroundTaskSummary[];
+  sentAt: number;
+};
+
+// [local] A refusal arrives within seconds of the send (the server answers
+// before the message becomes a turn); older records only take up memory.
+const PENDING_ADOPT_TTL_MS = 10 * 60 * 1000;
 
 const createFakeSubmitEvent = () => {
   return { preventDefault: () => undefined } as unknown as FormEvent<HTMLFormElement>;
@@ -273,7 +314,10 @@ export function useChatComposerState({
   supportsSideQuestions = false,
   sendByCtrlEnter,
   supportsSteering = false,
+  supportsBackgroundAdoption = false,
   onSessionProcessing,
+  onSessionBackground,
+  removeOptimisticMessage,
   onSessionEstablished,
   onFileOpen,
   onShowSettings,
@@ -315,6 +359,12 @@ export function useChatComposerState({
     };
   });
   const input = inputState.value;
+  // [local] Whether sending what the composer holds joins the session's
+  // running process, so its background work keeps running: the provider can,
+  // and the message is a plain one. An edit rewinds the conversation and a
+  // slash command is a turn of its own; both still replace the process. Read
+  // by the send menu, which says which of the two a send does.
+  const adoptsBackground = supportsBackgroundAdoption && !editingAnchorId && !input.trimStart().startsWith('/');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [fileErrors, setFileErrors] = useState<Map<string, string>>(new Map());
   const [isTextareaExpanded, setIsTextareaExpanded] = useState(false);
@@ -774,6 +824,25 @@ export function useChatComposerState({
     selectedSession,
   ]);
 
+  // [local] A message queued behind the turn being written, when it could join
+  // the session's running process, says so in its stored options: the server
+  // then sends it once that turn ends rather than after all background work.
+  // Added at each place a message is queued, not in `buildSendOptions`, which
+  // scheduled messages use too.
+  const withAdoptionWhenQueued = useCallback(
+    (options: QueuedSendOptions, content: string, editing: boolean): QueuedSendOptions => (
+      supportsBackgroundAdoption && !editing && !content.trimStart().startsWith('/')
+        ? { ...options, adoptHeld: true }
+        : options
+    ),
+    [supportsBackgroundAdoption],
+  );
+
+  // [local] Sends that asked to join the session's running process, by the
+  // message id they were sent with. A ref, not state: nothing renders from it;
+  // only a refusal reads it, from the realtime listener.
+  const pendingAdoptedSendsRef = useRef(new Map<string, PendingAdoptedSend>());
+
   // Read at send time through a ref: the map changes on every poll, and a
   // submit handler rebuilt that often would re-render the whole composer.
   const processingSessionsRef = useRef(processingSessions);
@@ -787,11 +856,13 @@ export function useChatComposerState({
   const backgroundSendResolverRef = useRef<((choice: BackgroundSendChoice) => void) | null>(null);
 
   const askBeforeSendingOverBackgroundWork = useCallback(
-    (work: string[]) => new Promise<BackgroundSendChoice>((resolve) => {
+    (work: string[], adoptRefused = false) => new Promise<BackgroundSendChoice>((resolve) => {
       // Only one prompt at a time: a stale one is answered "cancel".
       backgroundSendResolverRef.current?.('cancel');
       backgroundSendResolverRef.current = resolve;
-      setBackgroundSendPrompt({ work });
+      // [local] `adoptRefused`: the message came back from the server, which
+      // could not add it to the running process.
+      setBackgroundSendPrompt(adoptRefused ? { work, adoptRefused: true } : { work });
     }),
     [],
   );
@@ -1090,10 +1161,11 @@ export function useChatComposerState({
         content: steer.content,
         attachments: steer.attachments,
         uploadedAttachments: steer.uploadedAttachments,
-        options: buildSendOptions(steer.content),
+        // [local] A steer is never an edit.
+        options: withAdoptionWhenQueued(buildSendOptions(steer.content), steer.content, false),
       }, steer.sessionKey, { fromComposer: false });
     },
-    [buildSendOptions, queueMessage, updatePendingSteers],
+    [buildSendOptions, queueMessage, updatePendingSteers, withAdoptionWhenQueued],
   );
 
   // The run ended with a steered message the server took but the agent never
@@ -1144,9 +1216,12 @@ export function useChatComposerState({
       submitOptions?: SubmitOptions,
     ) => {
       event.preventDefault();
+      // [local] A message the server refused to add to the running process,
+      // asked about again: it is back in the composer, with its files.
+      const adoptRetry = submitOptions?.retryWithoutAdopting;
       const currentInput = queuedSubmission?.content ?? inputValueRef.current;
-      const currentAttachments = queuedSubmission?.attachments ?? attachedFiles;
-      const previouslyUploadedAttachments = queuedSubmission?.uploadedAttachments ?? [];
+      const currentAttachments = queuedSubmission?.attachments ?? adoptRetry?.attachments ?? attachedFiles;
+      const previouslyUploadedAttachments = queuedSubmission?.uploadedAttachments ?? adoptRetry?.uploadedAttachments ?? [];
       if (
         (
           !currentInput.trim()
@@ -1181,7 +1256,9 @@ export function useChatComposerState({
       // A turn is already in flight: stash this message instead of sending it.
       // Upload attached files now so the queued record contains durable image
       // descriptors that can be sent even if another session is open later.
-      if (isLoading) {
+      // [local] Not for the retry of a refused message: the turn its own send
+      // marked is the one that never started.
+      if (isLoading && !adoptRetry) {
         // A run can restart in the tiny gap between scheduling and flushing a
         // queued submission. Put the same durable draft back without uploading
         // its files again.
@@ -1227,7 +1304,7 @@ export function useChatComposerState({
           content: currentInput,
           attachments: currentAttachments,
           uploadedAttachments,
-          options: queuedOptions,
+          options: withAdoptionWhenQueued(queuedOptions, currentInput, Boolean(editingAnchorId)),
         }, queuedSessionKey);
         return;
       }
@@ -1343,16 +1420,30 @@ export function useChatComposerState({
         });
       }
 
+      // [local] Whether this send asks to join the session's running process,
+      // so the background work keeps running (`adoptsBackground`, for the
+      // message actually sent). Asked on every plain send, not only when this
+      // client knows of background work: what it knows can be stale, and with
+      // no process to join the server simply starts one. The retry of a
+      // refused message no longer asks.
+      const adoptHeld = supportsBackgroundAdoption
+        && !editingAnchorId
+        && !messageContent.trimStart().startsWith('/')
+        && !adoptRetry;
+
       // A new turn replaces the CLI process a session's background work runs
       // under: the agents, workflows and commands it still has going are
       // stopped, or finish where nothing is listening. Sending is the user's
       // call, but not one to make for them — and queueing behind the work,
       // which the server holds until it finishes, is the safe alternative.
+      // [local] A send that joins the process stops nothing, so it does not
+      // ask; a refused one always asks, whatever this client knows.
       const backgroundActivity = processingSessionsRef.current?.get(targetSessionId);
-      if (backgroundActivity?.background) {
-        const work = ownBackgroundTasks(backgroundActivity.tasks ?? [])
+      if (backgroundActivity?.background || adoptRetry) {
+        const work = ownBackgroundTasks(backgroundActivity?.tasks ?? adoptRetry?.tasks ?? [])
           .map((task) => describeBackgroundTask(task, t));
-        const choice = submitOptions?.presetBackgroundChoice ?? await askBeforeSendingOverBackgroundWork(work);
+        const choice = submitOptions?.presetBackgroundChoice
+          ?? (adoptHeld ? 'send' : await askBeforeSendingOverBackgroundWork(work, Boolean(adoptRetry)));
         if (choice === 'cancel') {
           return;
         }
@@ -1367,6 +1458,10 @@ export function useChatComposerState({
             return;
           }
           // Attachments were uploaded above; queue the same descriptors.
+          // [local] Never marked `adoptHeld`: this queue is the choice to wait
+          // for the background work to finish ("Send when the background work
+          // ends"), and the retry of a refused message cannot join the process.
+          // A mark would have the server send it at once instead.
           await queueMessage({
             content: currentInput,
             attachments: currentAttachments,
@@ -1376,6 +1471,12 @@ export function useChatComposerState({
           return;
         }
       }
+
+      // [local] A send that asks to join the running process carries its own
+      // id, which a refusal names; its echo is stored under an id derived
+      // from it, so the refusal can take the row back.
+      const adoptMessageId = adoptHeld ? createSteerMessageId() : null;
+      const adoptRowId = adoptMessageId ? `local_adopt_${adoptMessageId}` : null;
 
       const attachmentRecords = uploadedAttachments as ChatAttachment[];
       const userMessage: ChatMessage = {
@@ -1388,7 +1489,26 @@ export function useChatComposerState({
         // broadcasts a moment later cuts the turns being replaced without
         // taking the message the user just sent with them.
         ...(editingAnchorId ? { replacesAnchorId: editingAnchorId } : {}),
+        ...(adoptRowId ? { optimisticId: adoptRowId } : {}),
       };
+
+      if (adoptMessageId && adoptRowId) {
+        const now = Date.now();
+        for (const [id, pending] of pendingAdoptedSendsRef.current) {
+          if (now - pending.sentAt > PENDING_ADOPT_TTL_MS) {
+            pendingAdoptedSendsRef.current.delete(id);
+          }
+        }
+        pendingAdoptedSendsRef.current.set(adoptMessageId, {
+          sessionKey: targetSessionId,
+          content: currentInput,
+          attachments: currentAttachments,
+          uploadedAttachments,
+          rowId: adoptRowId,
+          tasks: backgroundActivity?.tasks ?? [],
+          sentAt: now,
+        });
+      }
 
       addMessage(userMessage);
       // Mark this request as processing in the per-session activity map (the
@@ -1416,6 +1536,12 @@ export function useChatComposerState({
         options: {
           ...(queuedSubmission?.options ?? buildSendOptions(messageContent)),
           attachments: uploadedAttachments,
+          // [local] Join the session's running process if it has one. The
+          // retry of a refused message says outright that it does not, as the
+          // user chose to send it anyway.
+          ...(adoptMessageId
+            ? { adoptHeld: true, messageId: adoptMessageId }
+            : adoptRetry ? { adoptHeld: false } : {}),
         },
       });
       // Only this send's edit: an edit begun in another chat during the upload stays.
@@ -1474,8 +1600,10 @@ export function useChatComposerState({
       setIsUserScrolledUp,
       slashCommands,
       steerIntoRunningTurn,
+      supportsBackgroundAdoption,
       supportsSteering,
       t,
+      withAdoptionWhenQueued,
     ],
   );
 
@@ -1531,6 +1659,57 @@ export function useChatComposerState({
   useEffect(() => {
     handleSubmitRef.current = handleSubmit;
   }, [handleSubmit]);
+
+  /**
+   * [local] The server could not add a message to the session's running
+   * process without stopping its background work (`ADOPT_UNAVAILABLE`), and
+   * started nothing for it. Used by ChatInterface, which hands it to the
+   * realtime handler. The message leaves the transcript and goes back into
+   * the composer with its files, the session goes back to its background
+   * work, and the background-work question is asked again: stopping that
+   * work is the user's call. Returns false for a message this composer did
+   * not send, which the handler then reports on its own.
+   */
+  const handleAdoptRefused = useCallback((sessionId: string, messageId: string): boolean => {
+    const refused = pendingAdoptedSendsRef.current.get(messageId);
+    if (!refused || refused.sessionKey !== sessionId) {
+      return false;
+    }
+    pendingAdoptedSendsRef.current.delete(messageId);
+    removeOptimisticMessage?.(sessionId, refused.rowId);
+
+    // Undo the send's processing mark: no turn runs for this message. The
+    // processing entry kept the session's tasks; without any, the run's
+    // `complete`, which follows the refusal, settles the session instead.
+    const tasks = processingSessionsRef.current?.get(sessionId)?.tasks ?? refused.tasks;
+    if (tasks.length > 0) {
+      onSessionBackground?.(sessionId, tasks);
+    }
+
+    // Ahead of anything typed since, as for a refused queue or an unread steer.
+    const withTypedSince = (typedSince: string) => (
+      [refused.content, typedSince].filter((part) => part.trim()).join('\n\n')
+    );
+    if (sessionKeyRef.current !== sessionId) {
+      // Another chat is open: the message waits in its own chat's draft.
+      // Browser files cannot follow it into a composer that is not open.
+      writeDraftText(sessionId, withTypedSince(readDraftText(sessionId)));
+      return true;
+    }
+    const restored = withTypedSince(inputValueRef.current);
+    setInput(restored);
+    inputValueRef.current = restored;
+    setAttachedFiles((current) => [...refused.attachments, ...current.filter((file) => !refused.attachments.includes(file))]);
+    writeDraftText(sessionId, restored);
+    void handleSubmitRef.current?.(createFakeSubmitEvent(), undefined, {
+      retryWithoutAdopting: {
+        attachments: refused.attachments,
+        uploadedAttachments: refused.uploadedAttachments,
+        tasks,
+      },
+    });
+    return true;
+  }, [onSessionBackground, removeOptimisticMessage, setInput]);
 
   // The VPS dispatcher owns sending. While the card is visible, periodically
   // reconcile it with the server, so the UI notices when the server claims it
@@ -1926,6 +2105,8 @@ export function useChatComposerState({
     deleteQueuedDraft,
     pendingSteers: visiblePendingSteers,
     handleSteerOutcome,
+    adoptsBackground,
+    handleAdoptRefused,
     handleVoiceTranscript,
     handleInputChange,
     handleKeyDown,

@@ -239,6 +239,11 @@
     },
     "providers": {
       "assistant": "Assistente"
+    },
+    "backgroundTask": {
+      "prompt": {
+        "adoptRefused": "Non è stato possibile aggiungere questo messaggio alla sessione in corso senza interromperne il lavoro in background."
+      }
     }
   },
   "projectSelection": {
@@ -303,5 +308,11 @@
     "customModelsOnlyHint": "Nasconde i modelli integrati di {{provider}} in tutti i selettori di modello e rende predefinito il tuo primo modello. I modelli integrati restano visibili finché non aggiungi un modello.",
     "builtInModelsHidden": "Nascosti nei selettori di modello finché «Usa solo i miei modelli» è attivo.",
     "customModelsOnlyFailed": "Impossibile modificare questa impostazione."
+  },
+  "sendMenu": {
+    "sendKeepsWork": {
+      "label": "Invia",
+      "description": "Invia ora; il lavoro in background continua"
+    }
   }
 }

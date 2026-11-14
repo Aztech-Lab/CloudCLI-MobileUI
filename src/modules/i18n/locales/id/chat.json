@@ -280,6 +280,11 @@
     },
     "providers": {
       "assistant": "Asisten"
+    },
+    "backgroundTask": {
+      "prompt": {
+        "adoptRefused": "Pesan ini tidak dapat ditambahkan ke sesi yang sedang berjalan tanpa menghentikan pekerjaan latar belakangnya."
+      }
     }
   },
   "projectSelection": {
@@ -390,5 +395,11 @@
     "customModelsOnlyHint": "Sembunyikan model bawaan {{provider}} dari semua pemilih model dan jadikan model pertama Anda sebagai default. Model bawaan tetap ditampilkan sampai Anda menambahkan model.",
     "builtInModelsHidden": "Disembunyikan dari pemilih model selama “Gunakan hanya model saya” aktif.",
     "customModelsOnlyFailed": "Pengaturan ini tidak dapat diubah."
+  },
+  "sendMenu": {
+    "sendKeepsWork": {
+      "label": "Kirim",
+      "description": "Kirim sekarang; pekerjaan latar belakang tetap berjalan"
+    }
   }
 }

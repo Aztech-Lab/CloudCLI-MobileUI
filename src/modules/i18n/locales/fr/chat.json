@@ -241,6 +241,11 @@
     },
     "providers": {
       "assistant": "Assistant"
+    },
+    "backgroundTask": {
+      "prompt": {
+        "adoptRefused": "Ce message n’a pas pu rejoindre la session en cours sans arrêter son travail en arrière-plan."
+      }
     }
   },
   "projectSelection": {
@@ -305,5 +310,11 @@
     "customModelsOnlyHint": "Masque les modèles intégrés de {{provider}} dans tous les sélecteurs de modèle et fait de votre premier modèle le modèle par défaut. Les modèles intégrés restent affichés tant que vous n'avez ajouté aucun modèle.",
     "builtInModelsHidden": "Masqués dans les sélecteurs de modèle tant que « Utiliser uniquement mes modèles » est activé.",
     "customModelsOnlyFailed": "Impossible de modifier ce paramètre."
+  },
+  "sendMenu": {
+    "sendKeepsWork": {
+      "label": "Envoyer",
+      "description": "Envoyer maintenant ; le travail en arrière-plan continue"
+    }
   }
 }
