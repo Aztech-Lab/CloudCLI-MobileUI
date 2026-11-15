@@ -11,29 +11,25 @@
 :root[data-skin="otsr"] {
   /* OTSR light: --bg #ebebe8, --ink #111312, --text #24261f, --muted #6f726a,
      --line #c7c8c0, --panel-solid #f4f4f1, --copper #b8793c, --danger #b4452f */
-  --background: 60 7% 92%;
-  --foreground: 69 10% 14%;
-  --card: 60 12% 95%;
-  --card-foreground: 69 10% 14%;
+  --background: 60 7% 92%;          /* --bg #ebebe8 */
+  --foreground: 77 10% 14%;         /* --text #24261f */
+  --card: 60 12% 95%;               /* --panel-solid #f4f4f1 */
+  --card-foreground: 77 10% 14%;
   --popover: 60 12% 95%;
-  --popover-foreground: 69 10% 14%;
-  /* OTSR's --copper (#b8793c) is a fill tone; as text on lab white, and under white
-     text on the primary buttons, it only reaches ~3:1. Darkened to #945e2b (signal.copperText in themes/otsr) for both. */
-  --primary: 29 55% 37%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 60 7% 88%;
-  --secondary-foreground: 69 10% 14%;
-  --muted: 60 7% 88%;
-  /* OTSR's --muted (#6f726a, 44% L) is only ~3.6:1 on its own panel fill; secondary text
-     uses this everywhere, so it is pulled to 37% for ≥4.5:1 on muted and background. */
-  --muted-foreground: 68 5% 37%;
-  --accent: 36 29% 84%;            /* copper-soft on lab white (OTSR --copper-soft, flattened) */
-  --accent-foreground: 69 10% 14%;
-  --destructive: 10 59% 45%;
+  --popover-foreground: 77 10% 14%;
+  --primary: 30 51% 48%;            /* --copper #b8793c; white on it, as OTSR .btn.copper */
+  --primary-foreground: 0 0% 100%;  /* --on-copper */
+  --secondary: 60 6% 88%;           /* --bg-2 #e2e2de */
+  --secondary-foreground: 77 10% 14%;
+  --muted: 60 6% 88%;
+  --muted-foreground: 83 4% 43%;    /* --muted #6f726a */
+  --accent: 33 27% 85%;             /* --copper-soft flattened on --bg: #e4dbd0 */
+  --accent-foreground: 77 10% 14%;
+  --destructive: 10 59% 45%;        /* --danger #b4452f */
   --destructive-foreground: 0 0% 100%;
-  --border: 64 7% 77%;
-  --input: 64 7% 77%;
-  --ring: 29 55% 37%;
+  --border: 67 7% 77%;              /* --line #c7c8c0 */
+  --input: 67 7% 77%;
+  --ring: 30 51% 48%;
 
   --nav-glass-bg: 60 12% 95% / 0.86;
   --nav-glass-blur: 14px;
@@ -41,21 +37,22 @@
   --nav-tab-glow: 31 51% 48% / 0.18;
   --nav-tab-ring: 31 51% 48% / 0.12;
   --nav-float-shadow: 45 14% 10% / 0.14;
-  --nav-float-ring: 64 7% 77% / 0.6;
-  --nav-divider-color: 64 7% 77% / 0.6;
-  --nav-input-bg: 60 7% 88% / 0.5;
+  --nav-float-ring: 67 7% 77% / 0.6;
+  --nav-divider-color: 67 7% 77% / 0.6;
+  --nav-input-bg: 60 6% 88% / 0.5;
   --nav-input-focus-ring: 31 51% 48% / 0.22;
 
-  /* Blue accents become copper; greys take OTSR's warm neutral scale. */
+  /* Blue accents become copper at the source values: 400 = --copper-2 #d9a25f, 500 and
+     600 = --copper #b8793c, 700 one step darker for emphasis text and hover; 50–300 are
+     tints of copper on lab white. Greys take OTSR's warm neutral scale. */
   --palette-blue-50: 251 243 232;
   --palette-blue-100: 244 229 206;
   --palette-blue-200: 236 211 170;
   --palette-blue-300: 226 185 126;
   --palette-blue-400: 217 162 95;
-  /* text-blue-500/600 are used as text and as white-text fills: the darker copper. */
-  --palette-blue-500: 148 94 43;
-  --palette-blue-600: 138 85 39;
-  --palette-blue-700: 115 70 32;
+  --palette-blue-500: 184 121 60;
+  --palette-blue-600: 184 121 60;
+  --palette-blue-700: 154 99 45;
   --palette-blue-800: 102 66 31;
   --palette-blue-900: 76 49 23;
   --palette-blue-950: 46 30 14;
@@ -96,62 +93,68 @@
   --otsr-dot-strong: rgba(20, 22, 20, 0.26);
   --otsr-chamfer: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
   --otsr-chamfer-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  --otsr-shadow: 0 20px 60px rgba(30, 28, 20, 0.14);   /* --shadow */
 }
 
 /* ---- tokens: dark ---------------------------------------------------------------- */
 :root[data-skin="otsr"].dark {
   /* OTSR dark: --bg #0f1112, --ink #f1f1ea, --text #e2e3dc, --muted #9ba09a,
      --line #2b302f, --panel-solid #161919, --copper #d9a25f, --danger #e8745a */
-  --background: 200 9% 6%;
-  --foreground: 69 11% 87%;
-  --card: 180 7% 9%;
-  --card-foreground: 69 11% 87%;
-  --popover: 180 7% 9%;
-  --popover-foreground: 69 11% 87%;
-  --primary: 33 62% 61%;
-  --primary-foreground: 69 10% 7%;
-  --secondary: 170 8% 14%;
-  --secondary-foreground: 69 11% 87%;
-  --muted: 170 8% 14%;
-  --muted-foreground: 110 3% 62%;
-  --accent: 35 20% 18%;            /* copper-soft on near-black, flattened */
-  --accent-foreground: 69 11% 87%;
-  --destructive: 11 76% 63%;
-  --destructive-foreground: 69 10% 7%;
-  --border: 168 8% 18%;
-  --input: 168 8% 22%;
+  --background: 200 9% 6%;          /* --bg #0f1112 */
+  --foreground: 69 11% 88%;         /* --text #e2e3dc */
+  --card: 180 6% 9%;                /* --panel-solid #161919 */
+  --card-foreground: 69 11% 88%;
+  --popover: 180 6% 9%;
+  --popover-foreground: 69 11% 88%;
+  --primary: 33 62% 61%;            /* --copper #d9a25f */
+  --primary-foreground: 150 6% 7%;  /* --on-copper #111312: black on the pale copper */
+  --secondary: 195 9% 9%;           /* --bg-2 #151819 */
+  --secondary-foreground: 69 11% 88%;
+  --muted: 195 9% 9%;
+  --muted-foreground: 110 3% 62%;   /* --muted #9ba09a */
+  --accent: 35 22% 15%;             /* --copper-soft flattened on --bg: #2f281e */
+  --accent-foreground: 69 11% 88%;
+  --destructive: 11 76% 63%;        /* --danger #e8745a */
+  --destructive-foreground: 150 6% 7%;
+  --border: 168 5% 18%;             /* --line #2b302f */
+  --input: 168 5% 18%;
   --ring: 33 62% 61%;
 
-  --nav-glass-bg: 180 7% 9% / 0.86;
+  --nav-glass-bg: 180 6% 9% / 0.86;
   --nav-tab-glow: 33 62% 61% / 0.25;
   --nav-tab-ring: 33 62% 61% / 0.15;
   --nav-float-shadow: 0 0% 0% / 0.5;
-  --nav-float-ring: 168 8% 18% / 0.4;
-  --nav-divider-color: 168 8% 18% / 0.6;
-  --nav-input-bg: 170 8% 14% / 0.5;
+  --nav-float-ring: 168 5% 18% / 0.4;
+  --nav-divider-color: 168 5% 18% / 0.6;
+  --nav-input-bg: 195 9% 9% / 0.5;
   --nav-input-focus-ring: 33 62% 61% / 0.25;
 
+  /* Dark copper: --copper #d9a25f at 400–600, --copper-2 #f0c389 at 300 and 700, so a
+     hover (bg-blue-700) brightens as OTSR's .btn.copper:hover does. White text on these
+     fills is turned black by the rule at the end of this file. */
   --palette-blue-300: 240 195 137;
-  --palette-blue-400: 230 178 112;
-  /* Components put white text straight on bg-blue-500/600 (bypassing --primary-foreground).
-     OTSR puts BLACK on its pale copper, so the pale tone stays in -300/-400 and --primary;
-     these two slots get a copper deep enough for white text (≈5:1). */
-  --palette-blue-500: 138 90 43;
-  --palette-blue-600: 122 78 36;
+  --palette-blue-400: 217 162 95;
+  --palette-blue-500: 217 162 95;
+  --palette-blue-600: 217 162 95;
+  --palette-blue-700: 240 195 137;
   --palette-gray-700: 43 48 47;
   --palette-gray-800: 22 25 25;
   --palette-gray-900: 21 24 25;
   --palette-gray-950: 15 17 18;
-  --palette-green-400: 143 191 122;
-  --palette-green-500: 79 122 74;   /* white-text fills: OTSR's light --ok, not the pale dark one */
+  --palette-green-400: 143 191 122;  /* --ok #8fbf7a; black text on it, see the end */
+  --palette-green-500: 143 191 122;
+  --palette-green-600: 143 191 122;
   --palette-emerald-400: 143 191 122;
-  --palette-emerald-500: 79 122 74;
+  --palette-emerald-500: 143 191 122;
+  --palette-emerald-600: 143 191 122;
   --palette-red-400: 232 116 90;
   --palette-red-500: 232 116 90;
 
   --dark-surface: 15 17 18;
   --dark-option-bg: 22 25 25;
   --dark-option-fg: 226 227 220;
+
+  --otsr-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 
   --terminal-dark-background: #0f1112;
   --terminal-dark-foreground: #e2e3dc;
@@ -231,10 +234,21 @@
   background-image: none;
 }
 
-/* Panels: a hairline instead of a soft shadow. */
+/* Elevation: OTSR's floating panels have a hairline and its one soft shadow (--shadow);
+   nothing has a small shadow. */
 [data-skin="otsr"] .shadow-sm,
-[data-skin="otsr"] .shadow-md,
+[data-skin="otsr"] .shadow-md {
+  box-shadow: none;
+}
 [data-skin="otsr"] .shadow-lg,
 [data-skin="otsr"] .shadow-xl {
-  box-shadow: none;
+  box-shadow: var(--otsr-shadow);
+}
+
+/* OTSR puts BLACK on copper and on green in dark mode (its --on-copper), because the dark
+   tones are pale. Components here put white on bg-blue-500/600 and bg-green-500 directly;
+   keep the real colour and swap the letters instead of darkening the fill. */
+[data-skin="otsr"].dark :is(.bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-green-500, .bg-green-600, .bg-emerald-500, .bg-emerald-600):is(.text-white, .text-primary-foreground),
+[data-skin="otsr"].dark :is(.bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-green-500, .bg-green-600, .bg-emerald-500, .bg-emerald-600) :is(.text-white, .text-primary-foreground) {
+  color: #111312;
 }
