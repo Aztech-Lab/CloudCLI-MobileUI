@@ -27,27 +27,97 @@ Notes:
 - The palette is the lever for the ~2,500 hard-coded Tailwind colour classes in the components: remapping
   `--palette-blue-*` recolours every blue accent, `--palette-gray-*` every grey surface and text, and so on.
 
-## Writing a theme (sketch)
+## Skins
 
-A theme is a stylesheet that overrides tokens under a selector of its own, with a dark variant where needed:
+A **skin** is a stylesheet that overrides the tokens above. It is layered on the light/dark mode: light and dark
+both keep working under every skin, and a skin provides values for each.
+
+### How a skin is selected
+
+- The chosen skin is the `skin` user preference (`src/shared/userSettings.ts`), stored like `theme`, so it follows
+  the user across devices. Valid ids are the `SKIN_IDS` registry in `src/shared/skin.ts`; anything else resolves to
+  `default`.
+- `SkinProvider` (`src/shared/context/SkinContext.tsx`, mounted beside `ThemeProvider`) applies it as
+  **`data-skin="<id>"` on `<html>`**. The default skin *removes* the attribute, so the unthemed stylesheet needs no
+  selector and is exactly the default look.
+- `index.html` has a boot script that applies the mirrored `skin` (and its options, below) from localStorage before
+  React mounts, so the page never flashes the default look.
+- The skin stylesheets live in `src/skins/<id>.css` and are imported in `src/main.tsx` **after** `index.css`, so
+  their overrides win.
+
+The stylesheet keys on the attribute, with the app's normal `.dark` class for dark mode:
 
 ```css
-:root[data-theme-skin="example"] {
-  --primary: 31 51% 48%;
-  --palette-blue-500: 184 121 60;      /* blue accents become copper */
+:root[data-skin="example"] {
+  --primary: 30 55% 39%;
+  --palette-blue-500: 154 95 44;       /* blue accents become copper */
   --radius: 0.125rem;
   --radius-xl: 0.125rem;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
-:root.dark[data-theme-skin="example"] {
-  --background: 200 9% 7%;
+:root[data-skin="example"].dark {
+  --background: 200 9% 6%;
   --terminal-dark-background: #0f1112;
   --app-theme-color-dark: #0f1112;
 }
 ```
 
-How a theme is selected (setting, attribute, boot script) is not part of the token layer; it belongs to the change
-that adds the first theme.
+`src/skins/otsr.css` is the complete worked example.
+
+### Skin options
+
+A skin can expose dials for its own signature elements (how strong a background texture is, whether edges are
+chamfered, …). Options are **declared as data**, in `SKIN_OPTIONS` in `src/shared/skinOptions.ts`:
+
+```ts
+{ id: 'dotField', kind: 'select', default: 'faint', choices: [{ value: 'off' }, { value: 'faint' }, { value: 'normal' }, { value: 'strong' }] },
+{ id: 'chamfers', kind: 'toggle', default: true },
+```
+
+- The Settings › Appearance › Skin card renders the controls **from the declaration** (a toggle per `toggle`, a
+  `<select>` per `select`); no UI code per option. A skin with no options shows no card.
+- Each option is applied as **`data-skin-<kebab-id>="<value>"` on `<html>`** (`dotField` → `data-skin-dot-field`),
+  by `SkinProvider` and by the `index.html` boot script. The stylesheet keys on it:
+
+  ```css
+  [data-skin="otsr"][data-skin-dot-field="off"] .chat-messages-pane { background-image: none; }
+  [data-skin="otsr"]:not([data-skin-chamfers="false"]) [role="tablist"] { clip-path: var(--otsr-chamfer-sm); }
+  ```
+
+  Write selectors so that a **missing attribute means the default** (`:not([…="false"])`, or a rule for both the
+  absent attribute and the default value). That is what keeps the default skin's built CSS a zero-diff against
+  the unthemed stylesheet.
+- Values are stored per skin under the `skinOptions` preference (`{ otsr: { dotField: 'faint' } }`), so switching
+  skins keeps each one's settings. Only declared options with declared values are read, written or applied; anything
+  else falls back to the option's default.
+
+### i18n
+
+Labels live in `src/modules/i18n/locales/<locale>/settings.json` under `appearanceSettings`:
+
+- `skin.<id>` — the skin's name in the Skin select (`skin.label` / `skin.description` are the select's own).
+- `skinOptions.<skin>.<option>.label`, `.description`, and one key per select choice value
+  (`skinOptions.otsr.dotField.faint`).
+
+Every string is read with a `defaultValue`, so a locale that lacks a key falls back to English rather than showing
+the key. Translate at least `en`, `zh-CN` and `zh-TW`.
+
+### Adding a skin — checklist
+
+1. `src/shared/skin.ts`: add the id to `SKIN_IDS`.
+2. `src/skins/<id>.css`: the token overrides, `:root[data-skin="<id>"]` plus a `.dark` variant. Start from
+   `src/skins/otsr.css`. Prefer overriding tokens over adding selectors on components; keep any signature rules on
+   stable hooks (`role="tablist"`, `.chat-composer-shell`, `.chat-messages-pane`, …).
+3. `src/main.tsx`: `import '@/skins/<id>.css'` after `index.css`.
+4. `src/shared/skinOptions.ts`: add `SKIN_OPTIONS.<id>` (an empty array if the skin has no options).
+5. `src/modules/i18n/locales/*/settings.json`: `appearanceSettings.skin.<id>` and, if there are options,
+   `appearanceSettings.skinOptions.<id>.*`.
+6. Check contrast: run the components' real text/background pairs through the skin's resolved tokens (the OTSR
+   skin did this; copper as text and white-on-copper both needed darker shades than the source design uses).
+7. Verify the default skin is untouched: build, strip the `[data-skin…]` rules from the output, and set-diff the
+   declarations against a build of `main` (see below). Expect zero added and zero removed.
+8. `npx vitest run` stays green; `src/shared/tests/skin.test.tsx` and `skinOptions.test.tsx` cover the registry,
+   the store and the attributes.
 
 ## Not themeable yet
 
