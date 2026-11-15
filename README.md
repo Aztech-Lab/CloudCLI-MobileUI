@@ -1,30 +1,36 @@
 # CloudCLI-Mobile
 
-**Run Claude Code on your own computer and drive it from your phone.**
+**Run Claude Code on your own computer. Drive it from your phone.**
 
-CloudCLI-Mobile is a self-hosted web UI for [Claude Code](https://docs.anthropic.com/en/docs/claude-code), tuned for one setup: the agent runs on a machine at home or in the lab, and you use it from a phone or tablet — over your LAN or a VPN, in the browser or as a home-screen web app.
+CloudCLI-Mobile is a self-hosted web UI for [Claude Code](https://docs.anthropic.com/en/docs/claude-code), tuned for one setup: the agent runs on a machine at home or in the lab, and you use it from a phone or tablet over your LAN or a VPN — in the browser or as a home-screen web app.
 
-It is a downstream fork of [CloudCLI / claudecodeui](https://github.com/siteboon/claudecodeui) by Siteboon. The upstream project does the heavy lifting (chat, sessions, file browser, git, terminal, multiple providers); this fork adds the changes that make it pleasant and safe to use from a phone. It is independent and not affiliated with upstream — please report problems with this fork [here](https://github.com/Aztech-Lab/CloudCLI-Mobile/issues), not upstream.
+It is a downstream fork of [CloudCLI (claudecodeui)](https://github.com/siteboon/claudecodeui) by Siteboon. Upstream provides the foundation — chat, sessions, file browser, git, terminal, multiple providers. This fork adds what makes it comfortable and safe to use from a phone. It is independent and not affiliated with upstream: report problems with this fork [here](https://github.com/Aztech-Lab/CloudCLI-Mobile/issues), not upstream.
 
-## What this fork changes
+**Current base:** upstream `1.37.8` · **Latest update:** 2026-11-15 · [Changelog](#changelog)
 
-### Keep working while background agents run *(in review — [PR #1](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/1))*
-Send a subagent off on a long job (a literature search, a test run) and keep talking to the main thread. Your new message goes into the live Claude Code process as a new turn; background agents keep running and report back when done — the same as the official CLI. Upstream stops the background work when you send. Stop only ends the current turn; model, permission-mode and effort changes are applied to the running process.
+---
 
-### Smooth scrolling on phones
-Long chats scroll up without stutter on iOS and Android (messages that were never on screen no longer resize under your finger).
+## Highlights
 
-### iPhone home-screen app
-The iOS standalone web app fills the whole screen (no blank band at the bottom) and the header sits right under the status bar.
+### On the phone
+- **Swipe between tabs** — swipe left/right anywhere to move between Chat, Files, Git and Shell; swipe right on Chat (or on the home screen) to open the menu. Edge swipes stay with the system back gesture, and code blocks and tables scroll first.
+- **Pick up where you left off** — the home screen lists your five most recent conversations and their projects; one tap to continue.
+- **Smooth scrolling** — long conversations scroll up without stutter on iOS and Android.
+- **Full-screen iPhone app** — added to the home screen, the app fills the whole display with no blank band at the bottom.
 
-### Files from anywhere on the machine
-Open files the agent mentions even when they live outside your home folder (other drives, data directories) — read-only, configured by you.
+### Look and feel
+- **Skins** — *Settings › Appearance › Skin*. Ships with **OTSR**: lab white / near-black, a copper accent, square corners with chamfered edges, monospace labels. Works in light and dark mode.
+- **Per-skin options** — each skin exposes its own dials (for OTSR: dot-field strength, chamfers, mono labels, square status marks), saved per skin and synced across your devices.
+- **Theme-ready UI** — every colour, radius and font is a design token, so a new skin is a list of overrides with no component changes ([docs/fork/THEMING.md](docs/fork/THEMING.md)).
 
-### Big projects in the file tree
-Projects with tens of thousands of files no longer fail to show: the tree loads what fits and fetches the rest of a folder when you open it.
+### Working with Claude
+- **The real model list** — the model picker shows exactly what Claude Code offers your account (the same list as `/model`), instead of a fixed list that goes stale.
 
-### The real model list
-The model picker shows exactly what Claude Code itself offers for your account (same as `/model`), instead of a fixed list that goes stale.
+### Files
+- **Files from anywhere on the machine** — open files the agent mentions even outside your home folder (other drives, data directories), read-only, limited to folders you configure.
+- **Big projects** — projects with tens of thousands of files still show their tree; folders that did not fit load when you open them.
+
+---
 
 ## Install
 
@@ -38,13 +44,15 @@ npm run build
 npm run server
 ```
 
-Open `http://<host-ip>:3001` from your phone and create the single admin account on first visit (do this before exposing the port — the first visitor becomes the admin).
+Open `http://<host-ip>:3001` and create the single admin account on the first visit. **Do this before exposing the port** — the first visitor becomes the admin.
 
-On iOS, use **Share → Add to Home Screen** for the full-screen app.
+On iOS, use **Share › Add to Home Screen** for the full-screen app.
+
+Do not run `cloudcli update` on an install built from this repo — it replaces it with the upstream build.
 
 ## Configuration
 
-Set these as environment variables before starting the server.
+Environment variables, set before starting the server:
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -52,37 +60,61 @@ Set these as environment variables before starting the server.
 | `HOST` | `0.0.0.0` | Bind address (`127.0.0.1` = this machine only) |
 | `CLAUDE_CLI_PATH` | `claude` | Path to the Claude Code executable |
 | `DATABASE_PATH` | `~/.cloudcli/auth.db` | Login database |
-| `CLOUDCLI_EXTRA_READ_ROOTS` | — | Extra folders the in-chat file viewer may read, separated by `;` (Windows) — e.g. `E:\Projects;F:\Data` |
+| `CLOUDCLI_EXTRA_READ_ROOTS` | — | Extra folders the in-chat file viewer may read, separated by `;` (e.g. `E:\Projects;F:\Data`) |
 | `CLOUDCLI_FILE_TREE_MAX_ENTRIES` | `10000` | How many entries the file tree loads up front |
-| `CLAUDE_TOOL_APPROVAL_TIMEOUT_MS` | `55000` | How long a tool-approval prompt waits before it is denied; raise it if you approve from your phone later |
+| `CLAUDE_TOOL_APPROVAL_TIMEOUT_MS` | `55000` | How long a tool-approval prompt waits before it is denied — raise it if you approve from your phone later |
 
 ## Using it safely from a phone
 
 Logging in to CloudCLI gives the same power as a shell on the host.
 
-- It serves **plain HTTP**. Use it on your own LAN or through an encrypted VPN (IPsec, WireGuard, Tailscale). Do not forward the port to the internet, and avoid PPTP (its encryption is broken).
+- It serves **plain HTTP**. Use it on your own network or through an encrypted VPN (IPsec, WireGuard, Tailscale). Do not forward the port to the internet, and avoid PPTP (its encryption is broken).
 - Restrict the port with a firewall to the networks you actually use.
-- Use a strong password — there is no rate limit on login attempts.
+- Use a strong password — there is no limit on login attempts.
 - In the tool settings (gear icon), allow only the tools you need.
+
+---
+
+## Changelog
+
+Newest first. Each entry links to the pull request with the full details and how it was verified.
+
+### In review
+- **Keep working while background agents run** — send a subagent off on a long job and keep talking to the main thread; your message goes into the live Claude Code process as a new turn while background agents keep running, like the official CLI (upstream stops them). Stop ends only the current turn. — [#1](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/1)
+
+### 2026-11-15
+- **Added** Per-skin options, declared by each skin and rendered in Settings automatically; OTSR gets dot field (off / faint / normal / strong), chamfers, mono labels and square marks. The OTSR dot field is softer by default. — [#6](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/6)
+
+### 2026-11-14
+- **Added** Skin setting and the OTSR skin (light + dark), applied before the page renders so there is no flash. — [#5](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/5)
+- **Changed** The UI is theme-ready: colours, radii and fonts are design tokens. No visible change — verified declaration-by-declaration against the previous stylesheet. — [#4](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/4)
+- **Added** Home screen "pick up where you left off": recent conversations and projects. — [#3](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/3)
+- **Added** Swipe anywhere to switch workspace tabs; swipe back on Chat or the home screen opens the menu. **Changed** the Shell tab moves to the end of the tab strip. — [#2](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/2)
+- **Fixed** Stuttering upward scroll in long chats on touch devices.
+- **Fixed** Blank band at the bottom of the iOS home-screen app; header tucked under the status bar.
+- **Added** Model picker shows the list Claude Code itself reports.
+- **Added** Read-only extra roots for the file viewer (`CLOUDCLI_EXTRA_READ_ROOTS`); configurable file-tree cap (`CLOUDCLI_FILE_TREE_MAX_ENTRIES`) with on-demand loading of folders that did not fit.
+- Fork created from upstream `1.37.8`.
+
+---
 
 ## Staying current with upstream
 
-This fork only **pulls** from upstream; it never pushes, opens pull requests, or files issues there. `main` = upstream + this fork's changes, `upstream-main` is an untouched mirror.
+This fork only **pulls** from upstream; it never pushes, opens pull requests, or files issues there. `main` = upstream + this fork's changes; `upstream-main` is an untouched mirror of upstream.
 
 ```bash
 git remote add upstream https://github.com/siteboon/claudecodeui.git
+git config merge.ours.driver true          # once per clone: keeps this README on merges
 git fetch upstream
 git checkout upstream-main && git merge --ff-only upstream/main
 git checkout main && git merge upstream-main
 ```
 
-Every change in this fork is a separate commit and is marked `[local]` in the code, so other projects can take just the pieces they want. To keep this README during merges, enable the bundled merge rule once per clone: `git config merge.ours.driver true`.
-
-Do not run `cloudcli update` on an install built from this repo — it replaces it with the upstream build.
+Every change in this fork is its own commit and is marked `[local]` in the code, so other projects can take just the pieces they want.
 
 ## Contributing
 
-One change per branch, merged into `main` through a pull request — see [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md).
+One change per branch, merged into `main` through a pull request — see [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md). Describe the change in the pull request; the maintainer adds the changelog entry here when merging (do not edit this README in a feature branch — merges keep the `main` version).
 
 ## License
 
