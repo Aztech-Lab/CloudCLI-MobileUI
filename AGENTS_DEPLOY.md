@@ -1,4 +1,4 @@
-# DEPLOY.md — instructions for agents
+# AGENTS_DEPLOY.md — deployment instructions for agents
 
 Audience: an AI agent (or a technical human) installing, configuring, updating or troubleshooting CloudCLI-MobileUI on a user's machine. Every step has a command and a check. Follow the steps in order, stop at every **ASK THE USER** marker, and report the final state using the template at the end.
 

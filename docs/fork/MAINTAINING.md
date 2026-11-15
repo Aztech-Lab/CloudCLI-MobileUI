@@ -1,6 +1,6 @@
 # Maintaining CloudCLI-MobileUI
 
-For the maintainer who merges changes and imports upstream releases. Contributors only need [SESSION-GUIDE.md](SESSION-GUIDE.md); deployers only need [DEPLOY.md](../../DEPLOY.md).
+For the maintainer who merges changes and imports upstream releases. Contributors only need [SESSION-GUIDE.md](SESSION-GUIDE.md); deployers only need [AGENTS_DEPLOY.md](../../AGENTS_DEPLOY.md).
 
 ## Branches
 
@@ -14,7 +14,7 @@ This project only pulls from [siteboon/claudecodeui](https://github.com/siteboon
 
 ```bash
 git remote add upstream https://github.com/siteboon/claudecodeui.git   # once
-git config merge.ours.driver true                                      # once: keeps our README on merges
+git config merge.ours.driver true                                      # once: keeps our README and CONTRIBUTING on merges
 git fetch upstream
 git checkout upstream-snapshots
 git read-tree -u --reset upstream/main     # replace the snapshot with the new upstream code
@@ -24,7 +24,7 @@ git checkout main
 git merge upstream-snapshots               # 3-way merge against the previous snapshot
 ```
 
-Resolve conflicts, run the tests and the build, then update the README's "What's new" and push `main`. Always push named branches; never push tags.
+Resolve conflicts, run the tests and the build, then update the README's "What's new" and its "based on CloudCLI" badge, and push `main`. Always push named branches; never push tags.
 
 ## Merging a pull request
 
@@ -34,3 +34,7 @@ Resolve conflicts, run the tests and the build, then update the README's "What's
 4. Push `main`.
 
 Every change is its own commit and is marked `[local]` in the code, so others can take individual pieces.
+
+## README artwork
+
+The pictures in the README (`docs/assets/*.svg`, light and dark) and the GitHub social preview (`docs/assets/social-preview.png`) are generated. Edit `docs/assets/build-readme-art.mjs`, not the SVGs, then run `node docs/assets/build-readme-art.mjs` (add `--png <dir>` to get PNG copies for review). The social preview is uploaded by hand under Settings → General → Social preview.

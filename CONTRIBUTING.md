@@ -1,156 +1,70 @@
-# Contributing to CloudCLI UI
+# Contributing to CloudCLI-MobileUI
 
-Thanks for your interest in contributing to CloudCLI UI! Before you start, please take a moment to read through this guide.
+Thank you for helping. CloudCLI-MobileUI is a self-hosted web interface for Claude Code, made for phones and built on [CloudCLI](https://github.com/siteboon/claudecodeui). Help of any size is welcome: bug reports, testing on your own phone, translations, skins, documentation and code.
 
-## Before You Start
+**Please open issues and pull requests in this repository** ([Aztech-Lab/CloudCLI-MobileUI](https://github.com/Aztech-Lab/CloudCLI-MobileUI)), not in the original CloudCLI repository. This is an independent project, and the CloudCLI authors should not receive reports about our changes.
 
-- **Search first.** Check [existing issues](https://github.com/siteboon/claudecodeui/issues) and [pull requests](https://github.com/siteboon/claudecodeui/pulls) to avoid duplicating work.
-- **Discuss first** for new features. Open an [issue](https://github.com/siteboon/claudecodeui/issues/new) to discuss your idea before investing time in implementation. We may already have plans or opinions on how it should work.
-- **Bug fixes are always welcome.** If you spot a bug, feel free to open a PR directly.
+## Ways to help
 
-## Prerequisites
+- **Report a bug.** [Open an issue](https://github.com/Aztech-Lab/CloudCLI-MobileUI/issues/new/choose) and say which phone and browser you used, and whether you opened the page in the browser or from the home screen.
+- **Test on a real phone**, especially Android phones and tablets. Most testing so far has been on iPhones.
+- **Translate.** Missing strings are in `src/modules/i18n/locales/<language>/*.json`; English (`en`) is the reference.
+- **Design a skin.** [docs/fork/THEMING.md](docs/fork/THEMING.md) explains the design tokens a skin can set.
+- **Fix or build something** from the [Help wanted](README.md#help-wanted) list or the open issues.
 
-- [Node.js](https://nodejs.org/) 22 or later
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and configured
+For a bigger change, please open an issue first so that we can agree on the approach before you spend time on it.
 
-## Getting Started
+## Setting up
 
-1. Fork the repository
-2. Clone your fork:
-   ```bash
-   git clone https://github.com/<your-username>/claudecodeui.git
-   cd claudecodeui
-   ```
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
-5. Create a branch for your changes:
-   ```bash
-   git checkout -b feat/your-feature-name
-   ```
-
-## Project Structure
-
-```
-claudecodeui/
-├── src/              # React frontend (Vite + Tailwind)
-│   ├── components/   # UI components
-│   ├── contexts/     # React context providers
-│   ├── hooks/        # Custom React hooks
-│   ├── i18n/         # Internationalization and translations
-│   ├── lib/          # Shared frontend libraries
-│   ├── types/        # TypeScript type definitions
-│   └── utils/        # Frontend utilities
-├── server/           # Express backend
-│   ├── routes/       # API route handlers
-│   ├── middleware/    # Express middleware
-│   ├── database/     # SQLite database layer
-│   └── tools/        # CLI tool integrations
-├── shared/           # Code shared between client and server
-└── public/           # Static assets, icons, PWA manifest
-```
-
-## Development Workflow
-
-- `npm run dev` — Start both the frontend and backend in development mode
-- `npm run build` — Create a production build
-- `npm run server` — Start only the backend server
-- `npm run client` — Start only the Vite dev server
-
-## Making Changes
-
-### Bug Fixes
-
-- Reference the issue number in your PR if one exists
-- Describe how to reproduce the bug in your PR description
-- Add a screenshot or recording for visual bugs
-
-### New Features
-
-- Keep the scope focused — one feature per PR
-- Include screenshots or recordings for UI changes
-
-### Documentation
-
-- Documentation improvements are always welcome
-- Keep language clear and concise
-
-## Commit Convention
-
-We follow [Conventional Commits](https://conventionalcommits.org/) to generate release notes automatically. Every commit message should follow this format:
-
-```
-<type>(optional scope): <description>
-```
-
-Use imperative, present tense: "add feature" not "added feature" or "adds feature".
-
-### Types
-
-| Type | Description |
-|------|-------------|
-| `feat` | A new feature |
-| `fix` | A bug fix |
-| `perf` | A performance improvement |
-| `refactor` | Code change that neither fixes a bug nor adds a feature |
-| `docs` | Documentation only |
-| `style` | CSS, formatting, visual changes |
-| `chore` | Maintenance, dependencies, config |
-| `ci` | CI/CD pipeline changes |
-| `test` | Adding or updating tests |
-| `build` | Build system changes |
-
-### Examples
+You need [Node.js](https://nodejs.org) 22 or newer and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and logged in. Fork the repository on GitHub, then:
 
 ```bash
-feat: add conversation search
-feat(i18n): add Japanese language support
-fix: redirect unauthenticated users to login
-fix(editor): syntax highlighting for .env files
-perf: lazy load code editor component
-refactor(chat): extract message list component
-docs: update API configuration guide
+git clone https://github.com/<you>/CloudCLI-MobileUI.git
+cd CloudCLI-MobileUI
+npm install
+npm run dev        # server and interface together, in development mode
 ```
 
-### Breaking Changes
+`npm run server` and `npm run client` start one side only, and `npm run build` makes a production build.
 
-Add `!` after the type or include `BREAKING CHANGE:` in the commit footer:
+## Making a change
+
+- **One change per pull request**, on its own branch from `main` (`fix/<name>` or `feat/<name>`). Everything your change is not about should keep working as before.
+- **Mark edits to the original CloudCLI code** with a short `[local]` comment, so that others can find and reuse individual changes.
+- **Add or update tests** that fail without your change.
+- **Leave `README.md` alone.** The maintainer writes the "What's new" entry when merging. Put a one-line, user-facing summary in your pull request instead.
+- **Keep personal details out**: no IP addresses, local paths, credentials, `.env` files or databases.
+
+Before you open the pull request, run:
 
 ```bash
-feat!: redesign settings page layout
+npm run typecheck                 # TypeScript, interface and server
+npx oxlint <changed files>        # the pre-commit hook runs this too
+npx vitest run                    # interface tests; fast, and should stay green
+npx tsx --tsconfig server/tsconfig.json --test <server test files for your area>
+npm run build
 ```
 
-## Pull Requests
+The full server suite (`npm test`) can hang in some environments. Running the test files for the area you changed is fine; say which ones in the pull request.
 
-- Give your PR a clear, descriptive title following the commit convention above
-- Fill in the PR description with what changed and why
-- Link any related issues
-- Include screenshots for UI changes
-- Make sure the build passes (`npm run build`)
-- Keep PRs focused — avoid unrelated changes
+## Commit messages
 
-## Releases
+Commits follow [Conventional Commits](https://conventionalcommits.org/), checked by commitlint: `<type>(optional scope): <description>`, with a lowercase description in the imperative mood. For example:
 
-Releases are managed by maintainers using [release-it](https://github.com/release-it/release-it) with the [conventional changelog plugin](https://github.com/release-it/conventional-changelog).
-
-```bash
-npm run release           # interactive (prompts for version bump)
-npm run release -- patch  # patch release
-npm run release -- minor  # minor release
+```
+fix(chat): keep the scroll position when the phone rotates
+feat(skins): add a high-contrast skin
+docs: explain the skin tokens for buttons
 ```
 
-This automatically:
-- Bumps the version based on commit types (`feat` = minor, `fix` = patch)
-- Generates categorized release notes
-- Updates `CHANGELOG.md`
-- Creates a git tag and GitHub Release
-- Publishes to npm
+Common types are `feat`, `fix`, `perf`, `refactor`, `docs`, `style`, `test` and `chore`.
+
+## Pull requests
+
+Open the pull request against `main` of this repository. The template asks what changed and why, which areas it touches, how you tested it, and whether the server needs a restart. Screenshots or a short screen recording help a lot for anything visible. A maintainer reviews and merges it and lists it under "What's new" in the README.
+
+AI coding agents working on this repository should also follow [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md).
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [AGPL-3.0-or-later License](LICENSE), including the additional terms specified in Section 7 of the LICENSE file.
+By contributing, you agree that your contributions are licensed under the [AGPL-3.0-or-later](LICENSE), including the additional terms in Section 7 of the LICENSE file.

@@ -1,18 +1,42 @@
-# CloudCLI-MobileUI
+<div align="center">
 
-Run Claude Code on your own computer, and keep working with it from your phone.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.svg">
+  <img alt="CloudCLI-MobileUI: run Claude Code on your own computer and keep working with it from your phone" src="docs/assets/hero-light.svg" width="100%">
+</picture>
 
-> Setting this up with an AI agent? Point it at **[DEPLOY.md](DEPLOY.md)** — it has the exact steps, checks and settings.
+<br>
+
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-b8793c?style=flat-square)](LICENSE)
+[![Node.js 22+](https://img.shields.io/badge/node-22%2B-4f7a4a?style=flat-square)](https://nodejs.org)
+[![Based on CloudCLI 1.37.8](https://img.shields.io/badge/based%20on-CloudCLI%201.37.8-6f726a?style=flat-square)](https://github.com/siteboon/claudecodeui)
+[![Last commit](https://img.shields.io/github/last-commit/Aztech-Lab/CloudCLI-MobileUI?style=flat-square&color=6f726a)](https://github.com/Aztech-Lab/CloudCLI-MobileUI/commits/main)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-b8793c?style=flat-square)](CONTRIBUTING.md)
+
+**[Getting started](#getting-started)** · **[Help wanted](#help-wanted)** · **[What's new](#whats-new)** · **[Deploy with an agent](AGENTS_DEPLOY.md)**
+
+</div>
 
 ## What it is
 
-CloudCLI-MobileUI is a web interface for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that you host yourself. Claude Code keeps running on your workstation — with your files, your tools and your login — and you open the interface from any phone, tablet or laptop on your network. On an iPhone or Android phone you can add it to the home screen, and it behaves like an app.
+CloudCLI-MobileUI is a web interface for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that you host yourself. Claude Code keeps running on your workstation, with your files, your tools and your login, and you open the interface from any phone, tablet or laptop on your network. On an iPhone or Android phone you can add it to the home screen, and it behaves like an app.
 
 You get the whole Claude Code session in your hand: the conversation, the files it is working on, git, and a terminal. You can read what the agent did while you were away, answer its questions, approve a tool, or start the next task.
 
+> **Setting this up with an AI agent?** Point it at [AGENTS_DEPLOY.md](AGENTS_DEPLOY.md). It has the exact steps, checks and settings, written for agents.
+
+## How it works
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/how-it-works-dark.svg">
+  <img alt="Your phone talks to CloudCLI-MobileUI on your workstation over your own network. CloudCLI-MobileUI runs Claude Code, which works on your project." src="docs/assets/how-it-works-light.svg" width="100%">
+</picture>
+
+The interface is a small Node.js server that runs on your workstation, right next to Claude Code. Your phone only talks to that server, over your home network or a VPN. Claude Code, your files and your login stay on the workstation, and conversations you started in the terminal show up in the interface too.
+
 ## Why we built it
 
-Long agent runs — a literature search, a test suite, a data-processing job — happen on a workstation, but the questions and decisions tend to come up when you are away from the desk. We wanted to keep working with the very same session from a phone, instead of waiting until we were back at the keyboard.
+Long agent runs, such as a literature search, a test suite or a data-processing job, happen on a workstation, but the questions and decisions tend to come up when you are away from the desk. We wanted to keep working with the very same session from a phone, instead of waiting until we were back at the keyboard.
 
 [CloudCLI](https://github.com/siteboon/claudecodeui) already provided a solid open-source web interface for Claude Code, and this project is built on its code. What we kept running into was the phone side of things: moving around on a small touch screen, scrolling long conversations, the iPhone home-screen app, very large projects, files that live outside the home folder, and background agents being stopped when we sent a new message. This project collects the changes that fix those.
 
@@ -20,23 +44,108 @@ It is an independent project and is not affiliated with the CloudCLI authors. If
 
 ## What is different from CloudCLI
 
-**Easier on a phone.** Swipe left and right anywhere on the screen to move between the chat, files, git and the terminal; swipe right from the chat to open the menu. Long conversations scroll smoothly, and the iPhone home-screen app now fills the whole screen. When you open the app, your most recent conversations are right there, one tap away.
+<table>
+<tr>
+<td width="50%" valign="top">
 
-**Built for longer work.** The model picker lists exactly the models your Claude Code account offers. Projects with tens of thousands of files still show their file tree, and folders load when you open them. Files the agent mentions can be opened even when they live on another drive, as long as you allow that folder.
+**Easier on a phone**
 
-**Your own look.** A skin setting changes how the whole interface looks. The first skin, OTSR, is a quiet lab-white (or near-black) design with a copper accent and square edges, and you can tune its details — such as the dotted background — to taste.
+Swipe left and right anywhere on the screen to move between the chat, files, git and the terminal; swipe right from the chat to open the menu. Long conversations scroll smoothly, the iPhone home-screen app fills the whole screen, and your most recent conversations are one tap away when you open it.
 
-**Coming next.** Sending a new message while background agents are still working will no longer stop them: they keep going and report back when they are done, the same way the official Claude Code app behaves. This is being tested now ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
+</td>
+<td width="50%" valign="top">
+
+**Built for longer work**
+
+The model picker lists exactly the models your Claude Code account offers. Projects with tens of thousands of files still show their file tree, and folders load when you open them. Files the agent mentions can be opened even when they live on another drive, as long as you allow that folder.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Your own look**
+
+A skin setting changes how the whole interface looks. The first skin, OTSR, is a quiet lab-white (or near-black) design with a copper accent and square edges, and you can tune its details, such as the dotted background, to taste.
+
+</td>
+<td width="50%" valign="top">
+
+**Coming next**
+
+Sending a new message while background agents are still working will no longer stop them: they keep going and report back when they are done, the same way the official Claude Code app behaves. This is being tested now ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
+
+</td>
+</tr>
+</table>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/skins-dark.svg">
+  <img alt="The same conversation in the OTSR skin, light and dark, next to an open slot for a new skin" src="docs/assets/skins-light.svg" width="100%">
+</picture>
 
 ## Getting started
 
-You need a computer that stays on, with [Node.js](https://nodejs.org) 22 or newer and Claude Code installed and logged in. Then download this project, build it and start it — the commands are in [DEPLOY.md](DEPLOY.md), and they take a few minutes.
+You need a computer that stays on, with [Node.js](https://nodejs.org) 22 or newer and Claude Code installed and logged in. Then download this project, build it and start it. The commands are in [AGENTS_DEPLOY.md](AGENTS_DEPLOY.md) and take a few minutes; you can also hand that file to an AI agent and let it do the setup for you.
 
 When it is running, open `http://<your-computer's-address>:3001` in a browser. The first person to open it creates the one and only account, so do that yourself straight away. On an iPhone, open the page in Safari, tap **Share**, then **Add to Home Screen**.
 
 ## Please keep it private
 
-Whoever logs in can do anything on that computer that you can. Use the interface only on your own network or through a VPN, never expose it directly to the internet, choose a strong password, and in the tool settings allow only the tools you actually need. [DEPLOY.md](DEPLOY.md#security) explains how.
+Whoever logs in can do anything on that computer that you can. Use the interface only on your own network or through a VPN, never expose it directly to the internet, choose a strong password, and in the tool settings allow only the tools you actually need. [AGENTS_DEPLOY.md](AGENTS_DEPLOY.md#security) shows how to limit the port to your own network.
+
+## Help wanted
+
+This is a young, small project, and there is room to help whether or not you write code. Here is where things stand:
+
+<table>
+<tr>
+<th width="33%" align="left">Now</th>
+<th width="33%" align="left">Next</th>
+<th width="34%" align="left">Ideas</th>
+</tr>
+<tr>
+<td valign="top">
+
+Background agents that keep running while you chat ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)). It needs testing on real phones, with real long-running work.
+
+</td>
+<td valign="top">
+
+A few links inside the app (the About page, the star badge, the issue and community links) still point to the original CloudCLI project. They should point here, so that nobody sends our problems to its authors.
+
+</td>
+<td valign="top">
+
+More skins · code colors that follow the skin · a tablet layout · translations · testing on Android
+
+</td>
+</tr>
+</table>
+
+Good places to start:
+
+- **Design a skin.** A skin is a set of CSS variables, so you can change the whole look without touching any component. [docs/fork/THEMING.md](docs/fork/THEMING.md) explains how.
+- **Make code colors follow the skin.** Syntax highlighting in the chat, the code editor and the git graph still use fixed colors; THEMING.md lists where they live.
+- **Translate.** Several languages are missing strings, including some that this project added for the home screen and the file tree. They live in `src/modules/i18n/locales`, with English as the reference.
+- **Try it on your phone and tell us what breaks.** Reports from Android phones and tablets are especially welcome, because most testing so far has been on iPhones.
+
+### How a change gets in
+
+```mermaid
+gitGraph
+   commit id: "upstream snapshot"
+   commit id: "main today"
+   branch your-change
+   checkout your-change
+   commit id: "your fix or feature"
+   commit id: "tests pass"
+   checkout main
+   merge your-change id: "reviewed and merged"
+   commit id: "listed in What's new"
+```
+
+Make one branch per change, starting from `main`, and open a pull request in this repository. The template asks what changed, why, and how you tested it. A maintainer reviews and merges it and writes it up under "What's new". [CONTRIBUTING.md](CONTRIBUTING.md) has the details, including how to set up a development copy.
 
 ## What's new
 
@@ -61,4 +170,4 @@ Whoever logs in can do anything on that computer that you can. Use the interface
 
 CloudCLI-MobileUI is free software under the [GNU AGPL v3](LICENSE) or later. If you run a modified version for other people, the license asks you to share its source with them.
 
-It is based on CloudCLI by Siteboon AI B.V. and its contributors (see [NOTICE](NOTICE)). The changes in this repository and their ongoing maintenance are by [Aztech Labs](https://github.com/Aztech-Lab). For contributors and maintainers: [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md) and [docs/fork/MAINTAINING.md](docs/fork/MAINTAINING.md).
+It is based on CloudCLI by Siteboon AI B.V. and its contributors (see [NOTICE](NOTICE)). The changes in this repository and their ongoing maintenance are by [Aztech Labs](https://github.com/Aztech-Lab). Guides for contributors and maintainers: [CONTRIBUTING.md](CONTRIBUTING.md), [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md) and [docs/fork/MAINTAINING.md](docs/fork/MAINTAINING.md).
