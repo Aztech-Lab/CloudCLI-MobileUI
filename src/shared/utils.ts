@@ -270,3 +270,31 @@ export const getQuickSettingsTabId = (tab: QuickSettingsTab): string => `quick-s
 
 /** DOM id of the tabpanel a quick settings tab controls; pairs with `getQuickSettingsTabId`. */
 export const getQuickSettingsTabPanelId = (tab: QuickSettingsTab): string => `quick-settings-tabpanel-${tab}`;
+
+// ---------------------------
+
+//----------------- THEME TOKENS ------------
+/**
+ * [local] Theme tokens read from JavaScript.
+ *
+ * Most of the UI is themed in CSS alone (see docs/fork/THEMING.md). A few consumers
+ * need a concrete colour instead of a `var()` (xterm's palette, the browser's
+ * `theme-color` meta tag). They keep their built-in defaults and only take a value
+ * from a CSS custom property on <html> when a theme defines one, so with no theme
+ * nothing changes.
+ */
+
+/** The value of a custom property on <html>, trimmed; '' when unset or unavailable. */
+export function readThemeToken(name: string): string {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return '';
+  try {
+    return window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  } catch {
+    return '';
+  }
+}
+
+/** `selectionBackground` -> `selection-background`, for token names derived from keys. */
+export function toTokenName(key: string): string {
+  return key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+}
