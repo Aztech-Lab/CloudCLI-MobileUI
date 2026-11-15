@@ -97,7 +97,10 @@
     "createProjectDesktop": "點擊側邊欄中的資料夾圖示以建立新專案",
     "newSession": "新工作階段",
     "untitledSession": "未命名工作階段",
-    "projectFiles": "專案檔案"
+    "projectFiles": "專案檔案",
+    "pickUpTitle": "繼續上次的工作",
+    "recentSessions": "最近的對話",
+    "recentProjects": "最近的專案"
   },
   "fileTree": {
     "loading": "正在載入檔案...",
