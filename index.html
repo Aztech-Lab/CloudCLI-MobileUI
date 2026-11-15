@@ -43,9 +43,21 @@
       (function () {
         try {
           var raw = localStorage.getItem('user-preferences');
-          var skin = raw ? JSON.parse(raw).skin : null;
+          var prefs = raw ? JSON.parse(raw) : {};
+          var skin = prefs.skin;
           if (typeof skin === 'string' && skin !== 'default' && /^[a-z0-9-]+$/.test(skin)) {
             document.documentElement.setAttribute('data-skin', skin);
+            /* The skin's options too (src/shared/skinOptions.ts): data-skin-<kebab-id>.
+               Unknown ids/values are harmless — the stylesheet only matches declared ones. */
+            var options = prefs.skinOptions && prefs.skinOptions[skin];
+            if (options && typeof options === 'object') {
+              Object.keys(options).forEach(function (id) {
+                var value = options[id];
+                if (/^[a-zA-Z]+$/.test(id) && (typeof value === 'string' || typeof value === 'boolean') && /^[a-z0-9-]*$/.test(String(value))) {
+                  document.documentElement.setAttribute('data-skin-' + id.replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); }), String(value));
+                }
+              });
+            }
           }
         } catch (error) { /* no mirror, or an unreadable one: the default skin */ }
       })();

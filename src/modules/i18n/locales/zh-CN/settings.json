@@ -240,6 +240,30 @@
       "default": "默认",
       "otsr": "OTSR — 实验室白、铜色、直角"
     },
+    "skinOptions": {
+      "otsr": {
+        "dotField": {
+          "label": "背景点阵",
+          "description": "对话区域背后的点状纹理",
+          "off": "关闭",
+          "faint": "淡",
+          "normal": "正常",
+          "strong": "强"
+        },
+        "chamfers": {
+          "label": "切角边缘",
+          "description": "标签条、输入框和你的消息气泡使用切角"
+        },
+        "monoLabels": {
+          "label": "等宽标签文字",
+          "description": "工作区标签使用大写等宽的仪表风格文字"
+        },
+        "squareMarks": {
+          "label": "方形状态标记",
+          "description": "状态指示用方块代替圆点"
+        }
+      }
+    },
     "projectSorting": {
       "label": "项目排序",
       "description": "项目在侧边栏中的排列方式",

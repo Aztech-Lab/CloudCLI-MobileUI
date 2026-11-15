@@ -87,6 +87,8 @@
 
   /* skin-private */
   --otsr-dot: rgba(20, 22, 20, 0.16);
+  --otsr-dot-faint: rgba(20, 22, 20, 0.07);
+  --otsr-dot-strong: rgba(20, 22, 20, 0.26);
   --otsr-chamfer: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
   --otsr-chamfer-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
 }
@@ -151,6 +153,8 @@
   --terminal-dark-bright-blue: #f0c389;
 
   --otsr-dot: rgba(232, 232, 226, 0.12);
+  --otsr-dot-faint: rgba(232, 232, 226, 0.05);
+  --otsr-dot-strong: rgba(232, 232, 226, 0.2);
 }
 
 :root[data-skin="otsr"]:not(.dark) {
@@ -164,8 +168,12 @@
 
 /* ---- signature rules ------------------------------------------------------------- */
 
-/* Micro-labels: tab labels and the sidebar mode tabs in the OTSR mono/uppercase voice. */
-[data-skin="otsr"] [role="tablist"] [role="tab"] {
+/* Each signature element below is a skin option (src/shared/skinOptions.ts), read from
+   `data-skin-<option>` on <html>. A missing attribute means the option's default, so
+   the selectors are written to match the default too (`:not([...="false"])`). */
+
+/* Micro-labels: tab labels in the OTSR mono/uppercase voice. Option: monoLabels. */
+[data-skin="otsr"]:not([data-skin-mono-labels="false"]) [role="tablist"] [role="tab"] {
   font-family: var(--font-mono);
   font-size: 10.5px;
   font-weight: 600;
@@ -173,31 +181,46 @@
   text-transform: uppercase;
 }
 
-/* Chamfered edges on the few elements OTSR gives them: the tab strip, the composer,
-   primary buttons and the user's own messages. Only leaf-ish elements, because
-   clip-path also clips descendants (menus portalled to <body> are unaffected). */
-[data-skin="otsr"] [role="tablist"] {
+/* Chamfered edges on the few elements OTSR gives them: the tab strip, the composer
+   and the user's own messages. Only leaf-ish elements, because clip-path also clips
+   descendants (menus portalled to <body> are unaffected). Option: chamfers. */
+[data-skin="otsr"]:not([data-skin-chamfers="false"]) [role="tablist"] {
   clip-path: var(--otsr-chamfer-sm);
 }
-[data-skin="otsr"] .chat-composer-shell form[data-slot="prompt-input"] {
+[data-skin="otsr"]:not([data-skin-chamfers="false"]) .chat-composer-shell form[data-slot="prompt-input"] {
   clip-path: var(--otsr-chamfer);
 }
-[data-skin="otsr"] .chat-message.user > div > div > div.rounded-2xl {
+[data-skin="otsr"]:not([data-skin-chamfers="false"]) .chat-message.user > div > div > div.rounded-2xl {
   clip-path: var(--otsr-chamfer-sm);
 }
 
-/* Square status marks instead of dots (OTSR's `.sq`); spinners and avatars stay round. */
-[data-skin="otsr"] .rounded-full.h-2.w-2,
-[data-skin="otsr"] .rounded-full.h-1\.5.w-1\.5,
-[data-skin="otsr"] .rounded-full.h-2\.5.w-2\.5 {
+/* Square status marks instead of dots (OTSR's `.sq`); spinners and avatars stay round.
+   Option: squareMarks. */
+[data-skin="otsr"]:not([data-skin-square-marks="false"]) .rounded-full.h-2.w-2,
+[data-skin="otsr"]:not([data-skin-square-marks="false"]) .rounded-full.h-1\.5.w-1\.5,
+[data-skin="otsr"]:not([data-skin-square-marks="false"]) .rounded-full.h-2\.5.w-2\.5 {
   border-radius: 0;
 }
 
-/* The transcript sits on OTSR's dot field. */
+/* The transcript sits on OTSR's dot field. Option: dotField (off | faint | normal |
+   strong). The default, faint, is the OTSR dot blurred and dimmed: a wider, softer
+   radial falloff at a lower alpha, so it reads as texture rather than a grid. */
 [data-skin="otsr"] .chat-messages-pane {
-  background-image: radial-gradient(var(--otsr-dot) 1px, transparent 1.2px);
   background-size: 22px 22px;
   background-position: 11px 11px;
+}
+[data-skin="otsr"]:not([data-skin-dot-field]) .chat-messages-pane,
+[data-skin="otsr"][data-skin-dot-field="faint"] .chat-messages-pane {
+  background-image: radial-gradient(var(--otsr-dot-faint) 0.8px, transparent 2.2px);
+}
+[data-skin="otsr"][data-skin-dot-field="normal"] .chat-messages-pane {
+  background-image: radial-gradient(var(--otsr-dot) 1px, transparent 1.2px);
+}
+[data-skin="otsr"][data-skin-dot-field="strong"] .chat-messages-pane {
+  background-image: radial-gradient(var(--otsr-dot-strong) 1.2px, transparent 1.4px);
+}
+[data-skin="otsr"][data-skin-dot-field="off"] .chat-messages-pane {
+  background-image: none;
 }
 
 /* Panels: a hairline instead of a soft shadow. */
