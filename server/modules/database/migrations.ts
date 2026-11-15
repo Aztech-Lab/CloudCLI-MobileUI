@@ -500,6 +500,27 @@ const ensureProjectsForSessionPaths = (db: Database): void => {
   `);
 };
 
+/**
+ * [local] Forces one full session rescan after the Codex indexer learned to
+ * index a newer rollout file of a thread a session was edited off.
+ *
+ * The scan cursor is incremental by file creation time, so such a file that
+ * was created — and refused — before this change would otherwise stay out of
+ * the sidebar until Codex next touched it. Runs once, recorded in app_config.
+ */
+const CODEX_CONTINUED_THREAD_RESCAN_KEY = 'local.rescan.codex_continued_threads';
+const requestFullRescanForContinuedCodexThreads = (db: Database): void => {
+  const done = db.prepare('SELECT 1 FROM app_config WHERE key = ?').get(CODEX_CONTINUED_THREAD_RESCAN_KEY);
+  if (done) {
+    return;
+  }
+
+  db.transaction(() => {
+    db.prepare('UPDATE scan_state SET last_scanned_at = NULL WHERE id = 1').run();
+    db.prepare('INSERT INTO app_config (key, value) VALUES (?, ?)').run(CODEX_CONTINUED_THREAD_RESCAN_KEY, '1');
+  })();
+};
+
 export const runMigrations = (db: Database) => {
   try {
     const usersTableInfo = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
@@ -570,6 +591,7 @@ export const runMigrations = (db: Database) => {
     }
 
     db.exec(LAST_SCANNED_AT_SQL);
+    requestFullRescanForContinuedCodexThreads(db);
     console.log('Database migrations completed successfully');
   } catch (error: any) {
     console.error('Error running migrations:', error.message);

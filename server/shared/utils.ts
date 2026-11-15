@@ -1287,7 +1287,10 @@ export async function readFileTimestamps(
 export async function buildLookupMap(
   filePath: string,
   keyField: string,
-  valueField: string
+  valueField: string,
+  // [local] 'last' for rename logs such as Codex's session_index.jsonl, where
+  // a later row for the same id is the thread's current name.
+  keep: 'first' | 'last' = 'first'
 ): Promise<Map<string, string>> {
   const lookup = new Map<string, string>();
 
@@ -1313,7 +1316,7 @@ export async function buildLookupMap(
       const key = parsed[keyField];
       const value = parsed[valueField];
 
-      if (typeof key === 'string' && typeof value === 'string' && !lookup.has(key)) {
+      if (typeof key === 'string' && typeof value === 'string' && (keep === 'last' || !lookup.has(key))) {
         lookup.set(key, value);
       }
     }
