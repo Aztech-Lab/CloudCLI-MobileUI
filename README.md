@@ -155,6 +155,7 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 - Background agents keep running when you send a new message ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
 
 **15 November 2026**
+- On Windows, a folder that was opened both as `E:\…` and `e:\…` now shows up as one project with all its sessions, instead of two. Nothing is rewritten: each session keeps running in the folder it was recorded with ([#5](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/5)).
 - The header stays on one line at every width: wide screens show the full conversation title instead of cutting it short, and phones no longer stack the title above the tabs.
 - The OTSR skin now uses the exact colors of the original design: the real copper and secondary text, black labels on copper and green buttons in dark mode, and a soft shadow under floating panels ([#4](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/4)).
 - The OTSR design is now also a reusable package in [`themes/otsr`](themes/otsr/), and the theming guide describes the skin system as it really works ([#2](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/2), [#3](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/3)).
