@@ -127,7 +127,7 @@ More skins · code colors that follow the skin · a tablet layout · translation
 
 Good places to start:
 
-- **Design a skin.** A skin is a set of CSS variables, so you can change the whole look without touching any component. [docs/fork/THEMING.md](docs/fork/THEMING.md) explains how.
+- **Design a skin.** A skin is mostly a set of CSS variables, plus a few optional signature rules and settings, so you can change the whole look without touching any component. [docs/fork/THEMING.md](docs/fork/THEMING.md) has a step-by-step checklist. The designs themselves live in [`themes/`](themes/) as packages that any project can apply.
 - **Make code colors follow the skin.** Syntax highlighting in the chat, the code editor and the git graph still use fixed colors; THEMING.md lists where they live.
 - **Translate.** Several languages are missing strings, including some that this project added for the home screen and the file tree. They live in `src/modules/i18n/locales`, with English as the reference.
 - **Try it on your phone and tell us what breaks.** Reports from Android phones and tablets are especially welcome, because most testing so far has been on iPhones.
@@ -155,6 +155,8 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 - Background agents keep running when you send a new message ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
 
 **15 November 2026**
+- Text in the OTSR skin is easier to read: copper and secondary text are a little darker, and white text on copper or green buttons has more contrast.
+- The OTSR design is now also a reusable package in [`themes/otsr`](themes/otsr/), and the theming guide describes the skin system as it really works ([#2](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/2), [#3](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/3)).
 - Skins now have their own settings. For OTSR you can choose how strong the dotted background is, and switch the cut corners, monospaced labels and square status dots on or off. The dotted background is softer by default.
 
 **14 November 2026**
