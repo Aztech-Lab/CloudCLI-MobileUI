@@ -1,10 +1,10 @@
-# CloudCLI-Mobile
+# CloudCLI-MobileUI
 
 **Run Claude Code on your own computer. Drive it from your phone.**
 
-CloudCLI-Mobile is a self-hosted web UI for [Claude Code](https://docs.anthropic.com/en/docs/claude-code), tuned for one setup: the agent runs on a machine at home or in the lab, and you use it from a phone or tablet over your LAN or a VPN — in the browser or as a home-screen web app.
+CloudCLI-MobileUI is a self-hosted web UI for [Claude Code](https://docs.anthropic.com/en/docs/claude-code), tuned for one setup: the agent runs on a machine at home or in the lab, and you use it from a phone or tablet over your LAN or a VPN — in the browser or as a home-screen web app.
 
-It is a downstream fork of [CloudCLI (claudecodeui)](https://github.com/siteboon/claudecodeui) by Siteboon. Upstream provides the foundation — chat, sessions, file browser, git, terminal, multiple providers. This fork adds what makes it comfortable and safe to use from a phone. It is independent and not affiliated with upstream: report problems with this fork [here](https://github.com/Aztech-Lab/CloudCLI-Mobile/issues), not upstream.
+It is a downstream fork of [CloudCLI (claudecodeui)](https://github.com/siteboon/claudecodeui) by Siteboon. Upstream provides the foundation — chat, sessions, file browser, git, terminal, multiple providers. This fork adds what makes it comfortable and safe to use from a phone. It is independent and not affiliated with upstream: report problems with this fork [here](https://github.com/Aztech-Lab/CloudCLI-MobileUI/issues), not upstream.
 
 **Current base:** upstream `1.37.8` · **Latest update:** 2026-11-15 · [Changelog](#changelog)
 
@@ -37,8 +37,8 @@ It is a downstream fork of [CloudCLI (claudecodeui)](https://github.com/siteboon
 Requirements: Node.js 22+, and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and logged in on the host.
 
 ```bash
-git clone https://github.com/Aztech-Lab/CloudCLI-Mobile.git
-cd CloudCLI-Mobile
+git clone https://github.com/Aztech-Lab/CloudCLI-MobileUI.git
+cd CloudCLI-MobileUI
 npm ci
 npm run build
 npm run server
@@ -80,7 +80,7 @@ Logging in to CloudCLI gives the same power as a shell on the host.
 Newest first. Entries in review link to their pull request.
 
 ### In review
-- **Keep working while background agents run** — send a subagent off on a long job and keep talking to the main thread; your message goes into the live Claude Code process as a new turn while background agents keep running, like the official CLI (upstream stops them). Stop ends only the current turn. — [#1](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/1)
+- **Keep working while background agents run** — send a subagent off on a long job and keep talking to the main thread; your message goes into the live Claude Code process as a new turn while background agents keep running, like the official CLI (upstream stops them). Stop ends only the current turn. — [#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)
 
 ### 2026-11-15
 - **Added** Per-skin options, declared by each skin and rendered in Settings automatically; OTSR gets dot field (off / faint / normal / strong), chamfers, mono labels and square marks. The OTSR dot field is softer by default.
@@ -118,6 +118,6 @@ One change per branch, merged into `main` through a pull request — see [docs/f
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE), same as upstream. If you run a modified version as a network service, the AGPL requires you to offer its source to its users; this repository is that source for CloudCLI-Mobile.
+[AGPL-3.0-or-later](LICENSE), same as upstream. If you run a modified version as a network service, the AGPL requires you to offer its source to its users; this repository is that source for CloudCLI-MobileUI.
 
 Original project: [siteboon/claudecodeui](https://github.com/siteboon/claudecodeui) © Siteboon and contributors.

@@ -1,6 +1,6 @@
 # Theming: design tokens
 
-CloudCLI-Mobile is *theme-ready*: everything that decides how the UI looks reads a CSS custom property whose
+CloudCLI-MobileUI is *theme-ready*: everything that decides how the UI looks reads a CSS custom property whose
 default is the original value. With no theme applied the app is unchanged (this is checked, see
 [Verifying "no visible change"](#verifying-no-visible-change)). A theme is therefore just a set of variable
 overrides — no component has to change.

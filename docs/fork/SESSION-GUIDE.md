@@ -1,10 +1,10 @@
 # Fix-session guide
 
-How a working session (human or AI agent) contributes one change to CloudCLI-Mobile. One session = one change = one branch = one pull request. An integrator reviews, merges into `main`, and deploys; fix sessions do not deploy.
+How each working session contributes one change to CloudCLI-MobileUI. One session = one change = one branch = one pull request. An integrator reviews, merges into `main`, and deploys; fix sessions do not deploy.
 
 ## Hard rules
 
-1. **Never interact with upstream** (`siteboon/claudecodeui`): no pushes, pull requests, issues, or comments. Fetching is fine. Always pass `--repo Aztech-Lab/CloudCLI-Mobile` to `gh`.
+1. **Never interact with upstream** (`siteboon/claudecodeui`): no pushes, pull requests, issues, or comments. Fetching is fine. Always pass `--repo Aztech-Lab/CloudCLI-MobileUI` to `gh`.
 2. **Never work in the production checkout** or touch a running server. Use your own git worktree.
 3. **Do not deploy.** If something is urgent enough that you deployed anyway, say so at the top of the PR.
 4. Keep behavior unchanged for everything your change is not about. Mark changed upstream code with a short `[local]` comment.
@@ -32,7 +32,7 @@ npm ci
 3. Commit (the pre-commit hook runs oxlint on staged files) and push your branch to `origin`.
 4. Open the PR against `main` of this fork:
    ```bash
-   gh pr create --repo Aztech-Lab/CloudCLI-Mobile --base main --head fix/<short-name>
+   gh pr create --repo Aztech-Lab/CloudCLI-MobileUI --base main --head fix/<short-name>
    ```
    Fill in the template: it is the hand-off to the integrator.
 5. Leave the worktree in place until the PR is merged; the integrator may ask for changes.
