@@ -20,6 +20,8 @@ export type UserPreferences = {
   theme: 'light' | 'dark';
   /** [local] The skin (visual theme) applied on top of light/dark; see src/shared/skin.ts. */
   skin: string;
+  /** [local] Per-skin option values, keyed by skin id; see src/shared/skinOptions.ts. */
+  skinOptions: unknown;
   userLanguage: string;
   tasksEnabled: boolean;
   projectSortOrder: 'name' | 'date';
@@ -57,8 +59,9 @@ const SERVER_WRITE_DEBOUNCE_MS = 400;
  */
 const LEGACY_STORAGE_KEYS: Record<UserPreferenceKey, string> = {
   theme: 'theme',
-  // [local] Never stored anywhere else; the key only has to exist for PREFERENCE_KEYS.
+  // [local] Never stored anywhere else; the keys only have to exist for PREFERENCE_KEYS.
   skin: 'skin',
+  skinOptions: 'skinOptions',
   userLanguage: 'userLanguage',
   tasksEnabled: 'tasks-enabled',
   projectSortOrder: 'claude-settings',

@@ -4,6 +4,7 @@ import { useUiPreferences, useSetUiPreference } from '@/shared/context/UiPrefere
 import { useSkin } from '@/shared/context/SkinContext';
 import { useTheme } from '@/shared/context/ThemeContext';
 import { SKIN_IDS, type SkinId } from '@/shared/skin';
+import { SKIN_OPTIONS } from '@/shared/skinOptions';
 import type { CodeEditorSettingsState, ProjectSortOrder, ThemeMode } from '@/shared/types';
 import { LanguageSelector } from '@/modules/i18n';
 import SettingsCard from '@/modules/settings/SettingsCard';
@@ -33,7 +34,9 @@ export default function AppearanceSettingsTab({
 }: AppearanceSettingsTabProps) {
   const { t } = useTranslation('settings');
   const { themeMode, setThemeMode } = useTheme();
-  const { skin, setSkin } = useSkin();
+  const { skin, setSkin, skinOptions, setSkinOption } = useSkin();
+  // [local] The active skin's own dials, rendered from its declaration (skinOptions.ts).
+  const skinOptionDefinitions = SKIN_OPTIONS[skin];
   const preferences = useUiPreferences();
   const setPreference = useSetUiPreference();
 
@@ -78,6 +81,44 @@ export default function AppearanceSettingsTab({
             </select>
           </SettingsRow>
         </SettingsCard>
+
+        {skinOptionDefinitions.length > 0 && (
+          <SettingsCard divided>
+            {skinOptionDefinitions.map((definition) => {
+              const key = `appearanceSettings.skinOptions.${skin}.${definition.id}`;
+              const label = t(`${key}.label`, { defaultValue: definition.id });
+              const value = skinOptions[definition.id] ?? definition.default;
+              return (
+                <SettingsRow
+                  key={definition.id}
+                  label={label}
+                  description={t(`${key}.description`, { defaultValue: '' }) || undefined}
+                >
+                  {definition.kind === 'toggle' ? (
+                    <SettingsToggle
+                      checked={value === true}
+                      onChange={(next) => setSkinOption(definition.id, next)}
+                      ariaLabel={label}
+                    />
+                  ) : (
+                    <select
+                      value={String(value)}
+                      onChange={(event) => setSkinOption(definition.id, event.target.value)}
+                      aria-label={label}
+                      className="w-full touch-manipulation rounded-lg border border-input bg-card p-2.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary sm:w-36"
+                    >
+                      {definition.choices.map((choice) => (
+                        <option key={choice.value} value={choice.value}>
+                          {t(`${key}.${choice.value}`, { defaultValue: choice.value })}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </SettingsRow>
+              );
+            })}
+          </SettingsCard>
+        )}
       </SettingsSection>
 
       <SettingsSection title={t('mainTabs.appearance')}>
