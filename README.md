@@ -66,7 +66,7 @@ The model picker lists exactly the models your Claude Code account offers. Proje
 
 **Your own look**
 
-A skin setting changes how the whole interface looks. The first skin, OTSR, is a quiet lab-white (or near-black) design with a copper accent and square edges, and you can tune its details, such as the dotted background, to taste.
+A skin setting changes how the whole interface looks. The first skin, OTSR, takes its look from the [OTSR design](https://github.com/Aztech-Lab/OTSR): a quiet lab-white (or near-black) design with a copper accent and square edges, and you can tune its details, such as the dotted background, to taste.
 
 </td>
 <td width="50%" valign="top">
@@ -83,6 +83,8 @@ Sending a new message while background agents are still working will no longer s
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/skins-dark.svg">
   <img alt="The same conversation in the OTSR skin, light and dark, next to an open slot for a new skin" src="docs/assets/skins-light.svg" width="100%">
 </picture>
+
+<sub>The pictures in this README use the OTSR colors and shapes. OTSR design: <a href="https://github.com/Aztech-Lab/OTSR">github.com/Aztech-Lab/OTSR</a>.</sub>
 
 ## Getting started
 

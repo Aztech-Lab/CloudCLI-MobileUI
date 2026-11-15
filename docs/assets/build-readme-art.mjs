@@ -3,7 +3,8 @@
 //   node docs/assets/build-readme-art.mjs            # SVGs + social-preview.png
 //   node docs/assets/build-readme-art.mjs --png DIR  # also rasterise every SVG into DIR (for review)
 //
-// Colours follow the OTSR skin (src/skins/otsr.css). Fonts are system stacks because
+// Colours follow the OTSR skin (src/skins/otsr.css), which takes its look from the
+// OTSR design: https://github.com/Aztech-Lab/OTSR (src/tokens.css). Fonts are system stacks because
 // GitHub serves README images without web fonts. Animations are CSS, so they stop
 // under prefers-reduced-motion.
 
