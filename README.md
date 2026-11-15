@@ -77,19 +77,19 @@ Logging in to CloudCLI gives the same power as a shell on the host.
 
 ## Changelog
 
-Newest first. Each entry links to the pull request with the full details and how it was verified.
+Newest first. Entries in review link to their pull request.
 
 ### In review
 - **Keep working while background agents run** — send a subagent off on a long job and keep talking to the main thread; your message goes into the live Claude Code process as a new turn while background agents keep running, like the official CLI (upstream stops them). Stop ends only the current turn. — [#1](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/1)
 
 ### 2026-11-15
-- **Added** Per-skin options, declared by each skin and rendered in Settings automatically; OTSR gets dot field (off / faint / normal / strong), chamfers, mono labels and square marks. The OTSR dot field is softer by default. — [#6](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/6)
+- **Added** Per-skin options, declared by each skin and rendered in Settings automatically; OTSR gets dot field (off / faint / normal / strong), chamfers, mono labels and square marks. The OTSR dot field is softer by default.
 
 ### 2026-11-14
-- **Added** Skin setting and the OTSR skin (light + dark), applied before the page renders so there is no flash. — [#5](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/5)
-- **Changed** The UI is theme-ready: colours, radii and fonts are design tokens. No visible change — verified declaration-by-declaration against the previous stylesheet. — [#4](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/4)
-- **Added** Home screen "pick up where you left off": recent conversations and projects. — [#3](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/3)
-- **Added** Swipe anywhere to switch workspace tabs; swipe back on Chat or the home screen opens the menu. **Changed** the Shell tab moves to the end of the tab strip. — [#2](https://github.com/Aztech-Lab/CloudCLI-Mobile/pull/2)
+- **Added** Skin setting and the OTSR skin (light + dark), applied before the page renders so there is no flash.
+- **Changed** The UI is theme-ready: colours, radii and fonts are design tokens. No visible change — verified declaration-by-declaration against the previous stylesheet.
+- **Added** Home screen "pick up where you left off": recent conversations and projects.
+- **Added** Swipe anywhere to switch workspace tabs; swipe back on Chat or the home screen opens the menu. **Changed** the Shell tab moves to the end of the tab strip.
 - **Fixed** Stuttering upward scroll in long chats on touch devices.
 - **Fixed** Blank band at the bottom of the iOS home-screen app; header tucked under the status bar.
 - **Added** Model picker shows the list Claude Code itself reports.
