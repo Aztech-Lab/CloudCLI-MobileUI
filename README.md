@@ -1,131 +1,64 @@
 # CloudCLI-MobileUI
 
-**Run Claude Code on your own computer. Drive it from your phone.**
+Run Claude Code on your own computer, and keep working with it from your phone.
 
-CloudCLI-MobileUI is a self-hosted web UI for [Claude Code](https://docs.anthropic.com/en/docs/claude-code), tuned for one setup: the agent runs on a machine at home or in the lab, and you use it from a phone or tablet over your LAN or a VPN — in the browser or as a home-screen web app.
+> Setting this up with an AI agent? Point it at **[DEPLOY.md](DEPLOY.md)** — it has the exact steps, checks and settings.
 
-## Why this project
+## What it is
 
-It started from a practical need. Long agent runs — literature searches, test suites, data processing — happen on a workstation, but the questions and decisions come up when you are away from the desk. We wanted to keep working with that same Claude Code session from a phone: read what it did, answer it, start the next step, and let background agents keep going while we talk to the main thread.
+CloudCLI-MobileUI is a web interface for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that you host yourself. Claude Code keeps running on your workstation — with your files, your tools and your login — and you open the interface from any phone, tablet or laptop on your network. On an iPhone or Android phone you can add it to the home screen, and it behaves like an app.
 
-[CloudCLI (claudecodeui)](https://github.com/siteboon/claudecodeui) already provides a solid open-source web UI for Claude Code — chat, sessions, file browser, git, terminal — and this project is built on its code. What we found missing for this use was mostly on the phone side: touch navigation, scrolling, the iOS home-screen app, large projects and files outside the home folder, and keeping background work alive. Those are the changes collected here. It is an independent project, not affiliated with the CloudCLI authors; please report problems [here](https://github.com/Aztech-Lab/CloudCLI-MobileUI/issues) rather than upstream.
+You get the whole Claude Code session in your hand: the conversation, the files it is working on, git, and a terminal. You can read what the agent did while you were away, answer its questions, approve a tool, or start the next task.
 
-**Current base:** upstream `1.37.8` · **Latest update:** 2026-11-15 · [Changelog](#changelog)
+## Why we built it
 
----
+Long agent runs — a literature search, a test suite, a data-processing job — happen on a workstation, but the questions and decisions tend to come up when you are away from the desk. We wanted to keep working with the very same session from a phone, instead of waiting until we were back at the keyboard.
 
-## Highlights
+[CloudCLI](https://github.com/siteboon/claudecodeui) already provided a solid open-source web interface for Claude Code, and this project is built on its code. What we kept running into was the phone side of things: moving around on a small touch screen, scrolling long conversations, the iPhone home-screen app, very large projects, files that live outside the home folder, and background agents being stopped when we sent a new message. This project collects the changes that fix those.
 
-### On the phone
-- **Swipe between tabs** — swipe left/right anywhere to move between Chat, Files, Git and Shell; swipe right on Chat (or on the home screen) to open the menu. Edge swipes stay with the system back gesture, and code blocks and tables scroll first.
-- **Pick up where you left off** — the home screen lists your five most recent conversations and their projects; one tap to continue.
-- **Smooth scrolling** — long conversations scroll up without stutter on iOS and Android.
-- **Full-screen iPhone app** — added to the home screen, the app fills the whole display with no blank band at the bottom.
+It is an independent project and is not affiliated with the CloudCLI authors. If something goes wrong, please [open an issue here](https://github.com/Aztech-Lab/CloudCLI-MobileUI/issues) rather than upstream.
 
-### Look and feel
-- **Skins** — *Settings › Appearance › Skin*. Ships with **OTSR**: lab white / near-black, a copper accent, square corners with chamfered edges, monospace labels. Works in light and dark mode.
-- **Per-skin options** — each skin exposes its own dials (for OTSR: dot-field strength, chamfers, mono labels, square status marks), saved per skin and synced across your devices.
-- **Theme-ready UI** — every colour, radius and font is a design token, so a new skin is a list of overrides with no component changes ([docs/fork/THEMING.md](docs/fork/THEMING.md)).
+## What is different from CloudCLI
 
-### Working with Claude
-- **The real model list** — the model picker shows exactly what Claude Code offers your account (the same list as `/model`), instead of a fixed list that goes stale.
+**Easier on a phone.** Swipe left and right anywhere on the screen to move between the chat, files, git and the terminal; swipe right from the chat to open the menu. Long conversations scroll smoothly, and the iPhone home-screen app now fills the whole screen. When you open the app, your most recent conversations are right there, one tap away.
 
-### Files
-- **Files from anywhere on the machine** — open files the agent mentions even outside your home folder (other drives, data directories), read-only, limited to folders you configure.
-- **Big projects** — projects with tens of thousands of files still show their tree; folders that did not fit load when you open them.
+**Built for longer work.** The model picker lists exactly the models your Claude Code account offers. Projects with tens of thousands of files still show their file tree, and folders load when you open them. Files the agent mentions can be opened even when they live on another drive, as long as you allow that folder.
 
----
+**Your own look.** A skin setting changes how the whole interface looks. The first skin, OTSR, is a quiet lab-white (or near-black) design with a copper accent and square edges, and you can tune its details — such as the dotted background — to taste.
 
-## Install
+**Coming next.** Sending a new message while background agents are still working will no longer stop them: they keep going and report back when they are done, the same way the official Claude Code app behaves. This is being tested now ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
 
-Requirements: Node.js 22+, and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and logged in on the host.
+## Getting started
 
-```bash
-git clone https://github.com/Aztech-Lab/CloudCLI-MobileUI.git
-cd CloudCLI-MobileUI
-npm ci
-npm run build
-npm run server
-```
+You need a computer that stays on, with [Node.js](https://nodejs.org) 22 or newer and Claude Code installed and logged in. Then download this project, build it and start it — the commands are in [DEPLOY.md](DEPLOY.md), and they take a few minutes.
 
-Open `http://<host-ip>:3001` and create the single admin account on the first visit. **Do this before exposing the port** — the first visitor becomes the admin.
+When it is running, open `http://<your-computer's-address>:3001` in a browser. The first person to open it creates the one and only account, so do that yourself straight away. On an iPhone, open the page in Safari, tap **Share**, then **Add to Home Screen**.
 
-On iOS, use **Share › Add to Home Screen** for the full-screen app.
+## Please keep it private
 
-Do not run `cloudcli update` on an install built from this repo — it replaces it with the upstream build.
+Whoever logs in can do anything on that computer that you can. Use the interface only on your own network or through a VPN, never expose it directly to the internet, choose a strong password, and in the tool settings allow only the tools you actually need. [DEPLOY.md](DEPLOY.md#security) explains how.
 
-## Configuration
+## What's new
 
-Environment variables, set before starting the server:
+**In testing**
+- Background agents keep running when you send a new message ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `SERVER_PORT` | `3001` | HTTP port |
-| `HOST` | `0.0.0.0` | Bind address (`127.0.0.1` = this machine only) |
-| `CLAUDE_CLI_PATH` | `claude` | Path to the Claude Code executable |
-| `DATABASE_PATH` | `~/.cloudcli/auth.db` | Login database |
-| `CLOUDCLI_EXTRA_READ_ROOTS` | — | Extra folders the in-chat file viewer may read, separated by `;` (e.g. `E:\Projects;F:\Data`) |
-| `CLOUDCLI_FILE_TREE_MAX_ENTRIES` | `10000` | How many entries the file tree loads up front |
-| `CLAUDE_TOOL_APPROVAL_TIMEOUT_MS` | `55000` | How long a tool-approval prompt waits before it is denied — raise it if you approve from your phone later |
+**15 November 2026**
+- Skins now have their own settings. For OTSR you can choose how strong the dotted background is, and switch the cut corners, monospaced labels and square status dots on or off. The dotted background is softer by default.
 
-## Using it safely from a phone
+**14 November 2026**
+- New skin setting, with the OTSR skin in light and dark.
+- Behind the scenes, the interface was prepared for skins; nothing changed visually.
+- The home screen shows your recent conversations and projects.
+- Swipe between tabs anywhere on the screen; the terminal tab moved to the end.
+- Long conversations no longer stutter when you scroll up on a phone.
+- The iPhone home-screen app no longer leaves an empty strip at the bottom.
+- The model picker shows the models your account actually has.
+- Large projects and files outside the home folder can be browsed and opened.
+- First release, based on CloudCLI 1.37.8.
 
-Logging in to CloudCLI gives the same power as a shell on the host.
+## License and credits
 
-- It serves **plain HTTP**. Use it on your own network or through an encrypted VPN (IPsec, WireGuard, Tailscale). Do not forward the port to the internet, and avoid PPTP (its encryption is broken).
-- Restrict the port with a firewall to the networks you actually use.
-- Use a strong password — there is no limit on login attempts.
-- In the tool settings (gear icon), allow only the tools you need.
+CloudCLI-MobileUI is free software under the [GNU AGPL v3](LICENSE) or later. If you run a modified version for other people, the license asks you to share its source with them.
 
----
-
-## Changelog
-
-Newest first. Entries in review link to their pull request.
-
-### In review
-- **Keep working while background agents run** — send a subagent off on a long job and keep talking to the main thread; your message goes into the live Claude Code process as a new turn while background agents keep running, like the official CLI (upstream stops them). Stop ends only the current turn. — [#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)
-
-### 2026-11-15
-- **Added** Per-skin options, declared by each skin and rendered in Settings automatically; OTSR gets dot field (off / faint / normal / strong), chamfers, mono labels and square marks. The OTSR dot field is softer by default.
-
-### 2026-11-14
-- **Added** Skin setting and the OTSR skin (light + dark), applied before the page renders so there is no flash.
-- **Changed** The UI is theme-ready: colours, radii and fonts are design tokens. No visible change — verified declaration-by-declaration against the previous stylesheet.
-- **Added** Home screen "pick up where you left off": recent conversations and projects.
-- **Added** Swipe anywhere to switch workspace tabs; swipe back on Chat or the home screen opens the menu. **Changed** the Shell tab moves to the end of the tab strip.
-- **Fixed** Stuttering upward scroll in long chats on touch devices.
-- **Fixed** Blank band at the bottom of the iOS home-screen app; header tucked under the status bar.
-- **Added** Model picker shows the list Claude Code itself reports.
-- **Added** Read-only extra roots for the file viewer (`CLOUDCLI_EXTRA_READ_ROOTS`); configurable file-tree cap (`CLOUDCLI_FILE_TREE_MAX_ENTRIES`) with on-demand loading of folders that did not fit.
-- Fork created from upstream `1.37.8`.
-
----
-
-## Staying current with upstream
-
-CloudCLI-MobileUI is its own project built on the upstream codebase. It only **pulls** from [siteboon/claudecodeui](https://github.com/siteboon/claudecodeui); it never pushes, opens pull requests, or files issues there.
-
-Upstream code enters this repository as **versioned snapshots**: the `upstream-snapshots` branch holds one commit per imported upstream release (code only, no upstream history), and `main` merges each new snapshot on top of this project's changes. To import a new release:
-
-```bash
-git remote add upstream https://github.com/siteboon/claudecodeui.git   # once
-git config merge.ours.driver true                                      # once: keeps this README on merges
-git fetch upstream
-git checkout upstream-snapshots
-git read-tree -u --reset upstream/main                                 # replace the snapshot with the new upstream code
-git commit -m "Import upstream CloudCLI <version>"
-git checkout main && git merge upstream-snapshots                      # resolve conflicts, test, build
-```
-
-Every change in this project is its own commit and is marked `[local]` in the code, so other projects can take just the pieces they want.
-
-## Contributing
-
-One change per branch, merged into `main` through a pull request — see [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md). Describe the change in the pull request; the maintainer adds the changelog entry here when merging (do not edit this README in a feature branch — merges keep the `main` version).
-
-## License
-
-[AGPL-3.0-or-later](LICENSE). If you run a modified version as a network service, the AGPL requires you to offer its source to its users; this repository is that source for CloudCLI-MobileUI.
-
-Based on CloudCLI (claudecodeui) © Siteboon AI B.V. and contributors; see [NOTICE](NOTICE). The changes in this repository and its ongoing maintenance are by [Aztech Labs](https://github.com/Aztech-Lab).
+It is based on CloudCLI by Siteboon AI B.V. and its contributors (see [NOTICE](NOTICE)). The changes in this repository and their ongoing maintenance are by [Aztech Labs](https://github.com/Aztech-Lab). For contributors and maintainers: [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md) and [docs/fork/MAINTAINING.md](docs/fork/MAINTAINING.md).
