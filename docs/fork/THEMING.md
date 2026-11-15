@@ -119,6 +119,13 @@ the key. Translate at least `en`, `zh-CN` and `zh-TW`.
 8. `npx vitest run` stays green; `src/shared/tests/skin.test.tsx` and `skinOptions.test.tsx` cover the registry,
    the store and the attributes.
 
+## The theme library
+
+The design a skin implements lives in [`themes/`](../../themes/README.md) as a **theme package**: the values by
+semantic role (`theme.json`), the aesthetic rules (`README.md`) and a procedure for applying the design to any UI
+(`apply.md`), with `examples/cloudcli.md` recording how this app applied it. A skin here is one target of a package;
+when you change a skin's values, change the package first and record why.
+
 ## Not themeable yet
 
 - Syntax highlighting (Prism styles in chat code blocks) and the CodeMirror editor theme (`@codemirror/theme-one-dark`

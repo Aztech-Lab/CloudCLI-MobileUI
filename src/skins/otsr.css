@@ -17,19 +17,23 @@
   --card-foreground: 69 10% 14%;
   --popover: 60 12% 95%;
   --popover-foreground: 69 10% 14%;
-  --primary: 31 51% 48%;
+  /* OTSR's --copper (#b8793c) is a fill tone; as text on lab white, and under white
+     text on the primary buttons, it only reaches ~3:1. Darkened to #945e2b (signal.copperText in themes/otsr) for both. */
+  --primary: 29 55% 37%;
   --primary-foreground: 0 0% 100%;
   --secondary: 60 7% 88%;
   --secondary-foreground: 69 10% 14%;
   --muted: 60 7% 88%;
-  --muted-foreground: 68 4% 44%;
+  /* OTSR's --muted (#6f726a, 44% L) is only ~3.6:1 on its own panel fill; secondary text
+     uses this everywhere, so it is pulled to 37% for ≥4.5:1 on muted and background. */
+  --muted-foreground: 68 5% 37%;
   --accent: 36 29% 84%;            /* copper-soft on lab white (OTSR --copper-soft, flattened) */
   --accent-foreground: 69 10% 14%;
   --destructive: 10 59% 45%;
   --destructive-foreground: 0 0% 100%;
   --border: 64 7% 77%;
   --input: 64 7% 77%;
-  --ring: 31 51% 48%;
+  --ring: 29 55% 37%;
 
   --nav-glass-bg: 60 12% 95% / 0.86;
   --nav-glass-blur: 14px;
@@ -48,9 +52,10 @@
   --palette-blue-200: 236 211 170;
   --palette-blue-300: 226 185 126;
   --palette-blue-400: 217 162 95;
-  --palette-blue-500: 184 121 60;
-  --palette-blue-600: 160 103 48;
-  --palette-blue-700: 131 84 39;
+  /* text-blue-500/600 are used as text and as white-text fills: the darker copper. */
+  --palette-blue-500: 148 94 43;
+  --palette-blue-600: 138 85 39;
+  --palette-blue-700: 115 70 32;
   --palette-blue-800: 102 66 31;
   --palette-blue-900: 76 49 23;
   --palette-blue-950: 46 30 14;
@@ -128,16 +133,19 @@
 
   --palette-blue-300: 240 195 137;
   --palette-blue-400: 230 178 112;
-  --palette-blue-500: 217 162 95;
-  --palette-blue-600: 196 142 78;
+  /* Components put white text straight on bg-blue-500/600 (bypassing --primary-foreground).
+     OTSR puts BLACK on its pale copper, so the pale tone stays in -300/-400 and --primary;
+     these two slots get a copper deep enough for white text (≈5:1). */
+  --palette-blue-500: 138 90 43;
+  --palette-blue-600: 122 78 36;
   --palette-gray-700: 43 48 47;
   --palette-gray-800: 22 25 25;
   --palette-gray-900: 21 24 25;
   --palette-gray-950: 15 17 18;
   --palette-green-400: 143 191 122;
-  --palette-green-500: 143 191 122;
+  --palette-green-500: 79 122 74;   /* white-text fills: OTSR's light --ok, not the pale dark one */
   --palette-emerald-400: 143 191 122;
-  --palette-emerald-500: 143 191 122;
+  --palette-emerald-500: 79 122 74;
   --palette-red-400: 232 116 90;
   --palette-red-500: 232 116 90;
 
