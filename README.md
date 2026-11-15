@@ -2,11 +2,13 @@
 
 **Run Claude Code on your own computer. Drive it from your phone.**
 
-*Developed and maintained by [Aztech Labs](https://github.com/Aztech-Lab).*
-
 CloudCLI-MobileUI is a self-hosted web UI for [Claude Code](https://docs.anthropic.com/en/docs/claude-code), tuned for one setup: the agent runs on a machine at home or in the lab, and you use it from a phone or tablet over your LAN or a VPN — in the browser or as a home-screen web app.
 
-Aztech Labs builds it on the open-source [CloudCLI (claudecodeui)](https://github.com/siteboon/claudecodeui) codebase, which provides the foundation — chat, sessions, file browser, git, terminal, multiple providers. On top of that, Aztech Labs adds what makes it comfortable and safe to use from a phone. The project is independent and not affiliated with the upstream authors: report problems [here](https://github.com/Aztech-Lab/CloudCLI-MobileUI/issues), not upstream.
+## Why this project
+
+It started from a practical need. Long agent runs — literature searches, test suites, data processing — happen on a workstation, but the questions and decisions come up when you are away from the desk. We wanted to keep working with that same Claude Code session from a phone: read what it did, answer it, start the next step, and let background agents keep going while we talk to the main thread.
+
+[CloudCLI (claudecodeui)](https://github.com/siteboon/claudecodeui) already provides a solid open-source web UI for Claude Code — chat, sessions, file browser, git, terminal — and this project is built on its code. What we found missing for this use was mostly on the phone side: touch navigation, scrolling, the iOS home-screen app, large projects and files outside the home folder, and keeping background work alive. Those are the changes collected here. It is an independent project, not affiliated with the CloudCLI authors; please report problems [here](https://github.com/Aztech-Lab/CloudCLI-MobileUI/issues) rather than upstream.
 
 **Current base:** upstream `1.37.8` · **Latest update:** 2026-11-15 · [Changelog](#changelog)
 
@@ -126,4 +128,4 @@ One change per branch, merged into `main` through a pull request — see [docs/f
 
 [AGPL-3.0-or-later](LICENSE). If you run a modified version as a network service, the AGPL requires you to offer its source to its users; this repository is that source for CloudCLI-MobileUI.
 
-CloudCLI-MobileUI and its changes © 2026 Aztech Labs. Based on CloudCLI (claudecodeui) © Siteboon AI B.V. and contributors — see [NOTICE](NOTICE).
+Based on CloudCLI (claudecodeui) © Siteboon AI B.V. and contributors; see [NOTICE](NOTICE). The changes in this repository and its ongoing maintenance are by [Aztech Labs](https://github.com/Aztech-Lab).
