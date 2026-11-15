@@ -208,6 +208,12 @@
       "dark": "Тёмная",
       "system": "Как в системе"
     },
+    "skin": {
+      "label": "Skin",
+      "description": "The visual style of the interface; light and dark work with every skin",
+      "default": "Default",
+      "otsr": "OTSR — lab white, copper, square corners"
+    },
     "projectSorting": {
       "label": "Сортировка проектов",
       "description": "Как проекты упорядочены на боковой панели",

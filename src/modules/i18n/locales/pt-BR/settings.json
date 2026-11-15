@@ -234,6 +234,12 @@
       "dark": "Escuro",
       "system": "Seguir a aparência do sistema"
     },
+    "skin": {
+      "label": "Skin",
+      "description": "The visual style of the interface; light and dark work with every skin",
+      "default": "Default",
+      "otsr": "OTSR — lab white, copper, square corners"
+    },
     "projectSorting": {
       "label": "Ordenação de projetos",
       "description": "Como os projetos são ordenados na barra lateral",

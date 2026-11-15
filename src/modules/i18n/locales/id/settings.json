@@ -234,6 +234,12 @@
       "dark": "Gelap",
       "system": "Ikuti tampilan sistem"
     },
+    "skin": {
+      "label": "Skin",
+      "description": "The visual style of the interface; light and dark work with every skin",
+      "default": "Default",
+      "otsr": "OTSR — lab white, copper, square corners"
+    },
     "projectSorting": {
       "label": "Urutan Proyek",
       "description": "Cara proyek diurutkan di sidebar",

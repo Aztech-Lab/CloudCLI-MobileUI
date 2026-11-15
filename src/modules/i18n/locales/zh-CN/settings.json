@@ -234,6 +234,12 @@
       "dark": "深色",
       "system": "跟随系统外观"
     },
+    "skin": {
+      "label": "皮肤",
+      "description": "界面的视觉风格；浅色和深色对每种皮肤都适用",
+      "default": "默认",
+      "otsr": "OTSR — 实验室白、铜色、直角"
+    },
     "projectSorting": {
       "label": "项目排序",
       "description": "项目在侧边栏中的排列方式",

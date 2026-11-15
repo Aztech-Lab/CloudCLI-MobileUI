@@ -209,6 +209,12 @@
       "dark": "深色",
       "system": "跟隨系統外觀"
     },
+    "skin": {
+      "label": "外觀皮膚",
+      "description": "介面的視覺風格；淺色與深色對每種皮膚都適用",
+      "default": "預設",
+      "otsr": "OTSR — 實驗室白、銅色、直角"
+    },
     "projectSorting": {
       "label": "專案排序",
       "description": "專案在側邊欄中的排列方式",
