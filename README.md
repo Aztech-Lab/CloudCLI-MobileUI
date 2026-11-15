@@ -155,7 +155,7 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 - Background agents keep running when you send a new message ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
 
 **15 November 2026**
-- Text in the OTSR skin is easier to read: copper and secondary text are a little darker, and white text on copper or green buttons has more contrast.
+- The OTSR skin now uses the exact colors of the original design: the real copper and secondary text, black labels on copper and green buttons in dark mode, and a soft shadow under floating panels ([#4](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/4)).
 - The OTSR design is now also a reusable package in [`themes/otsr`](themes/otsr/), and the theming guide describes the skin system as it really works ([#2](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/2), [#3](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/3)).
 - Skins now have their own settings. For OTSR you can choose how strong the dotted background is, and switch the cut corners, monospaced labels and square status dots on or off. The dotted background is softer by default.
 
