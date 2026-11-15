@@ -49,6 +49,13 @@ A theme is a stylesheet that overrides tokens under a selector of its own, with 
 How a theme is selected (setting, attribute, boot script) is not part of the token layer; it belongs to the change
 that adds the first theme.
 
+## The theme library
+
+The design a skin implements lives in [`themes/`](../../themes/README.md) as a **theme package**: the values by
+semantic role (`theme.json`), the aesthetic rules (`README.md`) and a procedure for applying the design to any UI
+(`apply.md`), with `examples/cloudcli.md` recording how this app applied it. A skin here is one target of a package;
+when you change a skin's values, change the package first and record why.
+
 ## Not themeable yet
 
 - Syntax highlighting (Prism styles in chat code blocks) and the CodeMirror editor theme (`@codemirror/theme-one-dark`

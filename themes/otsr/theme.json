@@ -1,0 +1,107 @@
+{
+  "name": "OTSR",
+  "id": "otsr",
+  "version": "1.0.0",
+  "source": "https://github.com/Aztech-Lab/OTSR (src/tokens.css, 0.1.4)",
+  "summary": "Lab white and near-black with a copper signal; square corners, a few chamfered edges; system fonts, monospace micro-labels; square status marks; a dot field as texture.",
+  "modes": ["light", "dark"],
+
+  "color": {
+    "_note": "Hex sRGB; each role has a light and a dark value. A fill tone is for areas and strokes. A text tone is the same hue pulled to >= 4.5:1 on surface.base and surface.raised. Use the text tone whenever the colour carries letters, or sits under letters of the opposite colour.",
+    "surface": {
+      "base":    { "light": "#ebebe8", "dark": "#0f1112", "role": "page background" },
+      "sunken":  { "light": "#e2e2de", "dark": "#151819", "role": "a well, an input, a secondary area" },
+      "raised":  { "light": "#f4f4f1", "dark": "#161919", "role": "panels, cards, popovers; may be 86% translucent over the base" },
+      "inverse": { "light": "#1a1c1a", "dark": "#e6e6df", "role": "panel heads and solid buttons: the other mode's base" }
+    },
+    "ink": {
+      "strong":    { "light": "#111312", "dark": "#f1f1ea", "role": "headings, button labels" },
+      "text":      { "light": "#24261f", "dark": "#e2e3dc", "role": "body" },
+      "muted":     { "light": "#6f726a", "dark": "#9ba09a", "role": "secondary text, fill tone (3.6:1 on raised in light)" },
+      "mutedText": { "light": "#62635a", "dark": "#9ba09a", "role": "secondary text where it must reach 4.5:1 on surface.raised; light needs the pull, dark already passes" },
+      "faint":     { "light": "#a3a59d", "dark": "#5e635f", "role": "disabled, placeholders, key caps; never carries information" },
+      "onInverse": { "light": "#f2f1ea", "dark": "#121413", "role": "text on surface.inverse" }
+    },
+    "line": {
+      "default": { "light": "#c7c8c0", "dark": "#2b302f", "role": "hairlines, panel edges, dividers" },
+      "strong":  { "light": "#24261f", "dark": "#e2e3dc", "role": "the edge of a primary outlined button: ink, not grey" }
+    },
+    "signal": {
+      "_note": "There is one accent. Copper is a FILL colour in the source design; see README, 'Copper'.",
+      "copper":       { "light": "#b8793c", "dark": "#d9a25f", "role": "the accent: active states, focus rings, link underlines, square marks, the cursor" },
+      "copperBright": { "light": "#d9a25f", "dark": "#f0c389", "role": "hover on a copper fill; the bright-blue ANSI slot" },
+      "copperSoft":   { "light": "rgba(184,121,60,0.14)", "dark": "rgba(217,162,95,0.16)", "role": "tint behind an active or hovered control; flatten over surface.base when alpha cannot be used" },
+      "copperText":   { "light": "#945e2b", "dark": "#d9a25f", "role": "copper that carries text, or carries white text in light mode (4.5:1 as text, 5.4:1 under white); in dark mode the fill tone is already readable as text" },
+      "copperDeep":   { "light": "#8a5a2b", "dark": "#8a5a2b", "role": "copper under WHITE text in dark mode, when a component insists on white-on-accent (about 5:1)" },
+      "onCopper":     { "light": "#ffffff", "dark": "#111312", "role": "text on a copper fill: white in light, BLACK in dark; never white on the pale dark copper" }
+    },
+    "status": {
+      "ok":         { "light": "#4f7a4a", "dark": "#8fbf7a", "role": "success mark, running state" },
+      "okFill":     { "light": "#4f7a4a", "dark": "#4f7a4a", "role": "success area that carries white text; the pale dark green cannot" },
+      "danger":     { "light": "#b4452f", "dark": "#e8745a", "role": "error, destructive; already >= 4.5:1 as text on both bases" },
+      "warning":    { "light": "#b8793c", "dark": "#d9a25f", "role": "there is no separate warning colour: warnings are copper" },
+      "info":       { "light": "#6f726a", "dark": "#9ba09a", "role": "there is no blue: information is muted ink" }
+    },
+    "texture": {
+      "dot": {
+        "light": "rgba(20,22,20,0.16)", "dark": "rgba(232,232,226,0.12)",
+        "role": "the dot field behind the main stage, at the source strength",
+        "faint":  { "light": "rgba(20,22,20,0.07)", "dark": "rgba(232,232,226,0.05)" },
+        "strong": { "light": "rgba(20,22,20,0.26)", "dark": "rgba(232,232,226,0.20)" }
+      },
+      "vignette": { "light": 0, "dark": 0.92, "role": "edge fades on the stage: none in light, strong in dark" }
+    },
+    "shadow": {
+      "light": "0 20px 60px rgba(30,28,20,0.14)", "dark": "0 20px 60px rgba(0,0,0,0.5)",
+      "role": "only for the one floating stage or dialog; panels get a hairline (line.default), not a shadow"
+    },
+    "chrome": { "light": "#ebebe8", "dark": "#0f1112", "role": "browser theme-color, status bar, title bar: the base surface" }
+  },
+
+  "type": {
+    "sans": "system-ui, -apple-system, \"Segoe UI Variable Text\", \"Segoe UI\", Roboto, \"PingFang SC\", \"Microsoft YaHei\", sans-serif",
+    "mono": "ui-monospace, \"Cascadia Mono\", \"SF Mono\", Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+    "serif": "none: use sans",
+    "webFonts": false,
+    "body": { "size": "13px", "lineHeight": 1.5, "family": "sans", "smoothing": "antialiased" },
+    "micro": { "family": "mono", "size": "10px", "weight": 500, "letterSpacing": "0.12em", "transform": "uppercase", "color": "ink.muted", "role": "labels of tabs, panel heads, keys, status words" },
+    "controlLabel": { "family": "mono", "size": "10.5px", "weight": 700, "letterSpacing": "0.12em", "transform": "uppercase", "role": "the label inside a button or tab" },
+    "keycap": { "family": "mono", "size": "9.5px", "weight": 500, "border": "1px ink.faint", "minWidth": "18px", "height": "18px" },
+    "bilingual": { "optional": true, "role": "OTSR labels carry a second line (Traditional Chinese) under the English term: 9px, letter-spacing 0.18em, 72% opacity. Only where the host UI is bilingual." }
+  },
+
+  "shape": {
+    "radius": "0px",
+    "radiusMax": "2px",
+    "_note": "Square. Up to 2px is tolerated where 0 looks broken (focus rings, images). Full circles stay only for avatars and spinners.",
+    "chamfer": {
+      "large": "14px", "small": "8px",
+      "clipPath": "polygon(0 0, calc(100% - C) 0, 100% C, 100% 100%, C 100%, 0 calc(100% - C))",
+      "role": "top-right and bottom-left corners cut, on a FEW elements: primary buttons, the main input, the user's own message, the tab strip. Not on everything; not on containers whose children may overflow, because clip-path clips them."
+    },
+    "marks": { "size": "6px", "shape": "square", "role": "status dots are squares; a blinking square means running" },
+    "border": { "width": "1px", "role": "every clickable thing has an edge, a fill on hover, or both" }
+  },
+
+  "space": {
+    "control": { "height": "44px", "paddingX": "16px", "gap": "14px" },
+    "controlSmall": { "height": "34px", "paddingX": "9px", "gap": "8px" },
+    "controlBig": { "height": "52px" },
+    "dotGrid": { "size": "22px", "offset": "11px" }
+  },
+
+  "effects": {
+    "focus": "outline 2px signal.copper, offset 3px; never a soft glow",
+    "link": "ink colour, underlined in copper, underline offset 3px; copper on hover",
+    "hover": "signal.copperSoft fill and/or copper border; 150ms",
+    "disabled": "opacity 0.35, no colour change",
+    "motion": { "duration": "150ms", "stepped": "steps(2) for blinking marks; no easing flourishes" },
+    "elevation": "hairline over shadow; one shadow only, on the floating stage"
+  },
+
+  "terminal": {
+    "_note": "ANSI palette: only the blue slots and the base colours are the theme's; the other ANSI colours stay as the host has them.",
+    "light": { "background": "#ebebe8", "foreground": "#24261f", "cursor": "#b8793c", "selectionBackground": "#e8d3b6", "blue": "#b8793c", "brightBlue": "#8a5a2b" },
+    "dark":  { "background": "#0f1112", "foreground": "#e2e3dc", "cursor": "#d9a25f", "selectionBackground": "#3a3226", "blue": "#d9a25f", "brightBlue": "#f0c389" }
+  }
+}
