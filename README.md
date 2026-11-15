@@ -100,17 +100,21 @@ Newest first. Entries in review link to their pull request.
 
 ## Staying current with upstream
 
-This fork only **pulls** from upstream; it never pushes, opens pull requests, or files issues there. `main` = upstream + this fork's changes; `upstream-main` is an untouched mirror of upstream.
+CloudCLI-MobileUI is its own project built on the upstream codebase. It only **pulls** from [siteboon/claudecodeui](https://github.com/siteboon/claudecodeui); it never pushes, opens pull requests, or files issues there.
+
+Upstream code enters this repository as **versioned snapshots**: the `upstream-snapshots` branch holds one commit per imported upstream release (code only, no upstream history), and `main` merges each new snapshot on top of this project's changes. To import a new release:
 
 ```bash
-git remote add upstream https://github.com/siteboon/claudecodeui.git
-git config merge.ours.driver true          # once per clone: keeps this README on merges
+git remote add upstream https://github.com/siteboon/claudecodeui.git   # once
+git config merge.ours.driver true                                      # once: keeps this README on merges
 git fetch upstream
-git checkout upstream-main && git merge --ff-only upstream/main
-git checkout main && git merge upstream-main
+git checkout upstream-snapshots
+git read-tree -u --reset upstream/main                                 # replace the snapshot with the new upstream code
+git commit -m "Import upstream CloudCLI <version>"
+git checkout main && git merge upstream-snapshots                      # resolve conflicts, test, build
 ```
 
-Every change in this fork is its own commit and is marked `[local]` in the code, so other projects can take just the pieces they want.
+Every change in this project is its own commit and is marked `[local]` in the code, so other projects can take just the pieces they want.
 
 ## Contributing
 
