@@ -121,6 +121,8 @@ createWebSocketServer(server, {
 
             return null;
         },
+        // [local] See ShellWebSocketDependencies.resolveSessionProjectPath.
+        resolveSessionProjectPath: (sessionId) => sessionsDb.getSessionById(sessionId)?.project_path ?? null,
     },
     getPluginPort,
 });

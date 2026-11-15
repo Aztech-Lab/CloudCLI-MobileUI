@@ -764,6 +764,81 @@ export const sessionsDb = {
     return Number(row?.count ?? 0);
   },
 
+  // [local] Multi-path reads for a project shown as one entry while it is
+  // stored under several spellings (see project-groups.db.ts). The paths are
+  // matched exactly as stored; every row keeps its own project_path.
+
+  getSessionsByProjectPathsPage(projectPaths: string[], limit: number, offset: number): SessionRow[] {
+    if (projectPaths.length === 0) {
+      return [];
+    }
+    const db = getConnection();
+    const placeholders = projectPaths.map(() => '?').join(', ');
+    const rows = db
+      .prepare(
+        `SELECT ${SESSION_ROW_COLUMNS}
+         FROM sessions
+         WHERE project_path IN (${placeholders})
+           AND isArchived = 0
+         ORDER BY datetime(COALESCE(updated_at, created_at)) DESC, session_id DESC
+         LIMIT ? OFFSET ?`
+      )
+      .all(...projectPaths, limit, offset) as SessionRow[];
+
+    return normalizeSessionRows(rows);
+  },
+
+  countSessionsByProjectPaths(projectPaths: string[]): number {
+    if (projectPaths.length === 0) {
+      return 0;
+    }
+    const db = getConnection();
+    const placeholders = projectPaths.map(() => '?').join(', ');
+    const row = db
+      .prepare(
+        `SELECT COUNT(*) AS count
+         FROM sessions
+         WHERE project_path IN (${placeholders})
+           AND isArchived = 0`
+      )
+      .get(...projectPaths) as { count: number } | undefined;
+
+    return Number(row?.count ?? 0);
+  },
+
+  getSessionsByProjectPathsIncludingArchived(projectPaths: string[]): SessionRow[] {
+    if (projectPaths.length === 0) {
+      return [];
+    }
+    const db = getConnection();
+    const placeholders = projectPaths.map(() => '?').join(', ');
+    const rows = db
+      .prepare(
+        `SELECT ${SESSION_ROW_COLUMNS}
+         FROM sessions
+         WHERE project_path IN (${placeholders})
+         ORDER BY datetime(COALESCE(updated_at, created_at)) DESC, session_id DESC`
+      )
+      .all(...projectPaths) as SessionRow[];
+
+    return normalizeSessionRows(rows);
+  },
+
+  /** Most recent activity among a path's active sessions, or null when it has none. */
+  getLatestSessionActivityByProjectPath(projectPath: string): string | null {
+    const db = getConnection();
+    const row = db
+      .prepare(
+        `SELECT MAX(datetime(COALESCE(updated_at, created_at))) AS latest
+         FROM sessions
+         WHERE project_path = ?
+           AND isArchived = 0`
+      )
+      .get(projectPath) as { latest: string | null } | undefined;
+
+    return row?.latest ?? null;
+  },
+
   deleteSessionsByProjectPath(projectPath: string): void {
     const db = getConnection();
     const normalizedProjectPath = normalizeProjectPath(projectPath);

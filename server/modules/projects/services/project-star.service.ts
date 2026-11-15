@@ -1,4 +1,4 @@
-import { projectsDb } from '@/modules/database/index.js';
+import { projectGroupsDb, projectsDb } from '@/modules/database/index.js';
 import { AppError } from '@/shared/utils.js';
 
 type ToggleProjectStarResult = {
@@ -71,8 +71,14 @@ export function toggleProjectStar(projectId: string): ToggleProjectStarResult {
     });
   }
 
-  const nextStarredState = !project.isStarred;
-  projectsDb.updateProjectIsStarredById(normalizedProjectId, nextStarredState);
+  // [local] A project stored under several path spellings is listed once and
+  // starred when any of its rows is; the toggle sets every row alike.
+  const siblings = projectGroupsDb.getRowsSharingIdentityWith(normalizedProjectId);
+  const rows = siblings.length > 0 ? siblings : [project];
+  const nextStarredState = !rows.some((row) => Boolean(row.isStarred));
+  for (const row of rows) {
+    projectsDb.updateProjectIsStarredById(row.project_id, nextStarredState);
+  }
 
   return { isStarred: nextStarredState };
 }

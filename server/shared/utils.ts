@@ -355,6 +355,24 @@ export function normalizeProjectPath(inputPath: string): string {
 }
 
 /**
+ * [local] The key that decides whether two stored project paths are the same
+ * workspace, for grouping and display only — never for storage or for the
+ * working directory a CLI is started in.
+ *
+ * Windows treats `E:\x` and `e:\x` as one directory, but every process records
+ * whichever spelling it was started with (Git Bash and CloudCLI's own runs
+ * record a lower-case drive), so one workspace can own several project rows.
+ * On top of `normalizeProjectPath` (long-path prefix, separators, trailing
+ * slash) this upper-cases a leading drive letter; nothing else changes case.
+ */
+export function projectIdentityKey(inputPath: string | null | undefined): string {
+  const normalized = normalizeProjectPath(typeof inputPath === 'string' ? inputPath : '');
+  return /^[a-z]:(?:[\\/]|$)/.test(normalized)
+    ? `${normalized[0].toUpperCase()}${normalized.slice(1)}`
+    : normalized;
+}
+
+/**
  * Validates that a user-supplied workspace path is safe to use.
  *
  * Call this before any filesystem mutation that creates or registers projects.

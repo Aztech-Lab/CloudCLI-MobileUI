@@ -5,8 +5,8 @@ import readline from 'node:readline';
 import { spawn } from 'cross-spawn';
 import { rgPath } from '@vscode/ripgrep';
 
-import { isClaudeNonTurnMessageRow, stripAnsiSequences } from '@/shared/utils.js';
-import { projectsDb, sessionsDb } from '@/modules/database/index.js';
+import { isClaudeNonTurnMessageRow, projectIdentityKey, stripAnsiSequences } from '@/shared/utils.js';
+import { projectGroupsDb, projectsDb, sessionsDb } from '@/modules/database/index.js';
 
 type AnyRecord = Record<string, any>;
 type SearchableProvider = 'claude' | 'codex';
@@ -149,7 +149,8 @@ function getSessionKey(session: Pick<SessionRepositoryRow, 'provider' | 'session
 }
 
 function makeProjectKey(projectPath: string | null): string {
-  const normalized = typeof projectPath === 'string' ? projectPath.trim() : '';
+  // [local] Grouped like the sidebar: path spellings of one workspace share a bucket.
+  const normalized = projectIdentityKey(projectPath);
   return normalized.length > 0 ? normalized : UNKNOWN_PROJECT_KEY;
 }
 
@@ -178,7 +179,7 @@ function findSessionTitleResults(
   limit: number,
 ): SessionTitleSearchResult[] {
   const normalizedQuery = query.toLocaleLowerCase().replace(/\s+/g, ' ');
-  const projectCache = new Map<string, ReturnType<typeof projectsDb.getProjectPath>>();
+  const projectCache = new Map<string, ReturnType<typeof projectGroupsDb.getDisplayProjectForPath>>();
 
   return sessions
     .flatMap((session) => {
@@ -196,7 +197,8 @@ function findSessionTitleResults(
       if (!projectCache.has(projectKey)) {
         projectCache.set(
           projectKey,
-          projectPath ? projectsDb.getProjectPath(projectPath) : null,
+          // [local] Labelled with the project the sidebar lists it under.
+          projectPath ? projectGroupsDb.getDisplayProjectForPath(projectPath) : null,
         );
       }
 
@@ -588,7 +590,7 @@ function buildProjectBuckets(searchableSessions: SearchableSessionRow[]): Projec
             projectDisplayName: 'Unknown Project',
           });
         } else {
-          const projectRow = projectsDb.getProjectPath(key);
+          const projectRow = projectGroupsDb.getDisplayProjectForPath(key);
           const customProjectName = typeof projectRow?.custom_project_name === 'string'
             ? projectRow.custom_project_name.trim()
             : '';
