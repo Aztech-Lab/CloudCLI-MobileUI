@@ -1,0 +1,209 @@
+/* [local] OTSR skin — the look of https://github.com/Aztech-Lab/OTSR (src/tokens.css):
+   lab white and near-black with a copper signal, square corners with a few chamfered
+   edges, system fonts, monospace micro-labels, square status marks, a dot field behind
+   the transcript.
+
+   Applied by `data-skin="otsr"` on <html> (src/shared/skin.ts); `.dark` is the app's
+   normal dark mode. Everything here is a token override (docs/fork/THEMING.md) plus a
+   handful of signature rules on stable class hooks. The default skin is untouched. */
+
+/* ---- tokens: light --------------------------------------------------------------- */
+:root[data-skin="otsr"] {
+  /* OTSR light: --bg #ebebe8, --ink #111312, --text #24261f, --muted #6f726a,
+     --line #c7c8c0, --panel-solid #f4f4f1, --copper #b8793c, --danger #b4452f */
+  --background: 60 7% 92%;
+  --foreground: 69 10% 14%;
+  --card: 60 12% 95%;
+  --card-foreground: 69 10% 14%;
+  --popover: 60 12% 95%;
+  --popover-foreground: 69 10% 14%;
+  --primary: 31 51% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 60 7% 88%;
+  --secondary-foreground: 69 10% 14%;
+  --muted: 60 7% 88%;
+  --muted-foreground: 68 4% 44%;
+  --accent: 36 29% 84%;            /* copper-soft on lab white (OTSR --copper-soft, flattened) */
+  --accent-foreground: 69 10% 14%;
+  --destructive: 10 59% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 64 7% 77%;
+  --input: 64 7% 77%;
+  --ring: 31 51% 48%;
+
+  --nav-glass-bg: 60 12% 95% / 0.86;
+  --nav-glass-blur: 14px;
+  --nav-glass-saturate: 1.2;
+  --nav-tab-glow: 31 51% 48% / 0.18;
+  --nav-tab-ring: 31 51% 48% / 0.12;
+  --nav-float-shadow: 45 14% 10% / 0.14;
+  --nav-float-ring: 64 7% 77% / 0.6;
+  --nav-divider-color: 64 7% 77% / 0.6;
+  --nav-input-bg: 60 7% 88% / 0.5;
+  --nav-input-focus-ring: 31 51% 48% / 0.22;
+
+  /* Blue accents become copper; greys take OTSR's warm neutral scale. */
+  --palette-blue-50: 251 243 232;
+  --palette-blue-100: 244 229 206;
+  --palette-blue-200: 236 211 170;
+  --palette-blue-300: 226 185 126;
+  --palette-blue-400: 217 162 95;
+  --palette-blue-500: 184 121 60;
+  --palette-blue-600: 160 103 48;
+  --palette-blue-700: 131 84 39;
+  --palette-blue-800: 102 66 31;
+  --palette-blue-900: 76 49 23;
+  --palette-blue-950: 46 30 14;
+  --palette-gray-50: 246 246 243;
+  --palette-gray-100: 235 235 232;
+  --palette-gray-200: 226 226 222;
+  --palette-gray-300: 199 200 192;
+  --palette-gray-400: 163 165 157;
+  --palette-gray-500: 111 114 106;
+  --palette-gray-600: 84 87 80;
+  --palette-gray-700: 58 60 54;
+  --palette-gray-800: 36 38 31;
+  --palette-gray-900: 26 28 26;
+  --palette-gray-950: 17 19 18;
+  --palette-green-500: 79 122 74;
+  --palette-green-600: 66 103 62;
+  --palette-emerald-500: 79 122 74;
+  --palette-emerald-600: 66 103 62;
+  --palette-red-500: 180 69 47;
+  --palette-red-600: 152 58 40;
+
+  --radius: 0.125rem;
+  --radius-base: 0.125rem;
+  --radius-xl: 0.125rem;
+  --radius-2xl: 0.125rem;
+  --radius-3xl: 0.125rem;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-serif: var(--font-sans);
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+
+  --app-theme-color-light: #ebebe8;
+  --app-theme-color-dark: #0f1112;
+
+  /* skin-private */
+  --otsr-dot: rgba(20, 22, 20, 0.16);
+  --otsr-chamfer: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  --otsr-chamfer-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+
+/* ---- tokens: dark ---------------------------------------------------------------- */
+:root[data-skin="otsr"].dark {
+  /* OTSR dark: --bg #0f1112, --ink #f1f1ea, --text #e2e3dc, --muted #9ba09a,
+     --line #2b302f, --panel-solid #161919, --copper #d9a25f, --danger #e8745a */
+  --background: 200 9% 6%;
+  --foreground: 69 11% 87%;
+  --card: 180 7% 9%;
+  --card-foreground: 69 11% 87%;
+  --popover: 180 7% 9%;
+  --popover-foreground: 69 11% 87%;
+  --primary: 33 62% 61%;
+  --primary-foreground: 69 10% 7%;
+  --secondary: 170 8% 14%;
+  --secondary-foreground: 69 11% 87%;
+  --muted: 170 8% 14%;
+  --muted-foreground: 110 3% 62%;
+  --accent: 35 20% 18%;            /* copper-soft on near-black, flattened */
+  --accent-foreground: 69 11% 87%;
+  --destructive: 11 76% 63%;
+  --destructive-foreground: 69 10% 7%;
+  --border: 168 8% 18%;
+  --input: 168 8% 22%;
+  --ring: 33 62% 61%;
+
+  --nav-glass-bg: 180 7% 9% / 0.86;
+  --nav-tab-glow: 33 62% 61% / 0.25;
+  --nav-tab-ring: 33 62% 61% / 0.15;
+  --nav-float-shadow: 0 0% 0% / 0.5;
+  --nav-float-ring: 168 8% 18% / 0.4;
+  --nav-divider-color: 168 8% 18% / 0.6;
+  --nav-input-bg: 170 8% 14% / 0.5;
+  --nav-input-focus-ring: 33 62% 61% / 0.25;
+
+  --palette-blue-300: 240 195 137;
+  --palette-blue-400: 230 178 112;
+  --palette-blue-500: 217 162 95;
+  --palette-blue-600: 196 142 78;
+  --palette-gray-700: 43 48 47;
+  --palette-gray-800: 22 25 25;
+  --palette-gray-900: 21 24 25;
+  --palette-gray-950: 15 17 18;
+  --palette-green-400: 143 191 122;
+  --palette-green-500: 143 191 122;
+  --palette-emerald-400: 143 191 122;
+  --palette-emerald-500: 143 191 122;
+  --palette-red-400: 232 116 90;
+  --palette-red-500: 232 116 90;
+
+  --dark-surface: 15 17 18;
+  --dark-option-bg: 22 25 25;
+  --dark-option-fg: 226 227 220;
+
+  --terminal-dark-background: #0f1112;
+  --terminal-dark-foreground: #e2e3dc;
+  --terminal-dark-cursor: #d9a25f;
+  --terminal-dark-selection-background: #3a3226;
+  --terminal-dark-blue: #d9a25f;
+  --terminal-dark-bright-blue: #f0c389;
+
+  --otsr-dot: rgba(232, 232, 226, 0.12);
+}
+
+:root[data-skin="otsr"]:not(.dark) {
+  --terminal-light-background: #ebebe8;
+  --terminal-light-foreground: #24261f;
+  --terminal-light-cursor: #b8793c;
+  --terminal-light-selection-background: #e8d3b6;
+  --terminal-light-blue: #b8793c;
+  --terminal-light-bright-blue: #8a5a2b;
+}
+
+/* ---- signature rules ------------------------------------------------------------- */
+
+/* Micro-labels: tab labels and the sidebar mode tabs in the OTSR mono/uppercase voice. */
+[data-skin="otsr"] [role="tablist"] [role="tab"] {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Chamfered edges on the few elements OTSR gives them: the tab strip, the composer,
+   primary buttons and the user's own messages. Only leaf-ish elements, because
+   clip-path also clips descendants (menus portalled to <body> are unaffected). */
+[data-skin="otsr"] [role="tablist"] {
+  clip-path: var(--otsr-chamfer-sm);
+}
+[data-skin="otsr"] .chat-composer-shell form[data-slot="prompt-input"] {
+  clip-path: var(--otsr-chamfer);
+}
+[data-skin="otsr"] .chat-message.user > div > div > div.rounded-2xl {
+  clip-path: var(--otsr-chamfer-sm);
+}
+
+/* Square status marks instead of dots (OTSR's `.sq`); spinners and avatars stay round. */
+[data-skin="otsr"] .rounded-full.h-2.w-2,
+[data-skin="otsr"] .rounded-full.h-1\.5.w-1\.5,
+[data-skin="otsr"] .rounded-full.h-2\.5.w-2\.5 {
+  border-radius: 0;
+}
+
+/* The transcript sits on OTSR's dot field. */
+[data-skin="otsr"] .chat-messages-pane {
+  background-image: radial-gradient(var(--otsr-dot) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+  background-position: 11px 11px;
+}
+
+/* Panels: a hairline instead of a soft shadow. */
+[data-skin="otsr"] .shadow-sm,
+[data-skin="otsr"] .shadow-md,
+[data-skin="otsr"] .shadow-lg,
+[data-skin="otsr"] .shadow-xl {
+  box-shadow: none;
+}

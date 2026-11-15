@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
 
 import { useUiPreferences, useSetUiPreference } from '@/shared/context/UiPreferencesContext';
+import { useSkin } from '@/shared/context/SkinContext';
 import { useTheme } from '@/shared/context/ThemeContext';
+import { SKIN_IDS, type SkinId } from '@/shared/skin';
 import type { CodeEditorSettingsState, ProjectSortOrder, ThemeMode } from '@/shared/types';
 import { LanguageSelector } from '@/modules/i18n';
 import SettingsCard from '@/modules/settings/SettingsCard';
@@ -31,6 +33,7 @@ export default function AppearanceSettingsTab({
 }: AppearanceSettingsTabProps) {
   const { t } = useTranslation('settings');
   const { themeMode, setThemeMode } = useTheme();
+  const { skin, setSkin } = useSkin();
   const preferences = useUiPreferences();
   const setPreference = useSetUiPreference();
 
@@ -51,6 +54,27 @@ export default function AppearanceSettingsTab({
               <option value="light">{t('appearanceSettings.theme.light')}</option>
               <option value="dark">{t('appearanceSettings.theme.dark')}</option>
               <option value="system">{t('appearanceSettings.theme.system')}</option>
+            </select>
+          </SettingsRow>
+        </SettingsCard>
+      </SettingsSection>
+
+      {/* [local] Skins: token overrides layered on the light/dark mode (docs/fork/THEMING.md). */}
+      <SettingsSection title={t('appearanceSettings.skin.label', { defaultValue: 'Skin' })}>
+        <SettingsCard>
+          <SettingsRow
+            label={t('appearanceSettings.skin.label', { defaultValue: 'Skin' })}
+            description={t('appearanceSettings.skin.description', { defaultValue: 'The visual style of the interface; light and dark work with every skin' })}
+          >
+            <select
+              value={skin}
+              onChange={(event) => setSkin(event.target.value as SkinId)}
+              aria-label={t('appearanceSettings.skin.label', { defaultValue: 'Skin' })}
+              className="w-full touch-manipulation rounded-lg border border-input bg-card p-2.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary sm:w-48"
+            >
+              {SKIN_IDS.map((id) => (
+                <option key={id} value={id}>{t(`appearanceSettings.skin.${id}`, { defaultValue: id })}</option>
+              ))}
             </select>
           </SettingsRow>
         </SettingsCard>

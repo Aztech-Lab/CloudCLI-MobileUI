@@ -37,6 +37,20 @@
   <body>
     <div id="root"></div>
     <script>
+      /* [local] Apply the chosen skin before React mounts, from the localStorage mirror of
+         the user preferences (see src/shared/skin.ts), so the page never flashes the
+         default look. The default skin sets no attribute. */
+      (function () {
+        try {
+          var raw = localStorage.getItem('user-preferences');
+          var skin = raw ? JSON.parse(raw).skin : null;
+          if (typeof skin === 'string' && skin !== 'default' && /^[a-z0-9-]+$/.test(skin)) {
+            document.documentElement.setAttribute('data-skin', skin);
+          }
+        } catch (error) { /* no mirror, or an unreadable one: the default skin */ }
+      })();
+    </script>
+    <script>
       /* [local] Mark when the standalone viewport really reaches the bottom edge
          (innerHeight == 100lvh), so the composer only reserves home-indicator space then. */
       (function () {

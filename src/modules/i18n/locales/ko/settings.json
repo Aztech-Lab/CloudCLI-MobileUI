@@ -234,6 +234,12 @@
       "dark": "어둡게",
       "system": "시스템 설정 따르기"
     },
+    "skin": {
+      "label": "Skin",
+      "description": "The visual style of the interface; light and dark work with every skin",
+      "default": "Default",
+      "otsr": "OTSR — lab white, copper, square corners"
+    },
     "projectSorting": {
       "label": "프로젝트 정렬",
       "description": "사이드바에서 프로젝트 정렬 방식",
