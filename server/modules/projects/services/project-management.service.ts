@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { projectsDb } from '@/modules/database/index.js';
+import { projectGroupsDb, projectsDb } from '@/modules/database/index.js';
 import type {
   CreateProjectPathResult,
   ProjectRepositoryRow,
@@ -140,5 +140,11 @@ export async function createProject(
  */
 export function updateProjectDisplayName(projectId: string, newDisplayName: unknown): void {
   const trimmed = typeof newDisplayName === 'string' ? newDisplayName.trim() : '';
-  projectsDb.updateCustomProjectNameById(projectId, trimmed.length > 0 ? trimmed : null);
+  // [local] Renames every row of a project stored under several path spellings,
+  // so the merged entry keeps one name whichever row is its representative.
+  const rows = projectGroupsDb.getRowsSharingIdentityWith(projectId);
+  const projectIds = rows.length > 0 ? rows.map((row) => row.project_id) : [projectId];
+  for (const id of projectIds) {
+    projectsDb.updateCustomProjectNameById(id, trimmed.length > 0 ? trimmed : null);
+  }
 }

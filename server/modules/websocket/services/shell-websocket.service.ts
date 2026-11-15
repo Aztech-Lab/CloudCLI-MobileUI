@@ -5,7 +5,7 @@ import path from 'node:path';
 import pty, { type IPty } from 'node-pty';
 import { WebSocket, type RawData } from 'ws';
 
-import { parseIncomingJsonObject, stripAnsiSequences } from '@/shared/utils.js';
+import { parseIncomingJsonObject, projectIdentityKey, stripAnsiSequences } from '@/shared/utils.js';
 
 type ShellIncomingMessage = {
   type?: string;
@@ -119,6 +119,12 @@ type ShellWebSocketDependencies = {
     sessionId: string,
     provider: string,
   ) => string | null | undefined;
+  /**
+   * [local] The stored project path of an app session, so a resumed session
+   * runs in its own directory spelling even when the sidebar lists it under a
+   * project stored with another spelling of the same path.
+   */
+  resolveSessionProjectPath?: (sessionId: string) => string | null | undefined;
   spawnPty?: typeof pty.spawn;
 };
 
@@ -546,9 +552,23 @@ export function handleShellConnection(
       }
 
       if (data.type === 'init') {
-        const projectPath = readString(data.projectPath, process.cwd());
+        const requestedProjectPath = readString(data.projectPath, process.cwd());
         const sessionId = readString(data.sessionId) || null;
         const hasSession = readBoolean(data.hasSession);
+        // [local] Resume where the session lives. The client sends the listed
+        // project's path, which for a project stored under several spellings
+        // (a lower- and an upper-case drive letter) may not be the session's.
+        let projectPath = requestedProjectPath;
+        if (hasSession && sessionId && dependencies.resolveSessionProjectPath) {
+          const storedProjectPath = dependencies.resolveSessionProjectPath(sessionId);
+          if (
+            storedProjectPath
+            && storedProjectPath !== requestedProjectPath
+            && projectIdentityKey(storedProjectPath) === projectIdentityKey(requestedProjectPath)
+          ) {
+            projectPath = storedProjectPath;
+          }
+        }
         const provider = readString(data.provider, 'claude');
         const initialCommand = readString(data.initialCommand);
         const forceRestart = readBoolean(data.forceRestart);
