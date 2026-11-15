@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { readThemeToken } from '@/shared/utils';
 import type { ThemeMode } from '@/shared/types';
 import {
   readUserPreference,
@@ -80,7 +81,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
       const themeColorMeta = document.querySelector('meta[name="theme-color"]');
       if (themeColorMeta) {
-        themeColorMeta.setAttribute('content', '#141414'); // Dark background color (hsl(0 0% 8%))
+        // Dark background color (hsl(0 0% 8%)). [local] A theme may override it.
+        themeColorMeta.setAttribute('content', readThemeToken('--app-theme-color-dark') || '#141414');
       }
     } else {
       document.documentElement.classList.remove('dark');
@@ -93,7 +95,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
       const themeColorMeta = document.querySelector('meta[name="theme-color"]');
       if (themeColorMeta) {
-        themeColorMeta.setAttribute('content', '#f6f4ef'); // Light background color (warm cream)
+        // Light background color (warm cream). [local] A theme may override it.
+        themeColorMeta.setAttribute('content', readThemeToken('--app-theme-color-light') || '#f6f4ef');
       }
     }
   }, [isDarkMode]);
