@@ -159,7 +159,18 @@ async function readCodexLiveTurnIds(filePath: string): Promise<string[]> {
 /** Resolve reference-backed history without requiring the source to remain indexed. */
 async function findCodexHistorySource(filePath: string, threadId: string): Promise<string | null> {
   const indexed = sessionsDb.getSessionByProviderSessionId(threadId);
-  if (indexed?.provider === PROVIDER && indexed.jsonl_path) {
+  // [local] A thread can live in several rollout files (Codex continues an
+  // edited thread in a new `…-<thread>_<segment>.jsonl` file under the same
+  // id), and the row follows the newest one. A `history_base` byte boundary
+  // always refers to the thread's own `…-<thread>.jsonl` file, so the indexed
+  // path is only a shortcut when it is that file — and never the file being
+  // read, whose base it would otherwise resolve to itself.
+  if (
+    indexed?.provider === PROVIDER
+    && indexed.jsonl_path
+    && path.basename(indexed.jsonl_path).endsWith(`-${threadId}.jsonl`)
+    && path.resolve(indexed.jsonl_path) !== path.resolve(filePath)
+  ) {
     try {
       if ((await fsp.stat(indexed.jsonl_path)).isFile()) {
         return indexed.jsonl_path;
@@ -175,6 +186,12 @@ async function findCodexHistorySource(filePath: string, threadId: string): Promi
       const home = path.dirname(directory);
       for (const storage of ['sessions', 'archived_sessions']) {
         const found = await findFileWithSuffix(path.join(home, storage), `-${threadId}.jsonl`, 3);
+        if (found) return found;
+      }
+      // [local] A later segment of a continued thread names the segment before
+      // it, whose file is `…-<thread>_<segment>.jsonl`.
+      for (const storage of ['sessions', 'archived_sessions']) {
+        const found = await findFileWithSuffix(path.join(home, storage), `_${threadId}.jsonl`, 3);
         if (found) return found;
       }
       break;
