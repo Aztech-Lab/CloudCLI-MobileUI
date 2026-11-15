@@ -2,9 +2,11 @@
 
 **Run Claude Code on your own computer. Drive it from your phone.**
 
+*Developed and maintained by [Aztech Labs](https://github.com/Aztech-Lab).*
+
 CloudCLI-MobileUI is a self-hosted web UI for [Claude Code](https://docs.anthropic.com/en/docs/claude-code), tuned for one setup: the agent runs on a machine at home or in the lab, and you use it from a phone or tablet over your LAN or a VPN — in the browser or as a home-screen web app.
 
-It is a downstream fork of [CloudCLI (claudecodeui)](https://github.com/siteboon/claudecodeui) by Siteboon. Upstream provides the foundation — chat, sessions, file browser, git, terminal, multiple providers. This fork adds what makes it comfortable and safe to use from a phone. It is independent and not affiliated with upstream: report problems with this fork [here](https://github.com/Aztech-Lab/CloudCLI-MobileUI/issues), not upstream.
+Aztech Labs builds it on the open-source [CloudCLI (claudecodeui)](https://github.com/siteboon/claudecodeui) codebase, which provides the foundation — chat, sessions, file browser, git, terminal, multiple providers. On top of that, Aztech Labs adds what makes it comfortable and safe to use from a phone. The project is independent and not affiliated with the upstream authors: report problems [here](https://github.com/Aztech-Lab/CloudCLI-MobileUI/issues), not upstream.
 
 **Current base:** upstream `1.37.8` · **Latest update:** 2026-11-15 · [Changelog](#changelog)
 
@@ -122,6 +124,6 @@ One change per branch, merged into `main` through a pull request — see [docs/f
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE), same as upstream. If you run a modified version as a network service, the AGPL requires you to offer its source to its users; this repository is that source for CloudCLI-MobileUI.
+[AGPL-3.0-or-later](LICENSE). If you run a modified version as a network service, the AGPL requires you to offer its source to its users; this repository is that source for CloudCLI-MobileUI.
 
-Original project: [siteboon/claudecodeui](https://github.com/siteboon/claudecodeui) © Siteboon and contributors.
+CloudCLI-MobileUI and its changes © 2026 Aztech Labs. Based on CloudCLI (claudecodeui) © Siteboon AI B.V. and contributors — see [NOTICE](NOTICE).
