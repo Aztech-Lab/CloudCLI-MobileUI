@@ -36,12 +36,18 @@ export type SwipeAction =
   | { type: 'tab'; tab: AppTab }
   | { type: 'menu' };
 
-/** What a completed swipe in `direction` should do from `activeTab`. */
+/**
+ * What a completed swipe in `direction` should do from `activeTab`. With no tabs
+ * (the home screen, before a project is chosen) swiping back opens the menu and
+ * swiping forward does nothing.
+ */
 export function resolveSwipeAction(
   tabIds: readonly AppTab[],
   activeTab: AppTab,
   direction: SwipeDirection,
 ): SwipeAction | null {
+  if (tabIds.length === 0) return direction === 'previous' ? { type: 'menu' } : null;
+
   const index = tabIds.indexOf(activeTab);
   if (index === -1) return null;
 

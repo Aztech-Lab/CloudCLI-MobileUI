@@ -29,6 +29,11 @@ describe('resolveSwipeAction', () => {
     expect(resolveSwipeAction(TABS, 'chat', 'previous')).toEqual({ type: 'menu' });
   });
 
+  it('on the home screen (no tabs) only swiping back does something: it opens the menu', () => {
+    expect(resolveSwipeAction([], 'chat', 'previous')).toEqual({ type: 'menu' });
+    expect(resolveSwipeAction([], 'chat', 'next')).toBeNull();
+  });
+
   it('does nothing past the last tab or for an unknown tab', () => {
     expect(resolveSwipeAction(TABS, 'shell', 'next')).toBeNull();
     expect(resolveSwipeAction(TABS, 'tasks', 'next')).toBeNull();
@@ -125,7 +130,7 @@ describe('useWorkspaceSwipeNavigation', () => {
     document.body.innerHTML = '';
   });
 
-  function setup(activeTab: AppTab, enabled = true) {
+  function setup(activeTab: AppTab, enabled = true, tabIds: AppTab[] = TABS) {
     const container = document.createElement('div');
     const target = document.createElement('p');
     container.appendChild(target);
@@ -137,7 +142,7 @@ describe('useWorkspaceSwipeNavigation', () => {
     renderHook(() => useWorkspaceSwipeNavigation({
       enabled,
       container,
-      tabIds: TABS,
+      tabIds,
       activeTab,
       onSelectTab,
       onOpenMenu,
@@ -170,6 +175,18 @@ describe('useWorkspaceSwipeNavigation', () => {
     swipe(target, 100, 260);
     expect(onOpenMenu).toHaveBeenCalledTimes(1);
     expect(onSelectTab).not.toHaveBeenCalled();
+  });
+
+  it('on the home screen opens the menu on a back swipe and never changes the tab', () => {
+    const back = setup('chat', true, []);
+    swipe(back.target, 100, 260);
+    expect(back.onOpenMenu).toHaveBeenCalledTimes(1);
+
+    document.body.innerHTML = '';
+    const forward = setup('chat', true, []);
+    swipe(forward.target, 300, 150);
+    expect(forward.onOpenMenu).not.toHaveBeenCalled();
+    expect(forward.onSelectTab).not.toHaveBeenCalled();
   });
 
   it('leaves edge swipes to the system', () => {

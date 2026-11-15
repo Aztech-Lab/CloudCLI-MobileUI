@@ -136,24 +136,34 @@ function WorkspaceMain({
   usePaletteOpsRegister({ openFile, openFileInEditor, openDirectory });
 
   // [local] Mobile: swipe left/right anywhere in the content to switch tabs; swiping
-  // back from the first tab opens the menu drawer.
+  // back from the first tab opens the menu drawer. On the home screen (loading, or no
+  // project chosen yet) there are no tabs, so swiping back just opens the menu.
   const { tabs } = useWorkspaceTabs(shouldShowTasksTab, shouldShowBrowserTab);
   const [swipeContainer, setSwipeContainer] = useState<HTMLDivElement | null>(null);
+  const hasWorkspace = !isLoading && Boolean(selectedProject);
   useWorkspaceSwipeNavigation({
     enabled: isMobile,
     container: swipeContainer,
-    tabIds: tabs.map((tab) => tab.id),
+    tabIds: hasWorkspace ? tabs.map((tab) => tab.id) : [],
     activeTab,
     onSelectTab: setActiveTab,
     onOpenMenu: onMenuClick,
   });
 
   if (isLoading) {
-    return <WorkspaceStateView mode="loading" isMobile={isMobile} onMenuClick={onMenuClick} />;
+    return (
+      <div ref={setSwipeContainer} className="h-full">
+        <WorkspaceStateView mode="loading" isMobile={isMobile} onMenuClick={onMenuClick} />
+      </div>
+    );
   }
 
   if (!selectedProject) {
-    return <WorkspaceStateView mode="empty" isMobile={isMobile} onMenuClick={onMenuClick} />;
+    return (
+      <div ref={setSwipeContainer} className="h-full">
+        <WorkspaceStateView mode="empty" isMobile={isMobile} onMenuClick={onMenuClick} />
+      </div>
+    );
   }
 
   return (
