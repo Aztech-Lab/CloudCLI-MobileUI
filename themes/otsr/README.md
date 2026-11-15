@@ -27,10 +27,12 @@ glows.
 2. **Copper is a fill tone, not a text tone.** The design paints copper on buttons and
    marks and puts text *on* it: white in light mode, **black in dark mode** (dark copper is
    pale). Copper as *letters* on lab white is only 3:1; white letters on light copper are
-   3.6:1; white on dark copper is 2.3:1. So:
-   - copper carrying text in light mode → `signal.copperText` (`#945e2b`);
-   - white text forced onto copper in dark mode → `signal.copperDeep` (`#8a5a2b`);
-   - the pale dark copper (`#d9a25f`) is fine as text on near-black (8:1) and under black.
+   3.6:1; white on dark copper is 2.3:1. OTSR itself accepts the first two (its micro-labels,
+   chips and active states are copper letters; its primary button is white on copper) and
+   avoids the third by putting **black** on dark copper. Follow the source: keep the real
+   copper and, in dark mode, swap the letters to black rather than darkening the fill. The
+   text-safe tones (`signal.copperText`, `copperDeep`, `ink.mutedText`) exist for a target
+   that must meet WCAG AA; using them costs some of the OTSR character, so say so when you do.
 3. **Warm neutrals, never pure.** Every grey has a little green-yellow in it (`#6f726a`,
    `#c7c8c0`). Pure `#000`/`#fff`/`#808080` look wrong next to them. Secondary text uses
    `ink.muted` for short labels and `ink.mutedText` where a paragraph has to be read.

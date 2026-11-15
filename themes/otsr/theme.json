@@ -27,7 +27,7 @@
       "strong":  { "light": "#24261f", "dark": "#e2e3dc", "role": "the edge of a primary outlined button: ink, not grey" }
     },
     "signal": {
-      "_note": "There is one accent. Copper is a FILL colour in the source design; see README, 'Copper'.",
+      "_note": "There is one accent. Copper is the fill AND the label colour of the source design (3:1 as letters on lab white, by choice). The text-safe tones below are for targets that must meet AA; the source look uses copper and onCopper only. See README, rule 2.",
       "copper":       { "light": "#b8793c", "dark": "#d9a25f", "role": "the accent: active states, focus rings, link underlines, square marks, the cursor" },
       "copperBright": { "light": "#d9a25f", "dark": "#f0c389", "role": "hover on a copper fill; the bright-blue ANSI slot" },
       "copperSoft":   { "light": "rgba(184,121,60,0.14)", "dark": "rgba(217,162,95,0.16)", "role": "tint behind an active or hovered control; flatten over surface.base when alpha cannot be used" },
