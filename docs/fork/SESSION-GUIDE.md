@@ -10,14 +10,15 @@ How each working session contributes one change to CloudCLI-MobileUI. One sessio
 4. Keep behavior unchanged for everything your change is not about. Mark changed upstream code with a short `[local]` comment.
 5. Do not commit machine-specific things (IP addresses, local paths, credentials, `.env`, databases).
 6. **Do not edit `README.md`.** It holds the changelog, which the integrator writes when merging; `.gitattributes` keeps the `main` version on merges, so README edits in a branch are silently dropped. Put everything the changelog needs in the PR description (a one-line user-facing summary helps).
+7. **Put files where [CONTRIBUTING.md › Where things go](../../CONTRIBUTING.md#where-things-go) says.** No new top-level files or folders, no moved upstream files, and no hand-off notes or scratch files in the repository or next to it; keep your worktree under `../worktrees/`.
 
 ## Steps
 
 ```bash
 # from the main clone
 git fetch origin
-git worktree add ../cloudcli-<short-name> -b fix/<short-name> origin/main   # or feat/<name>
-cd ../cloudcli-<short-name>
+git worktree add ../worktrees/cloudcli-<short-name> -b fix/<short-name> origin/main   # or feat/<name>
+cd ../worktrees/cloudcli-<short-name>
 npm ci
 ```
 

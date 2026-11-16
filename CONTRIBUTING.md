@@ -47,6 +47,22 @@ npm run build
 
 The full server suite (`npm test`) can hang in some environments. Running the test files for the area you changed is fine; say which ones in the pull request.
 
+## Where things go
+
+The repository keeps the original CloudCLI layout, so that upstream releases merge cleanly and the app works straight after `npm install`. Please do not move upstream files or add new top-level files or folders. What this project adds lives in a few fixed places:
+
+| What | Where |
+|---|---|
+| Code changes | Next to the code they change, in the existing tree (`src/modules/<area>/`, `server/modules/<area>/`, `src/shared/`), marked with a `[local]` comment. There is no separate plugin folder: the app would still need wiring in the original files, and a parallel tree makes upstream merges harder. |
+| Tests | In the `tests/` folder of the module you changed, like the existing ones. |
+| Skins (CSS) | `src/skins/<id>.css`, registered as described in [docs/fork/THEMING.md](docs/fork/THEMING.md). |
+| Design packages | `themes/<name>/` (see [themes/README.md](themes/README.md)). |
+| Translations | `src/modules/i18n/locales/<language>/`. |
+| Docs about this project | `docs/fork/`. Pictures for the README: `docs/assets/` (generated, see [MAINTAINING.md](docs/fork/MAINTAINING.md)). |
+| Deployment guide for agents | `AGENTS_DEPLOY.md` (top level, so agents find it). |
+| Your working copy | Outside the repository, e.g. `../worktrees/<branch-name>` (see below). Never inside it. |
+| Scratch notes, hand-offs, local scripts | Not in the repository. |
+
 ## Commit messages
 
 Commits follow [Conventional Commits](https://conventionalcommits.org/), checked by commitlint: `<type>(optional scope): <description>`, with a lowercase description in the imperative mood. For example:
