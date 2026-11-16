@@ -165,3 +165,108 @@ test('a retained run\'s eviction timer cannot evict the session\'s next run earl
     mock.timers.reset();
   }
 });
+
+// [local] Stage 5: catching up after a reconnect or reload, and relay turns.
+
+const TASK = { taskId: 't1', toolUseId: 'toolu_1', taskType: 'local_agent', description: 'Agent', startedAt: 1 };
+
+function connectTab(runtime: Record<string, unknown>) {
+  const tab = createFakeSocket();
+  handleChatConnection(
+    tab as never,
+    { user: { id: 1 } } as never,
+    { runtime: { getPendingApprovalsForSession: () => [], hasBackgroundWork: () => false, ...runtime } as never },
+  );
+  return tab;
+}
+
+test('a reloaded tab is told about the background work and replays what it sent since the turn ended', async () => {
+  await withIsolatedDatabase(async () => {
+    const run = chatRunRegistry.startRun({
+      appSessionId: SESSION_ID,
+      provider: 'claude',
+      providerSessionId: 'native-1',
+      connection: createFakeSocket() as never,
+      userId: 1,
+    });
+    assert.ok(run);
+    run.writer.send({ kind: 'text', provider: 'claude', sessionId: 'native-1', content: 'the turn itself' });
+    run.writer.send({ kind: 'complete', provider: 'claude', sessionId: 'native-1', exitCode: 0 });
+    run.writer.send({ kind: 'task_status', provider: 'claude', sessionId: 'native-1', event: 'progress', taskId: 't1', content: 'still going' } as never);
+
+    const tab = connectTab({
+      hasBackgroundWork: (sessionId: string) => sessionId === SESSION_ID,
+      listBackgroundTasks: (sessionId: string) => (sessionId === SESSION_ID ? [TASK] : []),
+    });
+    tab.emit('message', JSON.stringify({ type: 'chat.subscribe', sessions: [{ sessionId: SESSION_ID, lastSeq: 0 }] }));
+    await settle();
+
+    assert.equal(tab.frames[0]?.kind, 'chat_subscribed');
+    assert.equal(tab.frames[0]?.isProcessing, false);
+    assert.equal(tab.frames[0]?.background, true);
+    assert.deepEqual(tab.frames[0]?.tasks, [TASK]);
+    const replayed = tab.frames.slice(1);
+    assert.deepEqual(replayed.map((frame) => frame.kind), ['task_status'], 'only what the transcript does not hold yet');
+  });
+});
+
+test('a reconnecting tab that dropped mid-turn gets the rest of the turn while the background work runs', async () => {
+  await withIsolatedDatabase(async () => {
+    const run = chatRunRegistry.startRun({
+      appSessionId: SESSION_ID,
+      provider: 'claude',
+      providerSessionId: 'native-1',
+      connection: null,
+      userId: 1,
+    });
+    assert.ok(run);
+    run.writer.send({ kind: 'text', provider: 'claude', sessionId: 'native-1', content: 'seen' });
+    run.writer.send({ kind: 'text', provider: 'claude', sessionId: 'native-1', content: 'missed' });
+    run.writer.send({ kind: 'complete', provider: 'claude', sessionId: 'native-1', exitCode: 0 });
+
+    const tab = connectTab({ hasBackgroundWork: () => true, listBackgroundTasks: () => [TASK] });
+    tab.emit('message', JSON.stringify({ type: 'chat.subscribe', sessions: [{ sessionId: SESSION_ID, lastSeq: 1 }] }));
+    await settle();
+
+    assert.deepEqual(tab.frames.slice(1).map((frame) => frame.content ?? frame.kind), ['missed', 'complete']);
+  });
+});
+
+test('a relay turn can be stopped and steered like any running turn', async () => {
+  await withIsolatedDatabase(async () => {
+    const run = startAndCompleteRun(createFakeSocket());
+    run.writer.send({ kind: 'turn_started', provider: 'claude', sessionId: 'native-1', origin: 'background' } as never);
+
+    const calls: string[] = [];
+    const tab = connectTab({
+      hasRuntime: () => true,
+      hasBackgroundWork: () => true,
+      steer: async () => { calls.push('steer'); return true; },
+      abort: async () => { calls.push('abort'); return true; },
+    });
+    tab.emit('message', JSON.stringify({ type: 'chat.steer', sessionId: SESSION_ID, messageId: '4c3d5e6f-7a8b-4c9d-8e0f-2a3b4c5d6e7f', content: 'also this' }));
+    await settle();
+    assert.deepEqual(calls, ['steer']);
+    assert.ok(tab.frames.some((frame) => frame.kind === 'chat_steer_accepted'));
+
+    tab.emit('message', JSON.stringify({ type: 'chat.abort', sessionId: SESSION_ID }));
+    await settle();
+    assert.deepEqual(calls, ['steer', 'abort'], 'the Stop reaches the runtime instead of NO_ACTIVE_RUN');
+    assert.ok(!tab.frames.some((frame) => frame.code === 'NO_ACTIVE_RUN'));
+  });
+});
+
+test('a send refused because a turn is running names its message', async () => {
+  await withIsolatedDatabase(async () => {
+    const run = startAndCompleteRun(createFakeSocket());
+    run.writer.send({ kind: 'turn_started', provider: 'claude', sessionId: 'native-1', origin: 'background' } as never);
+
+    const tab = connectTab({ hasRuntime: () => true, hasBackgroundWork: () => true });
+    const messageId = '1f0c2a4e-5b6d-4e7f-8a9b-0c1d2e3f4a5b';
+    tab.emit('message', JSON.stringify({ type: 'chat.send', sessionId: SESSION_ID, content: 'hi', options: { adoptHeld: true, messageId } }));
+    await settle();
+    const refusal = tab.frames.find((frame) => frame.kind === 'protocol_error');
+    assert.equal(refusal?.code, 'RUN_IN_PROGRESS');
+    assert.equal(refusal?.messageId, messageId);
+  });
+});

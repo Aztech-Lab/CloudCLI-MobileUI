@@ -274,6 +274,7 @@ function ChatInterface({
     withdrawSteer,
     adoptsBackground,
     handleAdoptRefused,
+    handleRunInProgress,
     handleVoiceTranscript,
     handleInputChange,
     handleKeyDown,
@@ -373,6 +374,7 @@ function ChatInterface({
     sessionStore,
     onSteerOutcome: handleSteerOutcome,
     onAdoptRefused: handleAdoptRefused,
+    onRunInProgress: handleRunInProgress,
     onBackgroundTaskRefused: handleBackgroundTaskRefused,
   });
 

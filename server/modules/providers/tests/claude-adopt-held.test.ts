@@ -1928,3 +1928,112 @@ test('[local] a subagent resumed with SendMessage keeps the process held, and a 
     await endRuns([first.script], [done]);
   });
 });
+
+// ----------------------------------------------------------------------------
+// [local] Stage 5: a turn the CLI starts on its own (a relay) is a turn
+// ----------------------------------------------------------------------------
+
+const turnStarts = (writer: TestWriter) => writer.sent.filter((message) => message.kind === 'turn_started');
+
+/** Starts run 1 with two background agents (a1, a2) and ends its turn. */
+async function startHeldWithTwoAgents(cwd: string, writer = createWriter()) {
+  const first = createScriptedQuery();
+  const done = queryClaudeSDK('start the work', { sessionId: SESSION_ID, cwd, adoptable: true }, writer as never, makeContext(first.createQuery));
+  await waitFor(() => first.script.stdin.length > 0, 'run 1 started');
+  await emitAndFlush(first.script, init());
+  for (const id of ['a1', 'a2']) {
+    first.script.emit(toolUse(`toolu_${id}`, 'Agent', { prompt: 'sleep 90', subagent_type: 'general-purpose', run_in_background: true }));
+    first.script.emit(taskStarted(id, `toolu_${id}`));
+    await emitAndFlush(first.script, ack(`toolu_${id}`, 'Async agent launched successfully.', { status: 'async_launched', agentId: id }));
+  }
+  await emitAndFlush(first.script, result());
+  await waitFor(() => completes(writer).length === 1, 'run 1 complete');
+  return { first, done, writer };
+}
+
+test('stage 5: a relay turn is announced and ends with a complete of its own', { concurrency: false }, async () => {
+  await withCwd(async (cwd) => {
+    const { first, done, writer } = await startHeld(cwd);
+    await emitAndFlush(first.script, taskNotification('a1', 'toolu_a1', 'completed'));
+    await emitAndFlush(first.script, init());
+    assert.equal(turnStarts(writer).length, 1, 'the relay turn is announced');
+    assert.equal(turnStarts(writer)[0].origin, 'background');
+    await emitAndFlush(first.script, assistantText('The agent finished.'));
+    assert.equal(completes(writer).length, 1, 'still running');
+    await emitAndFlush(first.script, result());
+    await waitFor(() => completes(writer).length === 2, 'the relay turn completes');
+    const relayComplete = completes(writer)[1];
+    assert.notEqual(relayComplete.aborted, true);
+    assert.ok(Array.isArray(relayComplete.pendingPermissions), 'a background approval would survive it');
+    // Nothing is left: the process is let go after the relay, as before.
+    await waitFor(() => first.script.released(), 'process released after the last relay');
+    await endRuns([first.script], [done]);
+  });
+});
+
+test('stage 5: a message sent during a relay turn is steered into it', { concurrency: false }, async () => {
+  await withCwd(async (cwd) => {
+    const { first, done } = await startHeld(cwd);
+    await emitAndFlush(first.script, taskNotification('a1', 'toolu_a1', 'completed'));
+    await emitAndFlush(first.script, init());
+    assert.equal(await steerClaudeSDKSession(SESSION_ID, 'and then this', { messageId: STEER_ID }), true);
+    await waitFor(() => first.script.stdin.length === 2, 'steer pushed');
+    assert.equal(first.script.stdin[1].priority, 'next');
+    assert.equal(first.script.stdin[1].uuid, STEER_ID);
+    await endRuns([first.script], [done]);
+  });
+});
+
+test('stage 5: Stop during a relay turn stops only that turn; other background work keeps running', { concurrency: false }, async () => {
+  await withCwd(async (cwd) => {
+    const { first, done, writer } = await startHeldWithTwoAgents(cwd);
+    await emitAndFlush(first.script, taskNotification('a1', 'toolu_a1', 'completed'));
+    await emitAndFlush(first.script, init());
+    await emitAndFlush(first.script, assistantText('Agent a1 finished.'));
+
+    assert.equal(await abortClaudeSDKSession(SESSION_ID), true);
+    assert.equal(first.script.count('interrupt'), 1, 'the relay turn is interrupted');
+    assert.deepEqual(first.script.stopped, [], 'no background task is stopped');
+    assert.equal(completes(writer).length, 2);
+    assert.equal(completes(writer)[1].aborted, true);
+    assert.equal(completes(writer)[1].backgroundContinues, true, 'a2 still runs');
+
+    await emitAndFlush(first.script, result('error_during_execution'));
+    await settle();
+    assert.equal(completes(writer).length, 2, 'the interrupted result reports nothing more');
+    assert.equal(first.script.released(), false, 'the process stays held for a2');
+    assert.ok(listClaudeSDKBackgroundWork().some((entry) => entry.sessionId === SESSION_ID
+      && entry.tasks.some((task) => task.taskId === 'a2')));
+    assert.equal(isClaudeSDKSessionActive(SESSION_ID), true);
+    await endRuns([first.script], [done]);
+  });
+});
+
+test('stage 5: Stop during the relay of the last task leaves nothing in the background', { concurrency: false }, async () => {
+  await withCwd(async (cwd) => {
+    const { first, done, writer } = await startHeld(cwd);
+    await emitAndFlush(first.script, taskNotification('a1', 'toolu_a1', 'completed'));
+    await emitAndFlush(first.script, init());
+
+    assert.equal(await abortClaudeSDKSession(SESSION_ID), true);
+    assert.equal(completes(writer)[1].aborted, true);
+    assert.equal(completes(writer)[1].backgroundContinues, false, 'nothing runs on: the client goes idle');
+    await emitAndFlush(first.script, result('error_during_execution'));
+    await waitFor(() => first.script.released(), 'process let go once the relay ended');
+    await endRuns([first.script], [done]);
+  });
+});
+
+test('stage 5: a run that is not adoptable keeps its relay turns unannounced', { concurrency: false }, async () => {
+  await withCwd(async (cwd) => {
+    const { first, done, writer } = await startHeld(cwd, { options: { adoptable: false } });
+    await emitAndFlush(first.script, taskNotification('a1', 'toolu_a1', 'completed'));
+    await emitAndFlush(first.script, init());
+    await emitAndFlush(first.script, assistantText('The agent finished.'));
+    await emitAndFlush(first.script, result());
+    await settle();
+    assert.equal(turnStarts(writer).length, 0);
+    assert.equal(completes(writer).length, 1, 'no second complete, as before');
+    await endRuns([first.script], [done]);
+  });
+});

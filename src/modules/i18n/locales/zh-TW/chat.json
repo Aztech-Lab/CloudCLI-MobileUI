@@ -401,6 +401,7 @@
     }
   },
   "errors": {
-    "codex_thread_active_writer": "此對話正在 Codex 應用程式中開啟，而同一對話同一時間只允許一個寫入方。請在那邊關閉它（或直接在那邊繼續），然後再傳送。"
+    "codex_thread_active_writer": "此對話正在 Codex 應用程式中開啟，而同一對話同一時間只允許一個寫入方。請在那邊關閉它（或直接在那邊繼續），然後再傳送。",
+    "background_work_lost_on_restart": "背景任務已因伺服器重新啟動而停止。當時仍在執行的代理、工作流程和命令沒有完成。"
   }
 }

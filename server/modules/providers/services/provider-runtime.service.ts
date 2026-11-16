@@ -5,6 +5,7 @@ import { sessionsService } from '@/modules/providers/services/sessions.service.j
 import type { IProvider } from '@/shared/interfaces.js';
 import type {
   AnyRecord,
+  BackgroundTaskSummary,
   LLMProvider,
   ProviderPermissionDecision,
   ProviderRunFunction,
@@ -133,6 +134,20 @@ export function createProviderRuntimeService(
     hasBackgroundWork(sessionId: string): boolean {
       return dependencies.listProviders().some((provider) =>
         (provider.runtime.listBackgroundWork?.() ?? []).some((entry) => entry.sessionId === sessionId));
+    },
+
+    // [local] Every session's outstanding background work, across providers:
+    // the subscribe ack, the restart ledger and the health summary read it.
+    listBackgroundWork(): Array<{ sessionId: string; tasks: BackgroundTaskSummary[] }> {
+      return dependencies.listProviders().flatMap((provider) => provider.runtime.listBackgroundWork?.() ?? []);
+    },
+
+    // [local] One session's outstanding background tasks.
+    listBackgroundTasks(sessionId: string): BackgroundTaskSummary[] {
+      return dependencies.listProviders().flatMap((provider) =>
+        (provider.runtime.listBackgroundWork?.() ?? [])
+          .filter((entry) => entry.sessionId === sessionId)
+          .flatMap((entry) => entry.tasks));
     },
 
     resolveToolApproval(requestId: string, decision: ProviderPermissionDecision): void {

@@ -11,10 +11,12 @@ import cors from 'cors';
 
 import { AppError, findApplicationRoot, getModuleDirectory, IS_PLATFORM, terminalTextStyles } from '@/shared/utils.js';
 import {
+    backgroundWorkLedger,
     closeSessionsWatcher,
     initializeSessionsWatcher,
     providerRuntimeService,
     reapOrphanedOpenCodeServers,
+    summarizeActiveWork,
 } from '@/modules/providers/index.js';
 import { chatRunRegistry, createWebSocketServer } from '@/modules/websocket/index.js';
 
@@ -147,7 +149,11 @@ app.get('/health', (req, res) => {
         status: 'ok',
         timestamp: new Date().toISOString(),
         installMode,
-        version: RUNNING_VERSION
+        version: RUNNING_VERSION,
+        // [local] What a restart would end now (counts only): turns being
+        // written, and sessions with background work and their tasks. A
+        // restart script checks this before restarting (AGENTS_DEPLOY.md).
+        activeWork: summarizeActiveWork(chatRunRegistry.listRunningRuns(), providerRuntimeService.listBackgroundWork()),
     });
 });
 
@@ -337,6 +343,15 @@ async function startServer() {
         // Initialize authentication database
         await initializeDatabase();
 
+        // [local] Background work the previous server process still had
+        // running ended with it: note it once in each session's history, then
+        // keep the record current for the next restart.
+        const lostSessions = backgroundWorkLedger.noteLostOnStart();
+        if (lostSessions.length > 0) {
+            console.log(`${terminalTextStyles.info('[INFO]')} Background work of ${lostSessions.length} session(s) was stopped by the restart`);
+        }
+        backgroundWorkLedger.start(() => providerRuntimeService.listBackgroundWork());
+
         // Configure Web Push (VAPID keys)
         configureWebPush();
 
@@ -398,6 +413,12 @@ async function startServer() {
         closeScheduledMessageDispatcher();
         // Clean up plugin processes on shutdown
         const shutdownRuntimeServices = async () => {
+            // [local] The record the next start reads, as of this moment.
+            try {
+                backgroundWorkLedger.record(providerRuntimeService.listBackgroundWork());
+            } catch (err) {
+                console.error('[BackgroundWork] Error recording background work during shutdown:', getErrorMessage(err));
+            }
             try {
                 await browserUseService.stopAllSessions();
             } catch (err) {

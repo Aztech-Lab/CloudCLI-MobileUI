@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 
-import type { ServerEvent,MarkSessionIdle,MarkSessionProcessing,PendingPermissionRequest,ProjectSession,LLMProvider,NormalizedMessage,GetSessionActivity,MarkSessionBackground,SideQuestionEvent,SteerOutcome } from '@/shared/types';
+import type { BackgroundTaskSummary,ServerEvent,MarkSessionIdle,MarkSessionProcessing,PendingPermissionRequest,ProjectSession,LLMProvider,NormalizedMessage,GetSessionActivity,MarkSessionBackground,SideQuestionEvent,SteerOutcome } from '@/shared/types';
 import { showCompletionTitleIndicator } from '@/modules/chat/utils/pageTitleNotification';
 import { playChatCompletionSound, playNotificationSound } from '@/shared/utils';
 import type { SessionStore } from '@/modules/chat/hooks/useSessionStore';
@@ -59,6 +59,12 @@ type UseChatRealtimeHandlersArgs = {
    */
   onAdoptRefused?: (sessionId: string, messageId: string) => boolean;
   /**
+   * [local] The server refused a send because a turn was already running
+   * (one Claude started on its own to report background work). The composer
+   * sends the message into that turn; false means it did not send that message.
+   */
+  onRunInProgress?: (sessionId: string, messageId: string) => boolean;
+  /**
    * [local] A "Move to background" on a running tool call moved nothing (the
    * call had already returned, or the CLI cannot). Not a failure of the run,
    * so the session is not idled; the tool card says it did not work.
@@ -101,6 +107,7 @@ export function useChatRealtimeHandlers({
   sessionStore,
   onSteerOutcome,
   onAdoptRefused,
+  onRunInProgress,
   onBackgroundTaskRefused,
 }: UseChatRealtimeHandlersArgs) {
   // Session switches can send `chat.subscribe` before this effect has a chance
@@ -168,6 +175,10 @@ export function useChatRealtimeHandlers({
 
           if (msg.isProcessing) {
             onSessionProcessing?.(sid);
+          } else if (msg.background === true && Array.isArray(msg.tasks) && msg.tasks.length > 0) {
+            // [local] No turn running, but background work is: show it now
+            // (strip, composer state) rather than as idle until the next poll.
+            onSessionBackground?.(sid, msg.tasks as BackgroundTaskSummary[]);
           } else {
             // Idle ack: ignore it if a newer request started after the
             // subscribe was sent — the ack describes the older state.
@@ -188,6 +199,16 @@ export function useChatRealtimeHandlers({
             if (hasPendingActionablePermissionRequests && !hadActionablePermissionRequests) {
               void playNotificationSound();
             }
+          }
+          return;
+        }
+
+        // [local] Claude started a turn on its own to report finished
+        // background work. It is a reply like any other: running, stoppable,
+        // and a message sent now goes into it. Not a transcript row.
+        case 'turn_started': {
+          if (sid) {
+            onSessionProcessing?.(sid, { statusText: null, canInterrupt: true });
           }
           return;
         }
@@ -222,6 +243,16 @@ export function useChatRealtimeHandlers({
           // running process without stopping its background work. Nothing
           // was started and the work still runs, so the session is not
           // idled; the run's `complete` follows and settles it.
+          // [local] A send that met a turn it did not know of (one Claude
+          // started on its own): the composer sends it into that turn.
+          if (
+            sid
+            && msg.code === 'RUN_IN_PROGRESS'
+            && typeof msg.messageId === 'string'
+            && onRunInProgress?.(sid, msg.messageId)
+          ) {
+            return;
+          }
           if (sid && msg.code === 'ADOPT_UNAVAILABLE') {
             if (typeof msg.messageId === 'string' && onAdoptRefused?.(sid, msg.messageId)) {
               return;
@@ -555,6 +586,7 @@ export function useChatRealtimeHandlers({
     sessionStore,
     onSteerOutcome,
     onAdoptRefused,
+    onRunInProgress,
     onBackgroundTaskRefused,
   ]);
 }
