@@ -211,3 +211,37 @@ test('messages that are not task events leave the set untouched', () => {
 
   assert.equal(tracker.has('s1', 't1'), true);
 });
+
+test('[local] the tracker knows which tasks the turn is blocking on', () => {
+  const tracker = createBackgroundWorkTracker();
+  tracker.apply('s1', {
+    type: 'assistant',
+    parent_tool_use_id: null,
+    message: {
+      role: 'assistant',
+      content: [
+        { type: 'tool_use', id: 'toolu_fg', name: 'Agent', input: { run_in_background: false } },
+        { type: 'tool_use', id: 'toolu_bg', name: 'Agent', input: {} },
+        { type: 'tool_use', id: 'toolu_said', name: 'Agent', input: {} },
+        { type: 'tool_use', id: 'toolu_moved', name: 'Bash', input: { command: 'npm test' } },
+      ],
+    },
+  });
+  // An older CLI says nothing: the launching call's input decides.
+  tracker.apply('s1', started('fg', { tool_use_id: 'toolu_fg' }));
+  tracker.apply('s1', started('bg', { tool_use_id: 'toolu_bg' }));
+  // A newer one says where the task runs, which wins.
+  tracker.apply('s1', started('said', { tool_use_id: 'toolu_said', is_backgrounded: false }));
+  tracker.apply('s1', started('moved', { tool_use_id: 'toolu_moved', task_type: 'local_bash', is_backgrounded: false }));
+  tracker.apply('s1', updated('moved', { is_backgrounded: true }));
+
+  assert.equal(tracker.isForeground('s1', 'fg'), true);
+  assert.equal(tracker.isForeground('s1', 'bg'), false);
+  assert.equal(tracker.isForeground('s1', 'said'), true);
+  assert.equal(tracker.isForeground('s1', 'moved'), false, 'moved to the background');
+
+  tracker.apply('s1', notified('fg', 'completed'));
+  assert.equal(tracker.isForeground('s1', 'fg'), false, 'a settled task is nothing');
+  tracker.clear('s1');
+  assert.equal(tracker.isForeground('s1', 'said'), false);
+});

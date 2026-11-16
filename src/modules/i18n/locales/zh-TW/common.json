@@ -272,5 +272,10 @@
       "closeSidebar": "關閉側邊欄",
       "resizeSidebar": "調整側邊欄寬度"
     }
+  },
+  "workflow": {
+    "stopAllBackground": "停止全部背景工作",
+    "stopAllBackgroundConfirm": "再點一次全部停止",
+    "stopAllBackgroundHint": "停止此對話的所有背景代理和命令。「停止」按鈕只結束目前的回覆。"
   }
 }

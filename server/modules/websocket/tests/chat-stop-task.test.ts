@@ -36,6 +36,7 @@ async function withGateway(
   runTest: (context: {
     socket: ReturnType<typeof createFakeSocket>;
     stops: StopCall[];
+    stopAlls: Array<{ provider: string; sessionId: string }>;
   }) => Promise<void>,
 ): Promise<void> {
   const previousDatabasePath = process.env.DATABASE_PATH;
@@ -46,6 +47,7 @@ async function withGateway(
   await initializeDatabase();
 
   const stops: StopCall[] = [];
+  const stopAlls: Array<{ provider: string; sessionId: string }> = [];
   const socket = createFakeSocket();
 
   try {
@@ -63,11 +65,16 @@ async function withGateway(
             }
             return taskId === knownTaskId;
           },
+          // [local] Something to stop unless the gateway was built with no task.
+          stopAllBackgroundWork: async (provider: string, sessionId: string) => {
+            stopAlls.push({ provider, sessionId });
+            return knownTaskId !== '';
+          },
         } as never,
       },
     );
 
-    await runTest({ socket, stops });
+    await runTest({ socket, stops, stopAlls });
   } finally {
     connectedClients.clear();
     chatRunRegistry.clearAll();
@@ -138,6 +145,38 @@ test('a stop for a session that does not exist is refused', async () => {
     await settle();
 
     assert.equal(stops.length, 0);
+    assert.equal(socket.frames.at(-1)?.code, 'SESSION_NOT_FOUND');
+  });
+});
+
+test('[local] chat.stop-all-background stops the background work through the session\'s provider runtime', async () => {
+  await withGateway('task-1', async ({ socket, stops, stopAlls }) => {
+    socket.emit('message', JSON.stringify({ type: 'chat.stop-all-background', sessionId: SESSION_ID }));
+    await settle();
+
+    assert.deepEqual(stopAlls, [{ provider: 'claude', sessionId: SESSION_ID }]);
+    assert.equal(stops.length, 0);
+    assert.deepEqual(socket.frames, []);
+  });
+});
+
+test('[local] chat.stop-all-background with nothing running is refused with NO_BACKGROUND_WORK', async () => {
+  await withGateway('', async ({ socket, stopAlls }) => {
+    socket.emit('message', JSON.stringify({ type: 'chat.stop-all-background', sessionId: SESSION_ID }));
+    await settle();
+
+    assert.equal(stopAlls.length, 1);
+    assert.equal(socket.frames.at(-1)?.code, 'NO_BACKGROUND_WORK');
+    assert.equal(socket.frames.at(-1)?.sessionId, SESSION_ID);
+  });
+});
+
+test('[local] chat.stop-all-background for a session that does not exist never reaches the runtime', async () => {
+  await withGateway('task-1', async ({ socket, stopAlls }) => {
+    socket.emit('message', JSON.stringify({ type: 'chat.stop-all-background', sessionId: 'no-such-session' }));
+    await settle();
+
+    assert.equal(stopAlls.length, 0);
     assert.equal(socket.frames.at(-1)?.code, 'SESSION_NOT_FOUND');
   });
 });

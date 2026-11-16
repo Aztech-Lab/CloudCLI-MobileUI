@@ -90,6 +90,8 @@ export type ProviderRuntimeGateway = SideQuestionRuntime & {
   ): Promise<unknown>;
   abort(provider: LLMProvider, sessionId: string): Promise<boolean>;
   stopBackgroundTask(provider: LLMProvider, sessionId: string, taskId: string): Promise<boolean>;
+  /** [local] Stops every background task of the session; false when there is none. */
+  stopAllBackgroundWork?(provider: LLMProvider, sessionId: string): Promise<boolean>;
   /** Delivers a message into the session's running turn; false when no turn can take it. */
   steer(provider: LLMProvider, sessionId: string, command: string, options: AnyRecord): Promise<boolean>;
   /** Whether a provider runtime still holds background work for the session after its turn ended. */
@@ -779,6 +781,42 @@ async function handleChatStopTask(
 }
 
 /**
+ * [local] Handles `chat.stop-all-background`: stops every background task of a
+ * session at once. A Stop of the turn leaves background work running (as Esc
+ * does in the official client), so this is the deliberate way to end it all.
+ * The provider reports each task as stopped on the session's stream.
+ */
+async function handleChatStopAllBackground(
+  ws: WebSocket,
+  data: AnyRecord,
+  dependencies: ChatWebSocketDependencies
+): Promise<void> {
+  const sessionId = readRequiredSessionId(data);
+  if (!sessionId) {
+    sendProtocolError(ws, 'SESSION_ID_REQUIRED', 'chat.stop-all-background requires a sessionId.');
+    return;
+  }
+
+  const session = sessionsDb.getSessionById(sessionId);
+  if (!session) {
+    sendProtocolError(ws, 'SESSION_NOT_FOUND', `Session "${sessionId}" was not found.`, sessionId);
+    return;
+  }
+
+  let stopped = false;
+  try {
+    stopped = Boolean(await dependencies.runtime.stopAllBackgroundWork?.(session.provider as LLMProvider, sessionId));
+  } catch (error) {
+    console.warn(`[chat] Stopping the background work of ${sessionId} failed:`, error);
+    sendProtocolError(ws, 'TASK_STOP_FAILED', error instanceof Error ? error.message : String(error), sessionId);
+    return;
+  }
+  if (!stopped) {
+    sendProtocolError(ws, 'NO_BACKGROUND_WORK', `Session "${sessionId}" has no background work running.`, sessionId);
+  }
+}
+
+/**
  * Handles `chat.subscribe`: for each requested session, reports whether a run
  * is processing, re-attaches the live stream to this socket, replays missed
  * events (seq > lastSeq), and includes pending permission requests.
@@ -875,6 +913,7 @@ function handlePermissionResponse(data: AnyRecord, dependencies: ChatWebSocketDe
  * - `chat.steer`               { sessionId, messageId, content, options? }
  * - `chat.abort`               { sessionId }
  * - `chat.stop-task`           { sessionId, taskId }
+ * - `chat.stop-all-background` { sessionId }  ([local])
  * - `chat.subscribe`           { sessions: [{ sessionId, lastSeq? }] }
  * - `chat.permission-response` { requestId, allow, updatedInput?, message?, rememberEntry? }
  *
@@ -988,6 +1027,9 @@ export function handleChatConnection(
           return;
         case 'chat.stop-task':
           await handleChatStopTask(ws, data, dependencies);
+          return;
+        case 'chat.stop-all-background':
+          await handleChatStopAllBackground(ws, data, dependencies);
           return;
         case 'chat.subscribe':
           handleChatSubscribe(ws, data, dependencies);

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import '@/modules/i18n';
 import { BackgroundTasksStrip } from '@/modules/chat/transcript/BackgroundTasksStrip';
@@ -337,7 +337,7 @@ describe('the background tasks strip, for a task whose launch row is not loaded'
     );
 
     const chips = screen.getAllByRole('button');
-    expect(chips.map((chip) => chip.textContent)).toEqual(['Workflowaudit', '']);
+    expect(chips.map((chip) => chip.textContent)).toEqual(['Workflowaudit', '', 'Stop all background work']);
     expect(chips[0]?.title).toBe('Workflow · audit · Launched earlier in this conversation; click to load it');
     fireEvent.click(chips[0]!);
     expect(onLoadAll).toHaveBeenCalledTimes(1);
@@ -389,7 +389,7 @@ describe('the background tasks strip, for tasks only the activity map has a word
       />,
     );
 
-    expect(screen.getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Commandnpm test', '']);
+    expect(screen.getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Commandnpm test', '', 'Stop all background work']);
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     expect(sendMessage).toHaveBeenCalledWith({ type: 'chat.stop-task', sessionId: 'session-1', taskId: 'b5xsbzu5k' });
   });
@@ -412,7 +412,7 @@ describe('the background tasks strip, for tasks only the activity map has a word
     );
 
     // The chip is a plain label with the Stop beside it: nothing to click into.
-    expect(screen.getAllByRole('button').map((chip) => chip.getAttribute('aria-label'))).toEqual(['Stop']);
+    expect(screen.getAllByRole('button').map((chip) => chip.getAttribute('aria-label'))).toEqual(['Stop', null]);
     const chip = screen.getByTitle(/Launched by one of this session's agents/);
     expect(chip.textContent).toBe('CommandSleep for 60 seconds');
     fireEvent.click(chip);
@@ -447,5 +447,61 @@ describe('visibleCountToReveal', () => {
   it('widens the window to the row plus a page of context when it is not', () => {
     // Row 106 of 942 needs 836 rows shown; a page more gives it some context above.
     expect(visibleCountToReveal(942, 106, 100)).toBe(836 + SESSION_MESSAGES_PAGE_SIZE);
+  });
+});
+
+// [local] Stop in the composer ends only the current reply; the strip is where
+// all background work is stopped at once, behind a confirming second tap.
+describe('stop all background work', () => {
+  const runningAgent = toolRow({
+    toolName: 'Agent',
+    toolId: 'toolu_agent_1',
+    isSubagentContainer: true,
+    taskStatus: { status: 'running', taskId: 'a1', description: 'Survey the repo' },
+  });
+
+  it('asks for a second tap, then stops every task of the session', () => {
+    const sendMessage = vi.fn();
+    render(
+      <BackgroundTasksStrip sessionId="session-1" sendMessage={sendMessage} onReveal={() => {}} onLoadAll={() => {}} messages={[runningAgent]} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Stop all background work/ }));
+    expect(sendMessage).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Tap again to stop all/ }));
+    expect(sendMessage).toHaveBeenCalledExactlyOnceWith({ type: 'chat.stop-all-background', sessionId: 'session-1' });
+  });
+
+  it('forgets the first tap after a while', () => {
+    vi.useFakeTimers();
+    try {
+      const sendMessage = vi.fn();
+      render(
+        <BackgroundTasksStrip sessionId="session-1" sendMessage={sendMessage} onReveal={() => {}} onLoadAll={() => {}} messages={[runningAgent]} />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: /Stop all background work/ }));
+      act(() => { vi.advanceTimersByTime(5000); });
+      fireEvent.click(screen.getByRole('button', { name: /Stop all background work/ }));
+      expect(sendMessage).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('is not offered without a session or a task it could stop', () => {
+    const { rerender } = render(
+      <BackgroundTasksStrip sessionId={null} sendMessage={() => {}} onReveal={() => {}} onLoadAll={() => {}} messages={[runningAgent]} />,
+    );
+    expect(screen.queryByRole('button', { name: /Stop all background work/ })).toBeNull();
+    rerender(
+      <BackgroundTasksStrip
+        sessionId="session-1"
+        sendMessage={() => {}}
+        onReveal={() => {}}
+        onLoadAll={() => {}}
+        messages={[toolRow({ toolName: 'Agent', toolId: 'toolu_x', isSubagentContainer: true, taskStatus: { status: 'running', description: 'No id yet' } })]}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /Stop all background work/ })).toBeNull();
   });
 });

@@ -26,6 +26,7 @@ import {
   queryClaudeSDK,
   resolveToolApproval,
   steerClaudeSDKSession,
+  stopAllClaudeSDKBackgroundWork,
   stopClaudeSDKTask,
 } from '@/modules/providers/list/claude/claude-runtime.provider.js';
 import { providerCapabilitiesService } from '@/modules/providers/services/provider-capabilities.service.js';
@@ -967,22 +968,68 @@ test('required 6: Stop with an unread steer cancels it, and the interrupted resu
   });
 });
 
-test('required 7: Stop on a turn that was never adopted stops its tasks first, then interrupts, releases and reports once', { concurrency: false }, async () => {
+test('required 7 [local]: Stop on a turn that was never adopted ends only the turn while background work runs', { concurrency: false }, async () => {
+  // Esc in the official client: the turn stops, background agents keep going.
+  // What the turn was blocking on (a foreground agent) is part of the turn.
   await withDesktopListener(async ({ userId, payloads, cwd }) => {
     const sessionId = 'app-adopt-plain-stop';
     const writer = createWriter(userId);
     const only = createScriptedQuery();
-    const run = queryClaudeSDK('start agents', { sessionId, cwd, adoptable: true }, writer as never, makeContext(only.createQuery));
+    const run = track(queryClaudeSDK('start agents', { sessionId, cwd, adoptable: true }, writer as never, makeContext(only.createQuery)));
+    await waitFor(() => only.script.stdin.length === 1);
+    await emitAndFlush(only.script, init());
+    await emitAndFlush(only.script, toolUse('toolu_b1', 'Agent', { prompt: 'wait', subagent_type: 'general-purpose', run_in_background: true }));
+    await emitAndFlush(only.script, taskStarted('b1', 'toolu_b1'));
+    await emitAndFlush(only.script, toolUse('toolu_f1', 'Agent', { prompt: 'look', subagent_type: 'general-purpose', run_in_background: false }));
+    await emitAndFlush(only.script, taskStarted('f1', 'toolu_f1'));
+
+    assert.equal(await abortClaudeSDKSession(sessionId), true);
+    const calls = only.script.log.filter((entry) => entry.method !== 'stdin').map((entry) => `${entry.method}:${String(entry.args[0] ?? '')}`);
+    assert.deepEqual(calls, ['stopTask:f1', 'interrupt:'], 'only the foreground agent is stopped, before the interrupt');
+    assert.equal(only.script.released(), false, 'the process stays up for b1');
+    assert.equal(isClaudeSDKSessionActive(sessionId), true);
+    assert.equal(completes(writer).length, 1, 'the turn reports its own Stop');
+    assert.equal(completes(writer)[0].aborted, true);
+    assert.equal(completes(writer)[0].backgroundContinues, true);
+    assert.ok(Array.isArray(completes(writer)[0].pendingPermissions));
+
+    // The CLI ends the interrupted turn and reports the stopped foreground agent.
+    await emitAndFlush(only.script, taskNotification('f1', 'toolu_f1', 'stopped'));
+    await emitAndFlush(only.script, result('error_during_execution'));
+    await settle();
+    assert.equal(completes(writer).length, 1, 'no second complete');
+    assert.equal(only.script.released(), false, 'held for b1');
+    assert.deepEqual(listClaudeSDKBackgroundWork().find((entry) => entry.sessionId === sessionId)?.tasks.map((task) => task.taskId), ['b1']);
+    await waitFor(() => payloads.length > 0, 'the stop is reported');
+    assert.deepEqual(payloads.map((payload) => payload.data.code), ['run.stopped']);
+    assert.match(payloads[0].body, /aborted$/);
+
+    // b1 finishes and the CLI relays it; then the process is let go.
+    await emitAndFlush(only.script, taskNotification('b1', 'toolu_b1', 'completed'));
+    await emitAndFlush(only.script, init());
+    await emitAndFlush(only.script, assistantText('b1 is done.'));
+    await emitAndFlush(only.script, result());
+    await waitFor(() => only.script.released(), 'released after the relay');
+    assert.equal(run.resolved(), false);
+    only.script.end();
+    await run.promise;
+  });
+});
+
+test('required 7: Stop on a turn with only foreground work stops it, interrupts, releases and reports once', { concurrency: false }, async () => {
+  await withDesktopListener(async ({ userId, payloads, cwd }) => {
+    const sessionId = 'app-adopt-plain-stop-fg';
+    const writer = createWriter(userId);
+    const only = createScriptedQuery();
+    const run = queryClaudeSDK('look around', { sessionId, cwd, adoptable: true }, writer as never, makeContext(only.createQuery));
     await waitFor(() => only.script.stdin.length === 1);
     await emitAndFlush(only.script, init());
     await emitAndFlush(only.script, toolUse('toolu_f1', 'Agent', { prompt: 'look', subagent_type: 'general-purpose', run_in_background: false }));
     await emitAndFlush(only.script, taskStarted('f1', 'toolu_f1'));
-    await emitAndFlush(only.script, toolUse('toolu_b1', 'Agent', { prompt: 'wait', subagent_type: 'general-purpose', run_in_background: true }));
-    await emitAndFlush(only.script, taskStarted('b1', 'toolu_b1'));
 
     assert.equal(await abortClaudeSDKSession(sessionId), true);
     const calls = only.script.log.filter((entry) => entry.method !== 'stdin').map((entry) => `${entry.method}:${String(entry.args[0] ?? '')}`);
-    assert.deepEqual(calls, ['stopTask:f1', 'stopTask:b1', 'interrupt:']);
+    assert.deepEqual(calls, ['stopTask:f1', 'interrupt:']);
     await waitFor(() => only.script.released());
     assert.equal(isClaudeSDKSessionActive(sessionId), false);
 
@@ -996,7 +1043,96 @@ test('required 7: Stop on a turn that was never adopted stops its tasks first, t
   });
 });
 
-test('required 8: Stop on an adopted turn spares the work that existed at adoption and stops what the turn started', { concurrency: false }, async () => {
+test('[local] the CLI\'s is_backgrounded decides what a Stop stops, over the launching call\'s input', { concurrency: false }, async () => {
+  await withCwd(async (cwd) => {
+    const sessionId = 'app-adopt-is-backgrounded';
+    const writer = createWriter();
+    const only = createScriptedQuery();
+    const run = queryClaudeSDK('start agents', { sessionId, cwd, adoptable: true }, writer as never, makeContext(only.createQuery));
+    await waitFor(() => only.script.stdin.length === 1);
+    await emitAndFlush(only.script, init());
+    // No run_in_background: the input reads as background, the CLI ran it in the foreground.
+    await emitAndFlush(only.script, toolUse('toolu_f1', 'Agent', { prompt: 'look', subagent_type: 'general-purpose' }));
+    await emitAndFlush(only.script, { ...taskStarted('f1', 'toolu_f1'), is_backgrounded: false });
+    // Started in the foreground, then moved to the background (Ctrl+B).
+    await emitAndFlush(only.script, toolUse('toolu_m1', 'Bash', { command: 'npm test' }));
+    await emitAndFlush(only.script, { ...taskStarted('m1', 'toolu_m1', 'local_bash'), is_backgrounded: false });
+    await emitAndFlush(only.script, { type: 'system', subtype: 'task_updated', session_id: NATIVE_ID, task_id: 'm1', patch: { is_backgrounded: true } });
+
+    assert.equal(await abortClaudeSDKSession(sessionId), true);
+    assert.deepEqual(only.script.stopped, ['f1']);
+    assert.equal(only.script.released(), false, 'held for m1');
+    assert.equal(completes(writer)[0]?.backgroundContinues, true);
+    only.script.end();
+    await run;
+  });
+});
+
+test('[local] a non-adoptable run (agent API) keeps the full Stop with background work outstanding', { concurrency: false }, async () => {
+  await withCwd(async (cwd) => {
+    const sessionId = 'app-adopt-agent-api-stop';
+    const writer = createWriter();
+    const only = createScriptedQuery();
+    const run = queryClaudeSDK('start agents', { sessionId, cwd }, writer as never, makeContext(only.createQuery));
+    await waitFor(() => only.script.stdin.length === 1);
+    await emitAndFlush(only.script, init());
+    await emitAndFlush(only.script, toolUse('toolu_b1', 'Agent', { prompt: 'wait', subagent_type: 'general-purpose', run_in_background: true }));
+    await emitAndFlush(only.script, taskStarted('b1', 'toolu_b1'));
+
+    assert.equal(await abortClaudeSDKSession(sessionId), true);
+    assert.deepEqual(only.script.stopped, ['b1']);
+    await waitFor(() => only.script.released());
+    assert.equal(isClaudeSDKSessionActive(sessionId), false);
+    only.script.end();
+    await run;
+  });
+});
+
+test('[local] Stop all background work: while held, every task is stopped and the process let go', { concurrency: false }, async () => {
+  await withCwd(async (cwd) => {
+    const { first, done } = await startHeld(cwd);
+    await emitAndFlush(first.script, taskStarted('n1', 'toolu_inner', 'local_bash'));
+    assert.equal(await stopAllClaudeSDKBackgroundWork(SESSION_ID), true);
+    assert.deepEqual(first.script.stopped, ['a1', 'n1']);
+    await waitFor(() => first.script.released(), 'the held process is let go');
+    first.script.end();
+    await done;
+    assert.equal(await stopAllClaudeSDKBackgroundWork(SESSION_ID), false, 'nothing left to stop');
+  });
+});
+
+test('[local] Stop all background work during a turn stops the tasks and leaves the turn running', { concurrency: false }, async () => {
+  await withCwd(async (cwd) => {
+    const sessionId = 'app-adopt-stop-all-turn';
+    const writer = createWriter();
+    const only = createScriptedQuery();
+    const run = queryClaudeSDK('start agents', { sessionId, cwd, adoptable: true }, writer as never, makeContext(only.createQuery));
+    await waitFor(() => only.script.stdin.length === 1);
+    await emitAndFlush(only.script, init());
+    await emitAndFlush(only.script, toolUse('toolu_b1', 'Agent', { prompt: 'wait', subagent_type: 'general-purpose', run_in_background: true }));
+    await emitAndFlush(only.script, taskStarted('b1', 'toolu_b1'));
+
+    assert.equal(await stopAllClaudeSDKBackgroundWork(sessionId), true);
+    assert.deepEqual(only.script.stopped, ['b1']);
+    assert.equal(only.script.count('interrupt'), 0, 'the turn is not interrupted');
+    assert.equal(only.script.released(), false);
+    assert.equal(completes(writer).length, 0);
+
+    await emitAndFlush(only.script, taskNotification('b1', 'toolu_b1', 'stopped'));
+    await emitAndFlush(only.script, assistantText('Carrying on.'));
+    await emitAndFlush(only.script, result());
+    await waitFor(() => completes(writer).length === 1);
+    await waitFor(() => only.script.released(), 'nothing left to hold for');
+    only.script.end();
+    await run;
+  });
+});
+
+test('[local] Stop all background work with nothing running is refused', { concurrency: false }, async () => {
+  assert.equal(await stopAllClaudeSDKBackgroundWork('app-adopt-no-such-session'), false);
+});
+
+test('required 8 [local]: Stop on an adopted turn spares background work, its own included, and stops what it blocks on', { concurrency: false }, async () => {
   await withCwd(async (cwd) => {
     const { first, done } = await startHeld(cwd);
     const w2 = createWriter();
@@ -1006,18 +1142,20 @@ test('required 8: Stop on an adopted turn spares the work that existed at adopti
     await emitAndFlush(first.script, echo(MSG_ID, 'Continue'));
     await emitAndFlush(first.script, toolUse('toolu_a2', 'Agent', { prompt: 'more', subagent_type: 'general-purpose', run_in_background: true }));
     await emitAndFlush(first.script, taskStarted('a2', 'toolu_a2'));
+    await emitAndFlush(first.script, toolUse('toolu_f2', 'Agent', { prompt: 'look', subagent_type: 'general-purpose', run_in_background: false }));
+    await emitAndFlush(first.script, taskStarted('f2', 'toolu_f2'));
 
     assert.equal(await abortClaudeSDKSession(SESSION_ID), true);
     await waitFor(run2.resolved);
-    assert.deepEqual(first.script.stopped, ['a2']);
+    assert.deepEqual(first.script.stopped, ['f2']);
     const calls = first.script.log.filter((entry) => entry.method === 'stopTask' || entry.method === 'interrupt').map((entry) => entry.method);
     assert.deepEqual(calls, ['stopTask', 'interrupt'], 'stopped before the interrupt');
 
-    await emitAndFlush(first.script, taskNotification('a2', 'toolu_a2', 'stopped'));
+    await emitAndFlush(first.script, taskNotification('f2', 'toolu_f2', 'stopped'));
     await emitAndFlush(first.script, result('error_during_execution'));
     await settle();
-    assert.equal(first.script.released(), false, 'held for a1');
-    assert.deepEqual(listClaudeSDKBackgroundWork().map((entry) => entry.tasks.map((task) => task.taskId)), [['a1']]);
+    assert.equal(first.script.released(), false, 'held for a1 and a2');
+    assert.deepEqual(listClaudeSDKBackgroundWork().map((entry) => entry.tasks.map((task) => task.taskId).sort()), [['a1', 'a2']]);
     await endRuns([first.script], [done]);
   });
 });
@@ -1421,7 +1559,8 @@ test('review 1: Stop on an adopted turn spares tasks launched inside work from b
 
     assert.equal(await abortClaudeSDKSession(SESSION_ID), true);
     await waitFor(run2.resolved);
-    assert.deepEqual(first.script.stopped, ['a2'], 'only the task the adopted turn started is stopped');
+    // [local] a2 runs in the background, so a Stop of the turn spares it too.
+    assert.deepEqual(first.script.stopped, [], 'no background task is stopped');
     assert.deepEqual(
       listClaudeSDKBackgroundWork().map((entry) => entry.tasks.map((task) => task.taskId).sort()),
       [['a1', 'a2', 'n1']],
