@@ -294,7 +294,7 @@ export type QueueItemStatus = 'completed' | 'in_progress' | 'pending';
 //----------------- CHAT MESSAGES AND PERMISSIONS ------------
 
 /** Permission preset a provider runs a turn under ('default', 'acceptEdits', 'auto', 'bypassPermissions' or 'plan'), chosen in the composer and sent with each message; the backend capability matrix decides which values a given provider accepts. */
-export type PermissionMode = 'default' | 'acceptEdits' | 'auto' | 'bypassPermissions' | 'plan';
+export type PermissionMode = 'default' | 'acceptEdits' | 'auto' | 'approveForMe' | 'bypassPermissions' | 'plan';
 
 /** A non-image file attached to a chat message, described by its path in the server-managed attachment store plus display metadata so it can be listed and downloaded. */
 export type ChatAttachment = {
@@ -408,6 +408,8 @@ export type ChatMessage = {
   compactSummary?: string;
   /** Set on the row marking where the session's context was cleared, so it is drawn as a divider. */
   contextCleared?: boolean;
+  /** [local] On an error row, the server's stable code for it; the row shows its translation when there is one. */
+  errorCode?: string;
   isSubagentContainer?: boolean;
   /** The agent this row spawned, when it spawned one. Its presence is what makes a row a subagent container. */
   subagent?: SubagentInfo;
@@ -622,6 +624,11 @@ export type NormalizedMessage = {
   /** A `tool_result` row's structured output — a launch acknowledgement's task id and metadata, a search's file list. */
   toolUseResult?: unknown;
   isError?: boolean;
+  /**
+   * [local] On an `error` row, a stable code the client can translate instead
+   * of showing `content` (which stays the English fallback).
+   */
+  errorCode?: string;
   text?: string;
   tokens?: number;
   canInterrupt?: boolean;

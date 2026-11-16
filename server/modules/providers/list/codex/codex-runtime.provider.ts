@@ -12,7 +12,7 @@
  */
 
 import { Codex } from '@openai/codex-sdk';
-import type { ModelReasoningEffort, Thread, ThreadOptions } from '@openai/codex-sdk';
+import type { CodexOptions, ModelReasoningEffort, Thread, ThreadOptions } from '@openai/codex-sdk';
 
 import {
   appendFilesInputTag,
@@ -227,13 +227,33 @@ function transformCodexEvent(event: AnyRecord): AnyRecord {
   }
 }
 
+type CodexPermissionOptions = Pick<ThreadOptions, 'sandboxMode' | 'approvalPolicy'> & {
+  /**
+   * Extra `--config` overrides for the Codex CLI, passed through
+   * `CodexOptions.config`. Absent for every mode that needs none, so those
+   * keep spawning the CLI exactly as before.
+   */
+  config?: CodexOptions['config'];
+};
+
 /**
  * Map permission mode to Codex SDK options
- * @param {string} permissionMode - 'default', 'acceptEdits', or 'bypassPermissions'
- * @returns {object} - { sandboxMode, approvalPolicy }
+ * @param {string} permissionMode - 'default', 'approveForMe', 'acceptEdits', or 'bypassPermissions'
+ * @returns {object} - { sandboxMode, approvalPolicy, config? }
  */
-function mapPermissionModeToCodexOptions(permissionMode: string): Pick<ThreadOptions, 'sandboxMode' | 'approvalPolicy'> {
+export function mapPermissionModeToCodexOptions(permissionMode: string): CodexPermissionOptions {
   switch (permissionMode) {
+    // [local] Codex's "Approve for me": what `codex exec --approve-for-me`
+    // sets. Same sandbox and policy as the default mode, but approval
+    // requests go to Codex's automatic reviewer instead of the user. The
+    // reviewer is spelled out per run so a user-level `approvals_reviewer`
+    // in config.toml cannot change what this mode means.
+    case 'approveForMe':
+      return {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        config: { approvals_reviewer: 'auto_review' },
+      };
     case 'acceptEdits':
       return {
         sandboxMode: 'workspace-write',
@@ -253,6 +273,28 @@ function mapPermissionModeToCodexOptions(permissionMode: string): Pick<ThreadOpt
         approvalPolicy: 'on-request'
       };
   }
+}
+
+/**
+ * [local] Stable code on the error row sent when Codex refuses to resume a
+ * thread because another process (typically the Codex desktop app's
+ * app-server) already holds it open for writing. The client translates it.
+ */
+export const CODEX_THREAD_ACTIVE_WRITER_ERROR_CODE = 'codex_thread_active_writer';
+
+/** English fallback for the error row above, shown when no translation applies. */
+export const CODEX_THREAD_ACTIVE_WRITER_MESSAGE =
+  'This conversation is open in the Codex app, which allows only one writer at a time. '
+  + 'Close it there (or continue there), then send again.';
+
+/**
+ * Codex allows one writer per thread. A second resume fails with
+ * `thread/resume failed: thread <id> already has an active writer (code -32600)`
+ * or, from the thread store, `thread-store conflict: thread <id> already has
+ * an active writer`; the SDK wraps either in "Codex Exec exited with code 1".
+ */
+export function isCodexThreadActiveWriterError(message: unknown): boolean {
+  return typeof message === 'string' && /already has an active writer/i.test(message);
 }
 
 /**
@@ -286,7 +328,7 @@ async function queryCodex(
   const resolvedModel = await context.resolveResumeModel(sessionId, model);
 
   const workingDirectory = cwd || projectPath || process.cwd();
-  const { sandboxMode, approvalPolicy } = mapPermissionModeToCodexOptions(permissionMode);
+  const { sandboxMode, approvalPolicy, config: codexConfig } = mapPermissionModeToCodexOptions(permissionMode);
   const catalog = await context.getProviderModels();
   const selectedModel = catalog.OPTIONS.find((option) => option.value === resolvedModel) || null;
   const allowedEfforts = selectedModel?.effort?.values?.map((value) => value.value) || [];
@@ -324,7 +366,7 @@ async function queryCodex(
   const sessionKey = () => sessionId || capturedSessionId || null;
 
   try {
-    codex = new Codex();
+    codex = codexConfig ? new Codex({ config: codexConfig }) : new Codex();
 
     const threadOptions: ThreadOptions = {
       workingDirectory,
@@ -418,6 +460,13 @@ async function queryCodex(
       const transformed = transformCodexEvent(event);
       if (transformed.type === 'error' || transformed.itemType === 'error') {
         errorSurfaced = true;
+        // [local] A thread held open elsewhere gets one clear row instead of
+        // the raw protocol error.
+        const errorText = transformed.type === 'error' ? transformed.message : transformed.message?.content;
+        if (isCodexThreadActiveWriterError(errorText)) {
+          sendMessage(ws, createCodexActiveWriterErrorMessage(capturedSessionId || sessionId || null));
+          continue;
+        }
       }
 
       // Normalize the transformed event into NormalizedMessage(s) via adapter
@@ -485,12 +534,18 @@ async function queryCodex(
 
       if (!errorSurfaced) {
         // Check if Codex SDK is available for a clearer error message
-        const installed = await context.isProviderInstalled();
-        const errorContent = !installed
-          ? 'Codex CLI is not configured. Please set up authentication first.'
-          : runError.message;
+        if (isCodexThreadActiveWriterError(runError.message)) {
+          // [local] Not retried and the other writer is left alone: the user
+          // decides where the conversation continues.
+          sendMessage(ws, createCodexActiveWriterErrorMessage(capturedSessionId || sessionId || null));
+        } else {
+          const installed = await context.isProviderInstalled();
+          const errorContent = !installed
+            ? 'Codex CLI is not configured. Please set up authentication first.'
+            : runError.message;
 
-        sendMessage(ws, createNormalizedMessage({ kind: 'error', content: errorContent, sessionId: capturedSessionId || sessionId || null, provider: 'codex' }));
+          sendMessage(ws, createNormalizedMessage({ kind: 'error', content: errorContent, sessionId: capturedSessionId || sessionId || null, provider: 'codex' }));
+        }
       }
       sendMessage(ws, createCompleteMessage({
         provider: 'codex',
@@ -588,6 +643,17 @@ export const codexRuntime = {
   abort: abortCodexSession,
   askSideQuestion: askCodexSideQuestion,
 };
+
+/** The error row for a thread another process holds open; see CODEX_THREAD_ACTIVE_WRITER_ERROR_CODE. */
+function createCodexActiveWriterErrorMessage(sessionId: string | null) {
+  return createNormalizedMessage({
+    kind: 'error',
+    content: CODEX_THREAD_ACTIVE_WRITER_MESSAGE,
+    errorCode: CODEX_THREAD_ACTIVE_WRITER_ERROR_CODE,
+    sessionId,
+    provider: 'codex',
+  });
+}
 
 /**
  * Helper to send message via WebSocket or writer

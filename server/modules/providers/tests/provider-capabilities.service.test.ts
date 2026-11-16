@@ -51,3 +51,14 @@ test('side questions are supported by claude, codex and opencode, not by cursor'
     assert.equal(capabilities.supportsSideQuestions, supported, `${provider}: supportsSideQuestions`);
   }
 });
+
+test('codex offers "Approve for me" between the default mode and accept-edits', () => {
+  assert.deepEqual(
+    providerCapabilitiesService.getProviderCapabilities('codex').permissionModes,
+    ['default', 'approveForMe', 'acceptEdits', 'bypassPermissions'],
+  );
+  // Codex-only: no other runtime knows what to do with it.
+  for (const provider of ['claude', 'cursor', 'opencode'] as LLMProvider[]) {
+    assert.ok(!providerCapabilitiesService.getProviderCapabilities(provider).permissionModes.includes('approveForMe'), provider);
+  }
+});
