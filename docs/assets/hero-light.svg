@@ -36,7 +36,7 @@
   <rect width="1280" height="560" fill="#ebebe8"/>
   <rect width="1280" height="560" fill="url(#dots)"/>
   <polygon points="20,20 1242,20 1260,38 1260,540 38,540 20,522" fill="none" stroke="#c7c8c0"/>
-  <text class="mono" x="72" y="168" font-size="13.5" letter-spacing="2.6" fill="#b8793c">SELF-HOSTED · MOBILE-FIRST · OPEN SOURCE</text>
+  <text class="mono" x="72" y="168" font-size="13.5" letter-spacing="2.6" fill="#b8793c">A MOBILE-FIRST EDITION OF CLOUDCLI</text>
   <text class="sans" x="70" y="236" font-size="58" font-weight="700" letter-spacing="-1" fill="#111312">CloudCLI-MobileUI</text>
   <text class="sans" x="72" y="290" font-size="23">Run Claude Code on your own computer.</text>
   <text class="sans" x="72" y="324" font-size="23">Keep working with it from your phone.</text>
@@ -49,7 +49,7 @@
   
     <polygon points="420,372 497,372 504,379 504,406 427,406 420,399" fill="#f4f4f1" stroke="#c7c8c0"/>
     <text class="mono" x="462" y="394" font-size="12.5" letter-spacing="1.4" text-anchor="middle" fill="#24261f">SKINS</text>
-  <text class="mono" x="72" y="466" font-size="11.5" letter-spacing="1.6" fill="#6f726a">BUILT ON CLOUDCLI · AGPL-3.0</text>
+  <text class="mono" x="72" y="466" font-size="11.5" letter-spacing="1.6" fill="#6f726a">CLOUDCLI BY SITEBOON AI &amp; CONTRIBUTORS · AGPL-3.0</text>
   
   <polygon points="680,170 968,170 980,182 980,366 692,366 680,354" fill="#f4f4f1" stroke="#c7c8c0"/>
   <rect x="694" y="184" width="272" height="150" fill="#161919"/>

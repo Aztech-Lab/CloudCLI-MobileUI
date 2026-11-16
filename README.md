@@ -21,7 +21,7 @@
 
 ## What it is
 
-CloudCLI-MobileUI is a web interface for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that you host yourself. Claude Code keeps running on your workstation, with your files, your tools and your login, and you open the interface from any phone, tablet or laptop on your network. On an iPhone or Android phone you can add it to the home screen, and it behaves like an app.
+CloudCLI-MobileUI is a mobile-focused edition of [CloudCLI](https://github.com/siteboon/claudecodeui), the open-source web interface for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) made by Siteboon AI and its contributors. Everything CloudCLI does is here, and on top of it this edition adds the changes listed below for working from a phone. Claude Code keeps running on your workstation, with your files, your tools and your login, and you open the interface from any phone, tablet or laptop on your network. On an iPhone or Android phone you can add it to the home screen, and it behaves like an app.
 
 You get the whole Claude Code session in your hand: the conversation, the files it is working on, git, and a terminal. You can read what the agent did while you were away, answer its questions, approve a tool, or start the next task.
 
@@ -43,7 +43,7 @@ The interface is a small Node.js server that runs on your workstation, right nex
   <img alt="A timeline: a literature search and a test run keep working in the background while you keep sending messages; the main thread answers each one, Stop ends only the current reply, and the background work reports back when it is done." src="docs/assets/parallel-light.svg" width="100%">
 </picture>
 
-Start a literature search or a test run in the background and go on planning with Claude in the same conversation. Your messages never stop the work in the background, and when it finishes, Claude comes back and reports, just as in the official Claude Code app. In CloudCLI itself, sending a new message while background agents run stops them.
+Start a literature search or a test run in the background and go on planning with Claude in the same conversation. Your messages never stop the work in the background, and when it finishes, Claude comes back and reports, just as in the official Claude Code app. (In CloudCLI, which this edition builds on, a new message stops background agents; this is one of the changes made here.)
 
 | You want to | What happens |
 |---|---|
@@ -208,7 +208,6 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 
 CloudCLI-MobileUI is free software under the [GNU AGPL v3](LICENSE) or later. If you run a modified version for other people, the license asks you to share its source with them.
 
-It is based on CloudCLI by Siteboon AI B.V. and its contributors (see [NOTICE](NOTICE)). Guides for contributors and maintainers: [CONTRIBUTING.md](CONTRIBUTING.md), [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md) and [docs/fork/MAINTAINING.md](docs/fork/MAINTAINING.md).
+Most of this software is the work of the [CloudCLI](https://github.com/siteboon/claudecodeui) authors, Siteboon AI B.V. and its contributors: the chat, the file browser, git, the terminal, the provider integrations, plugins and much more. Thank you. This repository adds the mobile-focused changes described above; those changes and their ongoing maintenance are by [Aztech Labs](https://github.com/Aztech-Lab). See [NOTICE](NOTICE) for the copyright notices.
 
-## Acknowledgements
-The changes in this repository and their ongoing maintenance are by [Aztech Labs](https://github.com/Aztech-Lab). 
+Guides for contributors and maintainers: [CONTRIBUTING.md](CONTRIBUTING.md), [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md) and [docs/fork/MAINTAINING.md](docs/fork/MAINTAINING.md).

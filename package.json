@@ -166,7 +166,10 @@
     "ui",
     "mobile IDE"
   ],
-  "author": "Aztech Labs (https://github.com/Aztech-Lab)",
+  "author": "CloudCLI UI Contributors",
+  "contributors": [
+    "Aztech Labs (https://github.com/Aztech-Lab) - mobile edition changes"
+  ],
   "license": "AGPL-3.0-or-later",
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.311",

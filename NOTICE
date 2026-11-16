@@ -1,11 +1,11 @@
 CloudCLI-MobileUI
+A modified version of CloudCLI UI by Siteboon AI B.V. and contributors.
+
+Most of this software is CloudCLI UI; its original notice follows below,
+unchanged. The modifications made in this repository are
 Copyright 2026 Aztech Labs (https://github.com/Aztech-Lab)
-
-CloudCLI-MobileUI is a modified version of CloudCLI UI. The modifications are
-maintained by Aztech Labs and released under the same license
-(AGPL-3.0-or-later). Source: https://github.com/Aztech-Lab/CloudCLI-MobileUI
-
-The original notice of CloudCLI UI follows, unchanged.
+and are released under the same license (AGPL-3.0-or-later).
+Source of this modified version: https://github.com/Aztech-Lab/CloudCLI-MobileUI
 
 --------------------------------------------------------------------------------
 

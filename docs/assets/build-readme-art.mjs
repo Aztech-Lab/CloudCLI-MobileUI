@@ -149,14 +149,14 @@ function hero(p, { W = 1280, H = 560, dy = 0 } = {}) {
   <desc id="d">A workstation running Claude Code with two background agents, connected over LAN or VPN to a phone showing the conversation.</desc>
   <style>${styles(p)}</style>
   ${backdrop(p, W, H)}
-  <text class="mono" x="72" y="${168 + dy}" font-size="13.5" letter-spacing="2.6" fill="${p.copper}">SELF-HOSTED · MOBILE-FIRST · OPEN SOURCE</text>
+  <text class="mono" x="72" y="${168 + dy}" font-size="13.5" letter-spacing="2.6" fill="${p.copper}">A MOBILE-FIRST EDITION OF CLOUDCLI</text>
   <text class="sans" x="70" y="${236 + dy}" font-size="58" font-weight="700" letter-spacing="-1" fill="${p.ink}">CloudCLI-MobileUI</text>
   <text class="sans" x="72" y="${290 + dy}" font-size="23">Run Claude Code on your own computer.</text>
   <text class="sans" x="72" y="${324 + dy}" font-size="23">Keep working with it from your phone.</text>
   ${chip(72, 128, 'SWIPE TABS')}
   ${chip(212, 196, 'BACKGROUND AGENTS')}
   ${chip(420, 84, 'SKINS')}
-  <text class="mono" x="72" y="${466 + dy}" font-size="11.5" letter-spacing="1.6" fill="${p.muted}">BUILT ON CLOUDCLI · AGPL-3.0</text>
+  <text class="mono" x="72" y="${466 + dy}" font-size="11.5" letter-spacing="1.6" fill="${p.muted}">CLOUDCLI BY SITEBOON AI &amp; CONTRIBUTORS · AGPL-3.0</text>
   ${workstation(p, 680, 170 + dy)}
   <text class="mono" x="830" y="${430 + dy}" font-size="11" letter-spacing="1.8" text-anchor="middle" fill="${p.muted}">YOUR WORKSTATION</text>
   <path class="flow" d="M 900 ${168 + dy} C 930 ${70 + dy}, 1030 ${62 + dy}, 1080 ${118 + dy}" fill="none" stroke="${p.copper}" stroke-width="2"/>
