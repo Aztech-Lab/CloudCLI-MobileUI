@@ -27,6 +27,15 @@ You get the whole Claude Code session in your hand: the conversation, the files 
 
 > **Setting this up with an AI agent?** Point it at [AGENTS_DEPLOY.md](AGENTS_DEPLOY.md). It has the exact steps, checks and settings, written for agents.
 
+## How it works
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/how-it-works-dark.svg">
+  <img alt="Your phone talks to CloudCLI-MobileUI on your workstation over your own network. CloudCLI-MobileUI runs Claude Code, which works on your project." src="docs/assets/how-it-works-light.svg" width="100%">
+</picture>
+
+The interface is a small Node.js server that runs on your workstation, right next to Claude Code. Your phone only talks to that server, over your home network or a VPN. Claude Code, your files and your login stay on the workstation, and conversations you started in the terminal show up in the interface too.
+
 ## Keep talking while Claude works
 
 <picture>
@@ -47,15 +56,6 @@ Start a literature search or a test run in the background and go on planning wit
 | Plan ahead | Scheduled and queued messages join the running conversation without interrupting it. |
 
 Long, quiet jobs are not cut off after half an hour of silence, and if a server restart does end background work, the conversation says so.
-
-## How it works
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/how-it-works-dark.svg">
-  <img alt="Your phone talks to CloudCLI-MobileUI on your workstation over your own network. CloudCLI-MobileUI runs Claude Code, which works on your project." src="docs/assets/how-it-works-light.svg" width="100%">
-</picture>
-
-The interface is a small Node.js server that runs on your workstation, right next to Claude Code. Your phone only talks to that server, over your home network or a VPN. Claude Code, your files and your login stay on the workstation, and conversations you started in the terminal show up in the interface too.
 
 ## Why we built it
 
