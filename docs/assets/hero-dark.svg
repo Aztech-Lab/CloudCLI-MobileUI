@@ -19,8 +19,10 @@
     75%, 93% { transform: translateX(121.5px); }
     100% { transform: translateX(0); }
   }
+  .playhead { animation: playhead 14s linear infinite; }
+  @keyframes playhead { from { transform: translateX(0); } to { transform: translateX(900px); } }
   @media (prefers-reduced-motion: reduce) {
-    .flow, .pulse, .pulse2, .cursor, .swipe { animation: none; }
+    .flow, .pulse, .pulse2, .cursor, .swipe, .playhead { animation: none; }
   }</style>
   
   <defs>

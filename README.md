@@ -15,6 +15,8 @@
 
 **[Getting started](#getting-started)** · **[Help wanted](#help-wanted)** · **[What's new](#whats-new)** · **[Deploy with an agent](AGENTS_DEPLOY.md)**
 
+**New:** keep talking to Claude while background agents and long commands keep working. [See how ↓](#keep-talking-while-claude-works)
+
 </div>
 
 ## What it is
@@ -24,6 +26,27 @@ CloudCLI-MobileUI is a web interface for [Claude Code](https://docs.anthropic.co
 You get the whole Claude Code session in your hand: the conversation, the files it is working on, git, and a terminal. You can read what the agent did while you were away, answer its questions, approve a tool, or start the next task.
 
 > **Setting this up with an AI agent?** Point it at [AGENTS_DEPLOY.md](AGENTS_DEPLOY.md). It has the exact steps, checks and settings, written for agents.
+
+## Keep talking while Claude works
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/parallel-dark.svg">
+  <img alt="A timeline: a literature search and a test run keep working in the background while you keep sending messages; the main thread answers each one, Stop ends only the current reply, and the background work reports back when it is done." src="docs/assets/parallel-light.svg" width="100%">
+</picture>
+
+Start a literature search or a test run in the background and go on planning with Claude in the same conversation. Your messages never stop the work in the background, and when it finishes, Claude comes back and reports, just as in the official Claude Code app. In CloudCLI itself, sending a new message while background agents run stops them.
+
+| You want to | What happens |
+|---|---|
+| Say something while Claude is working | **Send** reaches Claude at its next step, within the same reply. **Queue** waits until the reply ends. |
+| Interrupt the current step | **Send now** makes Claude read your message straight away; a running command or subagent moves to the background instead of being killed. |
+| Take a long step off the main thread | **Move to background** on a running command or subagent card. |
+| Stop | **Stop** ends only the current reply. **Stop all background work** ends the rest, and each task can be stopped on its own. |
+| Change your mind | Withdraw a message Claude has not read yet. |
+| Leave and come back | Reload the page or reconnect your phone: the background status and any missed output come back on their own. |
+| Plan ahead | Scheduled and queued messages join the running conversation without interrupting it. |
+
+Long, quiet jobs are not cut off after half an hour of silence, and if a server restart does end background work, the conversation says so.
 
 ## How it works
 
@@ -73,7 +96,7 @@ A skin setting changes how the whole interface looks. The first skin, OTSR, take
 
 **Keep talking while work runs**
 
-Background agents and long commands keep running while you go on talking to the main conversation, and report back when they are done, the way the official Claude Code app behaves. Stop ends only the current reply; a separate button stops all background work ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)). Next: messages that reach the agent mid-step, and moving a running step to the background.
+Background agents and long commands keep running while you go on talking to the main conversation, and report back when they are done, the way the official Claude Code app behaves. Messages reach Claude mid-reply, Stop ends only the current reply, and nothing is lost when your phone reconnects. [More above](#keep-talking-while-claude-works).
 
 </td>
 </tr>
@@ -109,7 +132,7 @@ This is a young, small project, and there is room to help whether or not you wri
 <tr>
 <td valign="top">
 
-Matching the official Claude Code app while work runs in the background: a message you send mid-step should reach the agent at the next pause instead of waiting for the step to end, and a running step should be movable to the background.
+Background work now behaves like the official Claude Code app. Try it with your own long-running jobs and tell us where it still differs; reports from real phones help most.
 
 </td>
 <td valign="top">

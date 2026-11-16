@@ -55,8 +55,10 @@ function styles(p) {
     75%, 93% { transform: translateX(121.5px); }
     100% { transform: translateX(0); }
   }
+  .playhead { animation: playhead 14s linear infinite; }
+  @keyframes playhead { from { transform: translateX(0); } to { transform: translateX(900px); } }
   @media (prefers-reduced-motion: reduce) {
-    .flow, .pulse, .pulse2, .cursor, .swipe { animation: none; }
+    .flow, .pulse, .pulse2, .cursor, .swipe, .playhead { animation: none; }
   }`;
 }
 
@@ -217,7 +219,7 @@ function howItWorks(p, { W = 1280, H = 440 } = {}) {
     <text x="60" y="304">Your phone reaches the workstation over your own network.</text>
     <text x="60" y="328">Claude Code, your files and your login stay on the workstation.</text>
   </g>
-  <text class="mono" x="60" y="372" font-size="11" letter-spacing="1.4" fill="${p.copper}">IN TESTING · BACKGROUND AGENTS KEEP RUNNING WHILE YOU CHAT  →</text>
+  <text class="mono" x="60" y="372" font-size="11" letter-spacing="1.4" fill="${p.copper}">NEW · KEEP TALKING WHILE BACKGROUND AGENTS RUN  →</text>
 </svg>
 `;
 }
@@ -259,7 +261,61 @@ function skins(p, { W = 1280, H = 520 } = {}) {
 `;
 }
 
+function parallel(p, { W = 1280, H = 460 } = {}) {
+  // A timeline: background work keeps running while you keep talking to the main thread.
+  const X0 = 300, X1 = 1200;
+  const lane = { you: 150, main: 225, agent: 300, task: 365 };
+  const laneLabel = (y, title, sub) => `
+    <text class="mono" x="60" y="${y - 2}" font-size="11.5" letter-spacing="1.6" fill="${p.ink}">${title}</text>
+    <text class="sans" x="60" y="${y + 15}" font-size="12.5" fill="${p.muted}">${sub}</text>
+    <line x1="${X0}" y1="${y}" x2="${X1}" y2="${y}" stroke="${p.line}" stroke-dasharray="2 6"/>`;
+  const reply = (x, w, label, opts = {}) => `
+    <polygon points="${chamfer(x, lane.main - 13, w, 26, 5)}" fill="${opts.stopped ? p.bg : p.copperSoft}" stroke="${opts.stopped ? p.copper : 'none'}"/>
+    <text class="mono" x="${x + 9}" y="${lane.main + 4}" font-size="10" letter-spacing=".8" fill="${p.text}">${label}</text>`;
+  const msg = (x, label, kind = 'send') => `
+    <rect x="${x - 5}" y="${lane.you - 5}" width="10" height="10" fill="${kind === 'stop' ? p.ink : p.copper}"/>
+    <text class="mono" x="${x}" y="${lane.you - 16}" font-size="10" letter-spacing=".8" text-anchor="middle" fill="${kind === 'stop' ? p.ink : p.copper}">${label}</text>
+    <line class="flow" x1="${x}" y1="${lane.you + 8}" x2="${x}" y2="${lane.main - 16}" stroke="${p.muted}" stroke-width="1.4" marker-end="url(#arrow)"/>`;
+  const work = (y, x, w, label, cls) => `
+    <polygon points="${chamfer(x, y - 12, w, 24, 5)}" fill="${p.panel}" stroke="${p.copper}"/>
+    <rect class="${cls}" x="${x + 9}" y="${y - 4}" width="8" height="8" fill="${p.copper}"/>
+    <text class="mono" x="${x + 24}" y="${y + 4}" font-size="10" letter-spacing=".8" fill="${p.copper}">${label}</text>
+    <text class="mono" x="${x + w + 8}" y="${y + 4}" font-size="10" letter-spacing=".8" fill="${p.ok}">DONE</text>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="t d" fill="${p.text}">
+  <title id="t">Keep talking while Claude works</title>
+  <desc id="d">A timeline. You start a literature search and a test run in the background, then keep sending messages; the main thread answers each one, Stop ends only the current reply, and the background work keeps running until it is done and reports back.</desc>
+  <style>${styles(p)}</style>
+  ${backdrop(p, W, H)}
+  <text class="mono" x="60" y="70" font-size="13" letter-spacing="2.6" fill="${p.copper}">KEEP TALKING WHILE CLAUDE WORKS</text>
+  ${laneLabel(lane.you, 'YOU', 'from your phone')}
+  ${laneLabel(lane.main, 'MAIN THREAD', 'answers right away')}
+  ${laneLabel(lane.agent, 'SUBAGENT', 'literature search')}
+  ${laneLabel(lane.task, 'BACKGROUND TASK', 'test suite')}
+  ${work(lane.agent, 372, 650, 'RUNNING · NOT INTERRUPTED', 'pulse')}
+  ${work(lane.task, 420, 520, 'RUNNING', 'pulse2')}
+  ${msg(330, 'START')}
+  ${reply(318, 96, 'PLAN')}
+  ${msg(500, 'ASK')}
+  ${reply(488, 96, 'ANSWER')}
+  ${msg(620, 'SEND NOW')}
+  ${reply(608, 104, 'READS IT NOW')}
+  ${reply(726, 76, 'STOPPED', { stopped: true })}
+  ${msg(790, 'STOP', 'stop')}
+  ${msg(905, 'ASK')}
+  ${reply(893, 96, 'ANSWER')}
+  <line class="flow" x1="1030" y1="${lane.agent - 14}" x2="1060" y2="${lane.main + 16}" stroke="${p.ok}" stroke-width="1.4" marker-end="url(#arrow)"/>
+  ${reply(1060, 120, 'REPORTS BACK')}
+  <g class="playhead"><line x1="${X0}" y1="${lane.you - 34}" x2="${X0}" y2="${lane.task + 24}" stroke="${p.copper}" stroke-width="1.2" opacity=".55"/></g>
+  <g class="sans" font-size="15">
+    <text x="60" y="420">Background work keeps running through every message. Stop ends only the current reply.</text>
+  </g>
+</svg>
+`;
+}
+
 const files = {
+  'parallel-light.svg': parallel(PALETTES.light),
+  'parallel-dark.svg': parallel(PALETTES.dark),
   'hero-light.svg': hero(PALETTES.light),
   'hero-dark.svg': hero(PALETTES.dark),
   'how-it-works-light.svg': howItWorks(PALETTES.light),
