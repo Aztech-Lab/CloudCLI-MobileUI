@@ -152,6 +152,7 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 ## What's new
 
 **16 November 2026**
+- A message you send while the agent is working now reaches it at its next step instead of waiting for the reply to end. "Send now" has it read your message straight away, moving a running command or subagent to the background; running tool cards have a "Move to background" button; and a message the agent has not read yet can be withdrawn.
 - You can keep talking to the main conversation while background agents and long commands run: a new message no longer stops them, Stop ends only the current reply, a "Stop all background work" button ends the rest, and quiet long-running tasks are no longer cut off after 30 minutes ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
 - Updated to CloudCLI 1.37.9: the Claude model picker also offers pinned model versions, and pressing Escape in a rename box or menu no longer stops the running reply.
 - The agent's replies now sit in a bubble of their own, like your messages, so a conversation reads as a back-and-forth ([#8](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/8)). Under Settings › Appearance you can choose a solid bubble, a translucent one, or none ([#9](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/9)).
