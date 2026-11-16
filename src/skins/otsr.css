@@ -193,7 +193,7 @@
 }
 
 /* Chamfered edges on the few elements OTSR gives them: the tab strip, the composer
-   and the user's own messages. Only leaf-ish elements, because clip-path also clips
+   the user's own messages and the agent's spoken replies. Only leaf-ish elements, because clip-path also clips
    descendants (menus portalled to <body> are unaffected). Option: chamfers. */
 [data-skin="otsr"]:not([data-skin-chamfers="false"]) [role="tablist"] {
   clip-path: var(--otsr-chamfer-sm);
@@ -201,7 +201,8 @@
 [data-skin="otsr"]:not([data-skin-chamfers="false"]) .chat-composer-shell form[data-slot="prompt-input"] {
   clip-path: var(--otsr-chamfer);
 }
-[data-skin="otsr"]:not([data-skin-chamfers="false"]) .chat-message.user > div > div > div.rounded-2xl {
+[data-skin="otsr"]:not([data-skin-chamfers="false"]) .chat-message.user > div > div > div.rounded-2xl,
+[data-skin="otsr"]:not([data-skin-chamfers="false"]) .chat-assistant-bubble {
   clip-path: var(--otsr-chamfer-sm);
 }
 
