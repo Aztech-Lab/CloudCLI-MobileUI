@@ -154,6 +154,9 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 **In testing**
 - Background agents keep running when you send a new message ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
 
+**16 November 2026**
+- The agent's replies now sit in a bubble of their own, like your messages, so a conversation reads as a back-and-forth ([#8](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/8)).
+
 **15 November 2026**
 - Codex chats use Codex 0.169, so newer models such as gpt-6.1-sol work from CloudCLI. This is ahead of the version upstream CloudCLI pins ([#7](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/7)).
 - A Codex conversation that you edited in CloudCLI and then continued in the Codex app no longer disappears from the sidebar ([#6](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/6)).
