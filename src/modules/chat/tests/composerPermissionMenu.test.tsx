@@ -6,6 +6,8 @@ import { afterEach, test, vi } from 'vitest';
 import type { PermissionMode } from '@/shared/types';
 import { i18n } from '@/modules/i18n';
 import frChat from '@/modules/i18n/locales/fr/chat.json';
+import zhCNChat from '@/modules/i18n/locales/zh-CN/chat.json';
+import zhTWChat from '@/modules/i18n/locales/zh-TW/chat.json';
 import ComposerPermissionMenu from '@/modules/chat/composer/ComposerPermissionMenu';
 import { PromptInputFooter, PromptInputTools } from '@/modules/chat/composer/PromptInput';
 
@@ -75,11 +77,12 @@ test('every mode leads the accessible name, a mode with no translation by its id
     ['acceptEdits', 'Accept Edits'],
     ['bypassPermissions', 'Bypass Permissions'],
     ['plan', 'Plan Mode'],
+    ['approveForMe', 'Approve for me'],
     [unknownMode, 'dontAsk'],
   ];
 
   for (const [mode, name] of expected) {
-    const { getByRole, unmount } = renderMenu(mode, [...MODES, unknownMode]);
+    const { getByRole, unmount } = renderMenu(mode, [...MODES, 'approveForMe', unknownMode]);
     const trigger = getByRole('button', { name: new RegExp(`^${name}: `) });
     assert.equal(trigger.textContent, name);
     unmount();
@@ -263,4 +266,49 @@ test('the menu ends by saying Tab in the message box switches modes', () => {
   fireEvent.click(getByRole('button'));
 
   assert.equal(getByRole('menu').lastElementChild?.textContent, 'Press Tab in the message box to switch modes');
+});
+
+const CODEX_MODES: PermissionMode[] = ['default', 'approveForMe', 'acceptEdits', 'bypassPermissions'];
+
+test('Codex\'s "Approve for me" is listed with its own icon and an explanation', () => {
+  const { getByRole, getAllByRole } = render(
+    <ComposerPermissionMenu
+      permissionMode="approveForMe"
+      permissionModes={CODEX_MODES}
+      onSelectPermissionMode={() => {}}
+      providerLabel="Codex"
+    />,
+  );
+  const trigger = getByRole('button', { name: /^Approve for me: / });
+  // Its own appearance, not the question-mark icon an unknown mode falls back to.
+  assert.ok(trigger.querySelector('svg.lucide-shield-check'));
+  assert.match(trigger.className, /teal/);
+
+  fireEvent.click(trigger);
+  const rows = getAllByRole('menuitemradio');
+  assert.deepEqual(
+    rows.map((row) => row.textContent?.startsWith('Approve for me')),
+    [false, true, false, false],
+  );
+  assert.match(rows[1].textContent ?? '', /automatic reviewer/);
+});
+
+test('"Approve for me" is translated into both Chinese locales', async () => {
+  for (const [language, bundle] of [['zh-CN', zhCNChat], ['zh-TW', zhTWChat]] as const) {
+    await act(async () => {
+      await i18n.changeLanguage(language);
+    });
+    try {
+      const { getByRole, unmount } = renderMenu('approveForMe', CODEX_MODES);
+      fireEvent.click(getByRole('button'));
+      const row = getByRole('menuitemradio', { checked: true });
+      assert.ok(row.textContent?.startsWith(bundle.codex.modes.approveForMe), language);
+      assert.ok(row.textContent?.includes(bundle.codex.descriptions.approveForMe), language);
+      unmount();
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    }
+  }
 });

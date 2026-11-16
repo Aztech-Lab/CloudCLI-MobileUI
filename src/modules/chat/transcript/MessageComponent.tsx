@@ -85,12 +85,17 @@ const MessageComponent = memo(({ message, prevMessage, createDiff, onFileOpen, s
   const userCopyContent = String(message.content || '');
   const formattedMessageContent = useMemo(
     () => {
+      // [local] An error the server marked with a stable code reads in the
+      // user's language; the English text it carries is the fallback.
+      if (message.type === 'error' && message.errorCode) {
+        return t(`errors.${message.errorCode}`, { defaultValue: String(message.content || '') });
+      }
       const content = formatUsageLimitText(String(message.content || ''));
       return provider === 'codex' && message.type === 'assistant' && !message.isThinking
         ? stripProposedPlanEnvelope(content)
         : content;
     },
-    [message.content, message.isThinking, message.type, provider]
+    [message.content, message.errorCode, message.isThinking, message.type, provider, t]
   );
   const assistantCopyContent = message.isToolUse
     ? String(message.displayText || message.content || '')

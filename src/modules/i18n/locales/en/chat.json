@@ -141,6 +141,7 @@
     "modes": {
       "default": "Default Mode",
       "auto": "Auto Mode",
+      "approveForMe": "Approve for me",
       "acceptEdits": "Accept Edits",
       "bypassPermissions": "Bypass Permissions",
       "plan": "Plan Mode"
@@ -148,6 +149,7 @@
     "descriptions": {
       "default": "Only trusted commands (ls, cat, grep, git status, etc.) run automatically. Other commands are skipped. Can write to workspace.",
       "auto": "A model classifier decides per tool call whether to approve or deny. Hands-off, but safer than Bypass — denials still happen.",
+      "approveForMe": "Codex works in the workspace sandbox. When it needs more access, Codex's automatic reviewer approves or denies the request instead of asking you.",
       "acceptEdits": "All commands run automatically within the workspace. Full auto mode with sandboxed execution.",
       "bypassPermissions": "Full system access with no restrictions. All commands run automatically with full disk and network access. Use with caution.",
       "plan": "Planning mode - no commands are executed"
@@ -482,5 +484,8 @@
     "customModelsOnlyHint": "Hide the built-in {{provider}} models from every model picker and make your first model the default. Built-in models stay listed until you add a model.",
     "builtInModelsHidden": "Hidden from model pickers while “Use only my models” is on.",
     "customModelsOnlyFailed": "Unable to change this setting."
+  },
+  "errors": {
+    "codex_thread_active_writer": "This conversation is open in the Codex app, which allows only one writer at a time. Close it there (or continue there), then send again."
   }
 }

@@ -111,7 +111,10 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
   },
   codex: {
     provider: 'codex',
-    permissionModes: ['default', 'acceptEdits', 'bypassPermissions'],
+    // [local] `approveForMe` is Codex's "Approve for me": workspace-write and
+    // on-request like `default`, with approvals routed to Codex's automatic
+    // reviewer (`approvals_reviewer = "auto_review"`).
+    permissionModes: ['default', 'approveForMe', 'acceptEdits', 'bypassPermissions'],
     defaultPermissionMode: 'default',
     supportsImages: true,
     supportsFiles: true,

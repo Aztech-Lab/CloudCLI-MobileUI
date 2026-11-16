@@ -105,6 +105,7 @@
     "modes": {
       "default": "默认模式",
       "auto": "自动模式",
+      "approveForMe": "替我审批",
       "acceptEdits": "编辑模式",
       "bypassPermissions": "无限制模式",
       "plan": "计划模式"
@@ -112,6 +113,7 @@
     "descriptions": {
       "default": "只有受信任的命令（ls、cat、grep、git status 等）自动运行。其他命令将被跳过。可以写入工作区。",
       "auto": "由模型分类器针对每次工具调用决定批准或拒绝。无需手动操作，但比无限制模式更安全——仍可能被拒绝。",
+      "approveForMe": "Codex 在工作区沙盒内运行。需要更多权限时，由 Codex 的自动审查代为批准或拒绝，而不是询问你。",
       "acceptEdits": "工作区内的所有命令自动运行。完全自动模式，具有沙盒执行功能。",
       "bypassPermissions": "完全的系统访问，无限制。所有命令自动运行，具有完整的磁盘和网络访问权限。请谨慎使用。",
       "plan": "计划模式 - 不执行任何命令"
@@ -314,5 +316,8 @@
     "customModelsOnlyHint": "在所有模型选择器中隐藏 {{provider}} 的内置模型，并将您的第一个模型设为默认模型。在您添加模型之前，内置模型仍会显示。",
     "builtInModelsHidden": "开启“仅使用我的模型”时，这些模型不会出现在模型选择器中。",
     "customModelsOnlyFailed": "无法更改此设置。"
+  },
+  "errors": {
+    "codex_thread_active_writer": "此对话正在 Codex 应用中打开，而同一对话同一时间只允许一个写入方。请在那边关闭它（或直接在那边继续），然后再发送。"
   }
 }

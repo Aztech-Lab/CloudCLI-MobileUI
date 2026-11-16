@@ -6,6 +6,7 @@ import {
   Bot,
   ClipboardList,
   Hand,
+  ShieldCheck,
   ShieldQuestion,
   Smile,
   type LucideIcon,
@@ -45,6 +46,14 @@ const MODE_APPEARANCE: Record<PermissionMode, ModeAppearance> = {
     trigger:
       'border-blue-300/60 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-600/40 dark:bg-blue-900/15 dark:text-blue-300 dark:hover:bg-blue-900/25',
     item: 'text-blue-700 dark:text-blue-300',
+  },
+  // [local] Codex's "Approve for me": an automatic reviewer answers approval requests.
+  approveForMe: {
+    icon: ShieldCheck,
+    label: 'Approve for me',
+    trigger:
+      'border-teal-300/60 bg-teal-50 text-teal-700 hover:bg-teal-100 dark:border-teal-600/40 dark:bg-teal-900/15 dark:text-teal-300 dark:hover:bg-teal-900/25',
+    item: 'text-teal-700 dark:text-teal-300',
   },
   acceptEdits: {
     icon: Smile,
