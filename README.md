@@ -156,6 +156,7 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 
 **16 November 2026**
 - The agent's replies now sit in a bubble of their own, like your messages, so a conversation reads as a back-and-forth ([#8](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/8)). Under Settings › Appearance you can choose a solid bubble, a translucent one, or none ([#9](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/9)).
+- Codex chats have a new mode, "Approve for me": Codex's own reviewer decides on routine approvals, as in the Codex app. And when a conversation is still open in the Codex app, which lets only one program write to it at a time, CloudCLI now says so instead of showing a generic failure ([#11](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/11)).
 
 **15 November 2026**
 - Codex chats use Codex 0.169, so newer models such as gpt-6.1-sol work from CloudCLI. This is ahead of the version upstream CloudCLI pins ([#7](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/7)).
