@@ -106,6 +106,12 @@ export function createProviderRuntimeService(
       return Boolean(await runtime.stopBackgroundTask?.(sessionId, taskId));
     },
 
+    // [local] "Stop all background work".
+    async stopAllBackgroundWork(providerName: LLMProvider, sessionId: string): Promise<boolean> {
+      const { runtime } = dependencies.resolveProvider(providerName);
+      return Boolean(await runtime.stopAllBackgroundWork?.(sessionId));
+    },
+
     async steer(providerName: LLMProvider, sessionId: string, command: string, options: AnyRecord): Promise<boolean> {
       // A runtime that cannot write into a running turn has nothing to steer.
       const { runtime } = dependencies.resolveProvider(providerName);

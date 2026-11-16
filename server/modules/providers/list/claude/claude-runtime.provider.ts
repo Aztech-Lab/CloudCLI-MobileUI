@@ -43,7 +43,14 @@ import {
   getReportedClaudeContextWindow,
   rememberClaudeContextWindow
 } from '@/modules/providers/services/provider-token-usage.service.js';
-import { createCompleteMessage, createNormalizedMessage, errorMessage } from '@/shared/utils.js';
+import {
+  ADOPT_UNAVAILABLE_ERROR_CODE,
+  AppError,
+  createCompleteMessage,
+  createNormalizedMessage,
+  errorMessage,
+  UUID_PATTERN,
+} from '@/shared/utils.js';
 import type {
   AnyRecord,
   BackgroundTaskSummary,
@@ -61,8 +68,15 @@ const notificationEvent = createNotificationEvent as (event: AnyRecord) => unkno
 
 type ClaudeQuery = ReturnType<NonNullable<ProviderRuntimeContext['createQuery']>>;
 
-/** The run's writer: the WebSocket writer adds a socket swap for reconnects. */
-type ClaudeRuntimeWriter = ProviderRuntimeWriter & { updateWebSocket?(rawWs: unknown): void };
+/**
+ * The run's writer: the WebSocket writer adds a socket swap for reconnects, and
+ * [local] the chat gateway's writer can take over the sockets of the writer a
+ * held process was streaming to when a new send adopts that process.
+ */
+type ClaudeRuntimeWriter = ProviderRuntimeWriter & {
+  updateWebSocket?(rawWs: unknown): void;
+  adoptConnectionsFrom?(previous: unknown): void;
+};
 
 type ActiveSession = {
   instance: ClaudeQuery;
@@ -90,7 +104,84 @@ type ActiveSession = {
    * it; the caller then falls back to an ordinary next turn.
    */
   steerInput: SteerInput | null;
+  // [local] Entry points of an adoptable run (a chat turn dispatched through
+  // the gateway, `options.adoptable`), carried across the mid-run
+  // re-registration like `steerInput`. All null for any other run, which
+  // keeps every path below exactly as it was.
+  /** Writes a new send into this held process as a turn of its own (see `adoptTurn` in queryClaudeSDK). */
+  adoptTurn: AdoptTurn | null;
+  /** Stops only the adopted turn, leaving the work that existed at adoption running. */
+  interruptTurn: (() => Promise<boolean>) | null;
+  /** Whether a Stop now should take `interruptTurn` rather than the full abort. */
+  canInterruptTurnOnly: (() => boolean) | null;
+  /** Cancels an adoption that is still being set up (nothing pushed yet). */
+  cancelAdoption: (() => void) | null;
+  /**
+   * Withdraws an adopted message that was pushed but not read yet, before a
+   * full Stop interrupts the process: cancelled in the CLI's queue when
+   * possible, otherwise interrupted the moment it starts.
+   */
+  cancelPendingAdopted: (() => Promise<void>) | null;
+  /** Asks for the release `maybeReleasePromptStream` would do, honouring an adoption in flight. */
+  requestRelease: (() => void) | null;
+  /**
+   * Stops every background task of the process and, when no turn of the
+   * user's is running, lets the process go. False when there was nothing to stop.
+   */
+  stopAllBackground: (() => boolean) | null;
 };
+
+/** [local] What a send that adopts a held process hands that process's run. */
+type AdoptRequest = {
+  command: string;
+  images?: unknown;
+  files?: unknown;
+  /** The id the client asked for; the held run checks it and makes it unique. */
+  messageId: string;
+  writer: ClaudeRuntimeWriter;
+  /** The adopting send's options (model, effort, permission mode, tools). */
+  options: AnyRecord;
+  /** The provider-native id the adopting send resolved from the session row. */
+  providerSessionId: string | null;
+  context: ProviderRuntimeContext;
+};
+
+/**
+ * [local] `adopted: false` means the held run could not take the send (the
+ * caller falls back, or refuses with ADOPT_UNAVAILABLE); `done` settles once
+ * the adopted turn has been reported complete on the request's writer.
+ */
+type AdoptOutcome = { adopted: false } | { adopted: true; done: Promise<void> };
+
+type AdoptTurn = (request: AdoptRequest) => Promise<AdoptOutcome>;
+
+/** [local] The hooks an adoptable run registers on its ActiveSession. */
+type AdoptionHooks = Pick<ActiveSession, 'adoptTurn' | 'interruptTurn' | 'canInterruptTurnOnly' | 'cancelAdoption' | 'cancelPendingAdopted' | 'requestRelease' | 'stopAllBackground'>;
+
+/**
+ * [local] One attempt to adopt a held process. `cancelled` is set by a Stop
+ * that lands before anything was pushed; `abandoned` settles at that moment so
+ * a control request still in flight is not waited on. `decided` settles once
+ * the attempt has pushed its message or given up, which is what a steer sent
+ * meanwhile waits for.
+ */
+type AdoptAttempt = {
+  cancelled: boolean;
+  pushed: boolean;
+  writer: ClaudeRuntimeWriter;
+  decided: Promise<void>;
+  markDecided: () => void;
+  abandoned: Promise<void>;
+  abandon: () => void;
+};
+
+function createAdoptAttempt(writer: ClaudeRuntimeWriter): AdoptAttempt {
+  let markDecided!: () => void;
+  let abandon!: () => void;
+  const decided = new Promise<void>((resolve) => { markDecided = resolve; });
+  const abandoned = new Promise<void>((resolve) => { abandon = resolve; });
+  return { cancelled: false, pushed: false, writer, decided, markDecided, abandoned, abandon };
+}
 
 /** What a steered message carries: its text, attachments, and the id it is tracked by. */
 type SteerRequest = {
@@ -127,10 +218,12 @@ const activeSessions = new Map<string, ActiveSession>();
 // session is removed, and reset when a newer run takes the key over.
 const backgroundWork = createBackgroundWorkTracker();
 const pendingToolApprovals = new Map<string, ToolApprovalResolver>();
-// Sessions cancelled via abort-session. The abort handler already sent the
-// terminal `complete` (aborted: true) to the client, so the run loop must not
-// emit a second one when its generator winds down.
-const abortedSessionIds = new Set<string>();
+// Query instances cancelled via abort-session. The abort handler already sent
+// the terminal `complete` (aborted: true) to the client, so the run loop must
+// not emit a second one when its generator winds down. [local] Keyed by the
+// instance, not the session id: a session-keyed flag outlived the aborted
+// process's loop and swallowed the `complete` of the next run on the session.
+const abortedInstances = new WeakSet<ClaudeQuery>();
 // Query instances interrupted because a newer run took over their session id
 // (see addSession). Their run loops must stay silent on wind-down: the map
 // entry, the abort flag, and all client-facing events belong to the new run.
@@ -138,11 +231,12 @@ const supersededInstances = new WeakSet<ClaudeQuery>();
 
 const TOOL_APPROVAL_TIMEOUT_MS = parseInt(process.env.CLAUDE_TOOL_APPROVAL_TIMEOUT_MS ?? '', 10) || 55000;
 
-// How long background work is allowed to keep running after a turn ends. This drives
+// How long a held process may stay silent before it is let go. This drives
 // two halves of the same behaviour:
 //
-//  1. Passed to the spawned CLI as CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS, which is how
-//     long it waits for still-running background *agents* before killing them.
+//  1. ([local] now the hold bound below) Passed to the spawned CLI as
+//     CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS, which is how long it waits for
+//     still-running background *agents* before killing them.
 //  2. A backstop on how long we hold the SDK's stdin open after a turn's `result`.
 //     The SDK closes stdin as soon as a turn ends, and the CLI reads that EOF as
 //     "print wind-down" — killing background *shells* after a short grace period,
@@ -155,13 +249,83 @@ const TOOL_APPROVAL_TIMEOUT_MS = parseInt(process.env.CLAUDE_TOOL_APPROVAL_TIMEO
 // new turn supersedes the previous hold. This ceiling only catches background work
 // that never reports at all, so an abandoned session cannot leak a CLI process
 // forever. The timer resets on every message, so it measures silence, not total time.
+//
+// [local] This short ceiling now applies only while no tracked background task is
+// running (a hold for a ScheduleWakeup, a cron, a relay that never came). While one
+// is, a long build or test run may say nothing for hours, and the official client
+// puts no limit on it; the hold then lasts up to CLOUDCLI_BG_MAX_HOLD_MS instead.
 const BG_WAIT_CEILING_MS = 30 * 60 * 1000;
+
+// [local] Upper bound on how long a held process with background tasks still
+// running may go without a single stream message (CLOUDCLI_BG_MAX_HOLD_MS,
+// default 12 hours). When it passes, the tasks are stopped and the process is let
+// go, so an abandoned session cannot pin a CLI forever. Also what the CLI is told
+// to wait for its agents (CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS), so the CLI never
+// gives up on an agent before we do.
+const DEFAULT_BG_MAX_HOLD_MS = 12 * 60 * 60 * 1000;
+// setTimeout's largest delay; a larger one fires at once.
+const MAX_TIMER_DELAY_MS = 2 ** 31 - 1;
+
+/**
+ * [local] The hold bound for background tasks that are still running, read from
+ * CLOUDCLI_BG_MAX_HOLD_MS. Anything that is not a whole number of milliseconds of
+ * at least the idle ceiling falls back to the default (a shorter bound would make
+ * running work die sooner than idle holds do); the timer's own limit caps it.
+ * @param {NodeJS.ProcessEnv} [hostEnv] - Environment to read, `process.env` by default
+ * @returns {number} Milliseconds
+ */
+export function resolveBackgroundMaxHoldMs(hostEnv: NodeJS.ProcessEnv = process.env): number {
+  const raw = hostEnv.CLOUDCLI_BG_MAX_HOLD_MS?.trim();
+  const parsed = raw && /^\d+$/.test(raw) ? Number(raw) : NaN;
+  if (!Number.isSafeInteger(parsed) || parsed < BG_WAIT_CEILING_MS) {
+    return DEFAULT_BG_MAX_HOLD_MS;
+  }
+  return Math.min(parsed, MAX_TIMER_DELAY_MS);
+}
 
 // How long a turn that ended with steered messages still unread waits for the
 // follow-up turn the CLI runs them in, before giving up and ending the run.
 // That turn normally starts within milliseconds of the `result`; this only
 // bounds a CLI that dropped them, so the session is not left processing.
 const STEER_FOLLOW_UP_GRACE_MS = 30 * 1000;
+
+// [local] How long a message written into a held process (an adopted send) may
+// go unread while the process says nothing at all. The CLI normally starts its
+// turn within milliseconds; this only bounds a CLI that never does, so the
+// adopting run cannot stay "processing" forever. Reset by any stream message.
+const ADOPT_PICKUP_WATCHDOG_MS = 60 * 1000;
+
+// [local] Absolute bound on how long an adopted message may stay unread after
+// its push, whatever the stream says meanwhile. The silence watchdog above is
+// suspended while the CLI runs a turn of its own (a relay with a long silent
+// tool call is legitimately quiet); this only catches a wedged CLI.
+const ADOPT_PICKUP_BACKSTOP_MS = 10 * 60 * 1000;
+
+// [local] Bound on each control request sent while adopting or stopping a
+// held process. The SDK drops a request written after stdin ended and gives
+// it no timeout of its own, so an unbounded await could last as long as the
+// CLI's wind-down.
+const CONTROL_REQUEST_TIMEOUT_MS = 5 * 1000;
+
+// [local] Shown when an adopted message was never read by the CLI.
+const ADOPTED_MESSAGE_NOT_PICKED_UP = 'The message was not picked up by the running Claude process. Please send it again.';
+
+// [local] Permission modes from most to least permissive. Switching a held
+// process to a stricter mode must succeed, or the adoption is refused: the
+// turn would otherwise run with more permission than the user chose. An
+// unknown mode ranks as strictest.
+const PERMISSION_MODE_STRICTNESS: Record<string, number> = {
+  bypassPermissions: 0,
+  auto: 1,
+  acceptEdits: 2,
+  default: 3,
+  plan: 4,
+};
+
+function isStricterPermissionMode(target: string, current: string): boolean {
+  const rank = (mode: string) => PERMISSION_MODE_STRICTNESS[mode] ?? Number.MAX_SAFE_INTEGER;
+  return rank(target) > rank(current);
+}
 
 const TOOLS_REQUIRING_INTERACTION = new Set(['AskUserQuestion', 'ExitPlanMode']);
 
@@ -244,6 +408,89 @@ function applyClaudeEffort(sdkOptions: AnyRecord, resolvedEffort: string | undef
     ultracode: true,
     enableWorkflows: true
   };
+}
+
+/**
+ * [local] The same choice as `applyClaudeEffort`, for a live process
+ * (`applyFlagSettings`). Both keys are always sent: an `effortLevel` change
+ * without an `ultracode` key turns ultracode off, and going back to the
+ * model's default needs `effortLevel: null` rather than no key at all.
+ */
+function toEffortFlagSettings(resolvedEffort: string | undefined): AnyRecord {
+  if (resolvedEffort === CLAUDE_ULTRACODE_EFFORT) {
+    return { effortLevel: ULTRACODE_SDK_EFFORT, ultracode: true, enableWorkflows: true };
+  }
+  if (resolvedEffort) {
+    return { effortLevel: resolvedEffort, ultracode: false };
+  }
+  return { effortLevel: null, ultracode: false };
+}
+
+/**
+ * [local] Sends one control request to a held process and resolves whether it
+ * succeeded. `send` returns undefined when the query has no such method, which
+ * counts as a failure, as do a rejection, CONTROL_REQUEST_TIMEOUT_MS without an
+ * answer, and `abandon` settling first (an adoption cancelled meanwhile).
+ */
+function sendControlRequest(send: () => Promise<unknown> | undefined, abandon?: Promise<unknown>): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    let settled = false;
+    const finish = (succeeded: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(succeeded);
+    };
+    const timer = setTimeout(() => finish(false), CONTROL_REQUEST_TIMEOUT_MS);
+    timer.unref?.();
+    abandon?.then(() => finish(false), () => finish(false));
+    try {
+      const request = send();
+      if (!request) {
+        finish(false);
+        return;
+      }
+      request.then(() => finish(true), (error: unknown) => {
+        console.warn('[Claude SDK] Control request failed:', errorMessage(error));
+        finish(false);
+      });
+    } catch (error) {
+      console.warn('[Claude SDK] Control request failed:', errorMessage(error));
+      finish(false);
+    }
+  });
+}
+
+/**
+ * [local] Asks the CLI to drop a uuid-stamped message it has queued but not run
+ * (`cancel_async_message`). SDK 0.3.311 ships the method without typing it, so
+ * it is read through a guard; a missing method, a failure or a timeout all
+ * count as "not cancelled".
+ */
+function cancelQueuedMessage(instance: ClaudeQuery, uuid: string): Promise<boolean> {
+  const cancel = (instance as unknown as { cancelAsyncMessage?: (uuid: string) => Promise<unknown> }).cancelAsyncMessage;
+  if (typeof cancel !== 'function') {
+    return Promise.resolve(false);
+  }
+  return new Promise<boolean>((resolve) => {
+    const timer = setTimeout(() => resolve(false), CONTROL_REQUEST_TIMEOUT_MS);
+    timer.unref?.();
+    try {
+      Promise.resolve(cancel.call(instance, uuid)).then(
+        (cancelled) => { clearTimeout(timer); resolve(cancelled === true); },
+        () => { clearTimeout(timer); resolve(false); },
+      );
+    } catch {
+      clearTimeout(timer);
+      resolve(false);
+    }
+  });
+}
+
+/** [local] The uuids an interrupt receipt says will still run, or null for a CLI that sends no receipt. */
+function readStillQueued(receipt: unknown): string[] | null {
+  const stillQueued = (receipt as AnyRecord | null | undefined)?.still_queued;
+  return Array.isArray(stillQueued) ? stillQueued.filter((id): id is string => typeof id === 'string') : null;
 }
 
 function createRequestId() {
@@ -373,7 +620,8 @@ export function buildClaudeSdkEnv(hostEnv: NodeJS.ProcessEnv = process.env): Nod
     CLAUDE_CODE_ARTIFACT: '1',
     CLAUDE_CODE_ENTRYPOINT: 'claudecodeui',
     ...hostEnv,
-    CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: String(BG_WAIT_CEILING_MS),
+    // [local] The long bound, not the idle ceiling: see resolveBackgroundMaxHoldMs.
+    CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: String(resolveBackgroundMaxHoldMs(hostEnv)),
   };
 }
 
@@ -472,6 +720,7 @@ function mapCliOptionsToSDK(options: AnyRecord = {}) {
  * @param {Object} writer - WebSocket writer for reconnect support
  * @param {Function} releaseInput - Closes the held stdin stream so the CLI can exit
  * @param {Function} steerInput - Pushes a user message into the running turn
+ * @param {Object} adoption - [local] The adoption entry points of an adoptable run
  */
 function addSession(
   sessionId: string,
@@ -479,15 +728,15 @@ function addSession(
   writer: ClaudeRuntimeWriter | null = null,
   releaseInput: (() => void) | null = null,
   steerInput: SteerInput | null = null,
+  adoption: AdoptionHooks | null = null,
 ) {
   const existing = activeSessions.get(sessionId);
   // A different live instance under the same key means an earlier run was
   // superseded without being stopped (e.g. an abort that raced run setup and
   // found nothing to interrupt). Overwriting it here would strand its
   // generator forever — this map entry is the only handle for interrupting
-  // it. Stop it directly rather than via abortClaudeSDKSession, whose
-  // session-keyed abortedSessionIds flag would be consumed by the new run
-  // and suppress its terminal `complete`.
+  // it. Stop it directly rather than via abortClaudeSDKSession, which would
+  // mark the old run aborted and go through its whole Stop path.
   const superseding = Boolean(
     existing && existing.status === 'active' && existing.instance && existing.instance !== queryInstance
   );
@@ -527,6 +776,14 @@ function addSession(
     // Re-registered mid-run once the provider session id lands; keep the
     // steer entry point like the closer below.
     steerInput: steerInput || carried?.steerInput || null,
+    // [local] Carried the same way as `steerInput`.
+    adoptTurn: adoption?.adoptTurn ?? carried?.adoptTurn ?? null,
+    interruptTurn: adoption?.interruptTurn ?? carried?.interruptTurn ?? null,
+    canInterruptTurnOnly: adoption?.canInterruptTurnOnly ?? carried?.canInterruptTurnOnly ?? null,
+    cancelAdoption: adoption?.cancelAdoption ?? carried?.cancelAdoption ?? null,
+    cancelPendingAdopted: adoption?.cancelPendingAdopted ?? carried?.cancelPendingAdopted ?? null,
+    requestRelease: adoption?.requestRelease ?? carried?.requestRelease ?? null,
+    stopAllBackground: adoption?.stopAllBackground ?? carried?.stopAllBackground ?? null,
   };
   // Re-registered mid-run once the provider session id lands; keep the closer.
   const effectiveReleaseInput = releaseInput || carried?.releaseInput || null;
@@ -548,7 +805,7 @@ function addSession(
  *
  * Closing stdin is not enough on its own: the CLI's wind-down waits for the
  * background agents the process still has going — for up to the ceiling it
- * was started with (BG_WAIT_CEILING_MS) — so an abandoned process with an
+ * was started with ([local] the hold bound, hours) — so an abandoned process with an
  * agent outstanding would run next to the process that replaced it for as
  * long as the agent does, both appending to the same session file. Stop the
  * tasks first, while stdin is still open: the SDK drops control requests
@@ -564,17 +821,89 @@ function releaseHeldSession(sessionId: string) {
   if (!held) {
     return;
   }
-  for (const task of backgroundWork.outstanding(sessionId)) {
+  sendTaskStops(held.instance, backgroundWork.outstanding(sessionId));
+  held.releaseInput?.();
+}
+
+/**
+ * Writes a `stop_task` for each task to the process, without waiting for the
+ * answers. Shared by releaseHeldSession and ([local]) the Stop paths, which
+ * need the same guarantee: the requests are on stdin before anything closes it.
+ */
+function sendTaskStops(instance: ClaudeQuery | undefined, tasks: BackgroundTaskSummary[]) {
+  for (const task of tasks) {
     // A stop that cannot be delivered changes nothing about what happens
     // next: the process is on its way out either way. Guard the synchronous
-    // call too, so a failing stop can never skip the release below.
+    // call too, so a failing stop can never skip what follows.
     try {
-      Promise.resolve(held.instance?.stopTask?.(task.taskId)).catch(() => {});
+      Promise.resolve(instance?.stopTask?.(task.taskId)).catch(() => {});
     } catch {
       // Same as a rejected stop.
     }
   }
-  held.releaseInput?.();
+}
+
+/**
+ * [local] A `chat.send` that asked to go into the session's held process
+ * (`options.adoptHeld`, set by the client only when its composer shows
+ * background work and the send is not an edit). Hands it to the held run's
+ * `adoptTurn` and waits for the adopted turn to be reported complete.
+ *
+ * Resolves true when the send was adopted (or cancelled by a Stop while being
+ * set up): the caller is done. Resolves false when there is nothing to adopt,
+ * so the caller goes on exactly as before (stop the held work, spawn). Throws
+ * an ADOPT_UNAVAILABLE AppError when the held process could not take the send
+ * while it still has background work outstanding: the client promised the
+ * user that work keeps running, so it is neither stopped nor replaced.
+ */
+async function adoptHeldSession(
+  sessionKey: string,
+  command: string,
+  options: AnyRecord,
+  writer: ClaudeRuntimeWriter,
+  context: ProviderRuntimeContext,
+  providerSessionId: string | null,
+): Promise<boolean> {
+  const held = getSession(sessionKey);
+  if (!held || held.status !== 'active' || held.inputReleased) {
+    return false;
+  }
+  const requestedId = typeof options.messageId === 'string' ? options.messageId.trim() : '';
+  let outcome: AdoptOutcome = { adopted: false };
+  // Slash content is not adopted until a probe confirms the CLI echoes it
+  // with our uuid: without that echo the adopted turn never starts for us.
+  if (held.adoptTurn && !command.trimStart().startsWith('/')) {
+    try {
+      outcome = await held.adoptTurn({
+        command,
+        images: options.images,
+        files: options.files,
+        messageId: requestedId,
+        writer,
+        options,
+        providerSessionId,
+        context,
+      });
+    } catch (error) {
+      console.warn(`[Claude SDK] Adopting the held process of session ${sessionKey} failed:`, errorMessage(error));
+    }
+  }
+  if (outcome.adopted) {
+    await outcome.done;
+    return true;
+  }
+  const live = getSession(sessionKey);
+  if (live && live.status === 'active' && !live.inputReleased && backgroundWork.hasOutstanding(sessionKey)) {
+    throw new AppError(
+      'The message could not be sent into the running Claude process, and sending it as a new turn would stop its background work.',
+      {
+        code: ADOPT_UNAVAILABLE_ERROR_CODE,
+        statusCode: 409,
+        details: { messageId: UUID_PATTERN.test(requestedId) ? requestedId : crypto.randomUUID() },
+      },
+    );
+  }
+  return false;
 }
 
 /**
@@ -886,6 +1215,14 @@ const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'killed']);
  * Exported so the folding can be driven with the four event shapes directly;
  * the runtime keeps one instance keyed like `activeSessions`.
  *
+ * [local] A CLI that emits `system/background_tasks_changed` (the full set of
+ * live background tasks after every change, REPLACE semantics) is followed by
+ * that level rather than by pairing edges alone, so a missed `task_started` or
+ * `task_notification` cannot leave a ghost task (or lose a live one). The edges
+ * still supply the launching call and description, and remain the only source
+ * for an older CLI that sends no level. The level lists background tasks only:
+ * a task the turn is blocking on (foreground) is left to its edges.
+ *
  */
 export function createBackgroundWorkTracker() {
   const sessions = new Map<string, Map<string, BackgroundTaskSummary>>();
@@ -896,8 +1233,30 @@ export function createBackgroundWorkTracker() {
    * transcript could show it; it is kept for stopping but flagged `nested`.
    */
   const ownToolUseIds = new Map<string, Set<string>>();
+  /**
+   * [local] Tool-use ids of calls made to block on their work (a foreground
+   * Agent or Bash), for CLIs whose `task_started` does not say
+   * `is_backgrounded` yet.
+   */
+  const foregroundLaunches = new Map<string, Set<string>>();
+  /**
+   * [local] Tasks the turn that started them is blocking on. A Stop of that
+   * turn stops these; every other task keeps running, as Esc leaves it in
+   * the official client. A task moved to the background leaves the set.
+   */
+  const foregroundTasks = new Map<string, Set<string>>();
+
+  const addTo = (map: Map<string, Set<string>>, sessionKey: string, id: string) => {
+    let ids = map.get(sessionKey);
+    if (!ids) {
+      ids = new Set<string>();
+      map.set(sessionKey, ids);
+    }
+    ids.add(id);
+  };
 
   const remove = (sessionKey: string, taskId: string) => {
+    foregroundTasks.get(sessionKey)?.delete(taskId);
     const tasks = sessions.get(sessionKey);
     if (!tasks) {
       return;
@@ -908,19 +1267,74 @@ export function createBackgroundWorkTracker() {
     }
   };
 
+  /**
+   * [local] Folds one `background_tasks_changed` level into the session's set:
+   * a background task missing from it has ended, and a task in it that no edge
+   * announced is running. `ambient` tasks (watchers, housekeeping) are not
+   * activity, so they are never added from the level; one the session itself
+   * started (a Monitor) stays tracked while the level lists it.
+   */
+  const applyLevel = (sessionKey: string, level: unknown[]) => {
+    const live = new Map<string, AnyRecord>();
+    for (const entry of level) {
+      const task = entry as AnyRecord | null;
+      if (task && typeof task.task_id === 'string') {
+        live.set(task.task_id, task);
+      }
+    }
+    for (const taskId of Array.from(sessions.get(sessionKey)?.keys() ?? [])) {
+      if (live.has(taskId)) {
+        // Listed, so it runs in the background now.
+        foregroundTasks.get(sessionKey)?.delete(taskId);
+      } else if (!foregroundTasks.get(sessionKey)?.has(taskId)) {
+        remove(sessionKey, taskId);
+      }
+    }
+    for (const [taskId, entry] of live) {
+      if (entry.ambient === true || sessions.get(sessionKey)?.has(taskId)) {
+        continue;
+      }
+      // No edge named its launching call (yet: a background task joins the
+      // level before its `task_started`, which then fills this in). Nothing
+      // in the parent transcript can show it, so it is kept as nested.
+      const task: BackgroundTaskSummary = {
+        taskId,
+        toolUseId: '',
+        taskType: typeof entry.task_type === 'string' ? entry.task_type : 'unknown',
+        description: typeof entry.description === 'string' ? entry.description : '',
+        startedAt: Date.now(),
+        nested: true,
+      };
+      let tasks = sessions.get(sessionKey);
+      if (!tasks) {
+        tasks = new Map<string, BackgroundTaskSummary>();
+        sessions.set(sessionKey, tasks);
+      }
+      tasks.set(taskId, task);
+    }
+  };
+
   return {
     apply(sessionKey: string, message: AnyRecord | null | undefined) {
+      if (message?.type === 'system' && message.subtype === 'background_tasks_changed') {
+        if (Array.isArray(message.tasks)) {
+          applyLevel(sessionKey, message.tasks);
+        }
+        return;
+      }
       if (message?.type === 'assistant' && !message.parent_tool_use_id) {
         const content = message.message?.content;
         if (Array.isArray(content)) {
           for (const block of content) {
             if (block?.type === 'tool_use' && typeof block.id === 'string') {
-              let ids = ownToolUseIds.get(sessionKey);
-              if (!ids) {
-                ids = new Set<string>();
-                ownToolUseIds.set(sessionKey, ids);
+              addTo(ownToolUseIds, sessionKey, block.id);
+              // [local] Same reading of the input as `startsBackgroundWork`.
+              if (
+                (block.name === 'Agent' && block.input?.run_in_background === false)
+                || (block.name === 'Bash' && block.input?.run_in_background !== true)
+              ) {
+                addTo(foregroundLaunches, sessionKey, block.id);
               }
-              ids.add(block.id);
             }
           }
         }
@@ -953,6 +1367,15 @@ export function createBackgroundWorkTracker() {
             sessions.set(sessionKey, tasks);
           }
           tasks.set(task.taskId, task);
+          // [local] The CLI says where the task runs; an older one only
+          // through the launching call's input.
+          const foreground = message.is_backgrounded === false
+            || (message.is_backgrounded === undefined && Boolean(foregroundLaunches.get(sessionKey)?.has(message.tool_use_id)));
+          if (foreground) {
+            addTo(foregroundTasks, sessionKey, task.taskId);
+          } else {
+            foregroundTasks.get(sessionKey)?.delete(task.taskId);
+          }
           return;
         }
         case 'task_notification':
@@ -961,6 +1384,9 @@ export function createBackgroundWorkTracker() {
         case 'task_updated':
           if (TERMINAL_TASK_STATUSES.has(message.patch?.status)) {
             remove(sessionKey, message.task_id);
+          } else if (message.patch?.is_backgrounded === true) {
+            // [local] Moved to the background: no longer the turn's to stop.
+            foregroundTasks.get(sessionKey)?.delete(message.task_id);
           }
           return;
         default:
@@ -975,6 +1401,11 @@ export function createBackgroundWorkTracker() {
       return Boolean(sessions.get(sessionKey)?.has(taskId));
     },
 
+    /** [local] Whether the turn that started this outstanding task is blocking on it. */
+    isForeground(sessionKey: string, taskId: string) {
+      return Boolean(sessions.get(sessionKey)?.has(taskId) && foregroundTasks.get(sessionKey)?.has(taskId));
+    },
+
     outstanding(sessionKey: string): BackgroundTaskSummary[] {
       return Array.from(sessions.get(sessionKey)?.values() ?? []);
     },
@@ -982,6 +1413,8 @@ export function createBackgroundWorkTracker() {
     clear(sessionKey: string) {
       sessions.delete(sessionKey);
       ownToolUseIds.delete(sessionKey);
+      foregroundLaunches.delete(sessionKey);
+      foregroundTasks.delete(sessionKey);
     },
 
     list() {
@@ -1145,16 +1578,21 @@ async function loadMcpConfig(cwd: string | undefined): Promise<AnyRecord | null>
  * Executes a Claude query using the SDK
  * @param {string} command - User prompt/command
  * @param {Object} options - Query options
- * @param {Object} ws - WebSocket connection
+ * @param {Object} initialWriter - WebSocket connection
  * @param {Object} context - Provider-scoped model, session, and auth lookups
  * @returns {Promise<void>}
  */
 async function queryClaudeSDK(
   command: string,
   options: AnyRecord = {},
-  ws: ClaudeRuntimeWriter,
+  initialWriter: ClaudeRuntimeWriter,
   context: ProviderRuntimeContext,
 ): Promise<void> {
+  // [local] Every client-facing write of this run goes through this binding,
+  // never the parameter: a later send that adopts this run's held process
+  // hands the stream to its own writer (see `adoptTurn`), and every closure
+  // below must follow.
+  let ws: ClaudeRuntimeWriter = initialWriter;
   const { sessionId, sessionSummary } = options;
   // Callers pass the stable app session id; the SDK only understands the
   // provider-native id recorded on the session row.
@@ -1216,6 +1654,65 @@ async function queryClaudeSDK(
   let mainThreadModel: string | null = null;
   let lastSentTokenBudget: TokenBudget | null = null;
 
+  // [local] Adoption state: a later send can be written into this run's held
+  // process (`adoptTurn` below) instead of replacing it. Only a run the chat
+  // gateway dispatched (`adoptable`) with a person watching registers the
+  // entry points; for every other run all of this stays at its initial value
+  // and every path below behaves exactly as it did before.
+  const adoptable = options.adoptable === true && !options.unattended;
+  // True from the moment an adoption attempt starts until its turn is
+  // reported complete (or the attempt gives up). Holds back every release.
+  let adoptInFlight = false;
+  let currentAttempt: AdoptAttempt | null = null;
+  // The uuid of the adopted message until the CLI echoes it (reads it).
+  let adoptedPendingId: string | null = null;
+  let adoptWatchdog: ReturnType<typeof setTimeout> | null = null;
+  // The absolute pickup bound (ADOPT_PICKUP_BACKSTOP_MS), armed at the push.
+  let adoptBackstop: ReturnType<typeof setTimeout> | null = null;
+  // Whether the pickup watchdog is watching (an adopted message is unread).
+  // Its silence timer only runs while the CLI is idle between turns.
+  let adoptWatchdogActive = false;
+  // Whether the CLI is inside a turn of its own: set by `init`, cleared by
+  // `result`. A turn may go silent for minutes on one tool call.
+  let cliTurnActive = false;
+  // Set once the run loop has ended: nothing may arm a timer after that.
+  let loopEnded = false;
+  // Resolves the adopting run's promise once its turn is reported complete.
+  let resolveAdoptDone: (() => void) | null = null;
+  // A release asked for while an adoption was in flight, picked up after it.
+  let releaseRequestedWhileAdopting = false;
+  // Every uuid this run has written an adopted message under.
+  const adoptedMessageIds = new Set<string>();
+  let everAdopted = false;
+  // After the first adoption: task reports whose relay turn has not run yet.
+  // Closing stdin while one is owed would cut that relay short.
+  let relaysOwed = 0;
+  let relayGraceTimer: ReturnType<typeof setTimeout> | null = null;
+  // Whether the last hold rested on the launch rule alone (a ScheduleWakeup,
+  // CronCreate, ... with no task events), and whether the adopted turn has to
+  // keep that hold: the tracker knows nothing of such work.
+  let lastHoldWasStatic = false;
+  let carriedStaticHold = false;
+  // Messages a Stop could not cancel. If the CLI starts one anyway, it is
+  // interrupted at once and nothing it says reaches the client.
+  const doomedIds = new Set<string>();
+  let suppressForwarding = false;
+  let doomedTurnActive = false;
+  // The next `result` ends a turn a Stop interrupted, not a relay.
+  let interruptedResultPending = false;
+  // Tools a person allowed with "remember": kept when an adoption swaps in
+  // the adopting send's tool settings.
+  const rememberedEntries = new Set<string>();
+
+  // [local] A send marked `adoptHeld` goes into the session's held process
+  // when it can (see adoptHeldSession). An edit never does: it must resume the
+  // conversation partway, which only a new process can.
+  if (options.adoptHeld === true && !options.resumeAnchorId && !options.resumeFromScratch && sessionKey()) {
+    if (await adoptHeldSession(sessionKey()!, command, options, ws, context, providerSessionId)) {
+      return;
+    }
+  }
+
   // A new turn supersedes any earlier one still holding this session's process
   // open, so held runs cannot stack up across a conversation.
   if (sessionKey()) {
@@ -1247,6 +1744,13 @@ async function queryClaudeSDK(
   // question the CLI never answers would otherwise hold the process (and its
   // MCP servers) forever, so the ceiling forces the release through instead.
   const maybeReleasePromptStream = (isIdleCeiling = false) => {
+    // [local] While an adoption is in flight nothing closes stdin, the idle
+    // ceiling included: the adopted turn's own settle (or the attempt giving
+    // up) decides again, and picks this request back up.
+    if (adoptInFlight) {
+      releaseRequestedWhileAdopting = true;
+      return;
+    }
     const found = sessionKey() ? getSession(sessionKey()!) : undefined;
     const entry = found && found.instance === queryInstance ? found : null;
     if (entry && entry.pendingNativeSideQuestions > 0 && !isIdleCeiling) {
@@ -1270,17 +1774,110 @@ async function queryClaudeSDK(
   };
 
   // Arms (or re-arms) the idle countdown that eventually closes stdin.
+  // [local] Short (BG_WAIT_CEILING_MS) while no tracked task is running, long
+  // (CLOUDCLI_BG_MAX_HOLD_MS) while one is. Every stream message re-arms it, so a task
+  // ending switches back to the short one.
   const scheduleRelease = () => {
     if (idleReleaseTimer) {
       clearTimeout(idleReleaseTimer);
       idleReleaseTimer = null;
     }
+    const holdKey = sessionKey();
+    const tasksRunning = Boolean(holdKey) && backgroundWork.hasOutstanding(holdKey!);
     idleReleaseTimer = setTimeout(() => {
       idleReleaseTimer = null;
+      // [local] Tasks still running at the long bound are stopped first, while
+      // stdin is open, as releaseHeldSession does: the CLI would otherwise wait
+      // for its agents as long again after the release.
+      const key = sessionKey();
+      const entry = key ? getSession(key) : undefined;
+      if (key && entry && entry.instance === queryInstance && backgroundWork.hasOutstanding(key)) {
+        console.warn(`[Claude SDK] Background work of session ${key} said nothing for the hold bound; stopping it.`);
+        sendTaskStops(queryInstance ?? undefined, backgroundWork.outstanding(key));
+      }
       maybeReleasePromptStream(true);
-    }, BG_WAIT_CEILING_MS);
+    }, tasksRunning ? resolveBackgroundMaxHoldMs() : BG_WAIT_CEILING_MS);
     // Never let the hold keep the server process alive on its own.
     idleReleaseTimer?.unref?.();
+  };
+
+  // [local] Adoption bookkeeping that the catch and finally below need too.
+  const clearAdoptWatchdog = () => {
+    adoptWatchdogActive = false;
+    if (adoptWatchdog) {
+      clearTimeout(adoptWatchdog);
+      adoptWatchdog = null;
+    }
+    if (adoptBackstop) {
+      clearTimeout(adoptBackstop);
+      adoptBackstop = null;
+    }
+  };
+  const clearRelayGrace = () => {
+    if (relayGraceTimer) {
+      clearTimeout(relayGraceTimer);
+      relayGraceTimer = null;
+    }
+  };
+  // Ends the adoption in flight, if any, and lets the adopting run return.
+  // Idempotent. Callers send the turn's `complete` first.
+  const finishAdoptedTurn = () => {
+    adoptInFlight = false;
+    adoptedPendingId = null;
+    clearAdoptWatchdog();
+    currentAttempt = null;
+    const resolveDone = resolveAdoptDone;
+    resolveAdoptDone = null;
+    resolveDone?.();
+  };
+  // An adoption whose turn never ran puts the process back in the hold it was
+  // in: a release asked for meanwhile happens now, otherwise the idle ceiling
+  // the adoption suspended is armed again.
+  const restoreHold = () => {
+    // A run whose loop has ended holds nothing (its finally cleared the timers).
+    if (loopEnded) {
+      return;
+    }
+    if (releaseRequestedWhileAdopting) {
+      releaseRequestedWhileAdopting = false;
+      maybeReleasePromptStream();
+    } else if (!idleReleaseTimer) {
+      scheduleRelease();
+    }
+  };
+  // Held only for a relay the CLI owes: if no relay turn starts within the
+  // grace, stop waiting for it.
+  const armRelayGrace = () => {
+    clearRelayGrace();
+    relayGraceTimer = setTimeout(() => {
+      relayGraceTimer = null;
+      console.warn(`[Claude SDK] A background task's relay turn never started for session ${sessionKey()}; letting the process go.`);
+      relaysOwed = 0;
+      maybeReleasePromptStream();
+    }, STEER_FOLLOW_UP_GRACE_MS);
+    relayGraceTimer.unref?.();
+  };
+  // A Stop that lands while an adoption is still being set up: nothing is
+  // pushed, and the attempt stops waiting on its control requests.
+  const cancelAdoption = () => {
+    const attempt = currentAttempt;
+    if (attempt && !attempt.pushed && !attempt.cancelled) {
+      attempt.cancelled = true;
+      attempt.abandon();
+    }
+  };
+  // [local] A Stop ends only the turn the user is waiting on (this run's own
+  // turn, or one adopted into its process) whenever background work would
+  // outlive it, as Esc does in the official client. Every other Stop takes
+  // the full abort, exactly as before. A task the turn is blocking on (a
+  // foreground agent or command of the main thread) is part of the turn.
+  const isTurnTask = (key: string, task: BackgroundTaskSummary) => !task.nested && backgroundWork.isForeground(key, task.taskId);
+  const canInterruptTurnOnly = () => {
+    const key = sessionKey();
+    if (!key || (!adoptInFlight && turnCompleteSent)) {
+      return false;
+    }
+    return backgroundWork.outstanding(key).some((task) => !isTurnTask(key, task));
   };
 
   // Hoisted above the try so the catch's cleanup can tell whether this run
@@ -1293,6 +1890,13 @@ async function queryClaudeSDK(
   // Refused once the turn has been reported complete: the client then sends
   // it as an ordinary new turn.
   const steerIntoTurn: SteerInput = async ({ command: steerCommand, images, files, messageId }) => {
+    // [local] A steer that arrives while an adoption is being set up (the
+    // client already shows the adopted turn as running) waits for its push
+    // rather than being refused against the previous turn's state.
+    const settingUp = currentAttempt;
+    if (turnCompleteSent && adoptInFlight && settingUp && !settingUp.pushed) {
+      await settingUp.decided;
+    }
     if (turnCompleteSent) {
       return false;
     }
@@ -1326,6 +1930,17 @@ async function queryClaudeSDK(
       model: resolvedModel || options.model,
       effortModels,
     });
+
+    // [local] Tells the CLI this consumer stops background tasks one by one
+    // (`stopTask`), so an interrupt ends only the current turn and spares
+    // them. That is what lets a Stop of the turn (`interruptTurn`) leave the
+    // background work running. A full Stop (nothing would outlive the turn,
+    // or a run that is not adoptable) stops the tracked tasks itself before
+    // it interrupts (abortClaudeSDKSession), which keeps its old outcome.
+    sdkOptions.perTaskStopAffordance = true;
+    // [local] What the process runs with, for the live changes an adoption makes.
+    let appliedModel: unknown = sdkOptions.model;
+    let appliedEffort = resolveClaudeEffort(sdkOptions.model, options.effort, effortModels);
 
     const mcpServers = await loadMcpConfig(options.cwd);
     if (mcpServers) {
@@ -1497,6 +2112,8 @@ async function queryClaudeSDK(
 
       if (decision.allow) {
         if (decision.rememberEntry && typeof decision.rememberEntry === 'string') {
+          // [local] Kept across an adoption's swap of the tool settings.
+          rememberedEntries.add(decision.rememberEntry);
           if (!sdkOptions.allowedTools.includes(decision.rememberEntry)) {
             sdkOptions.allowedTools.push(decision.rememberEntry);
           }
@@ -1537,27 +2154,485 @@ async function queryClaudeSDK(
       });
     }
 
+    // [local] This run's own query, for the closures below (the hoisted
+    // `queryInstance` is not narrowed inside them).
+    const liveQuery: ClaudeQuery = queryInstance;
+
+    // [local] This run's activeSessions entry, while it is live with stdin open.
+    const ownLiveEntry = () => {
+      const found = sessionKey() ? getSession(sessionKey()!) : undefined;
+      return found && found.instance === liveQuery && found.status === 'active' && !found.inputReleased ? found : null;
+    };
+
+    // [local] (Re)arms the adopted message's pickup watchdog. Its silence
+    // timer is suspended while the CLI runs a turn of its own (a relay with
+    // a long silent tool call is not a CLI that ignores the message); it
+    // counts only while the CLI sits idle between turns.
+    const armAdoptWatchdog = () => {
+      if (adoptWatchdog) {
+        clearTimeout(adoptWatchdog);
+        adoptWatchdog = null;
+      }
+      adoptWatchdogActive = true;
+      if (cliTurnActive || loopEnded) {
+        return;
+      }
+      adoptWatchdog = setTimeout(expireAdoptWatchdog, ADOPT_PICKUP_WATCHDOG_MS);
+      adoptWatchdog.unref?.();
+    };
+    // [local] Starts watching a freshly pushed adopted message: the silence
+    // watchdog above, plus an absolute backstop for a wedged CLI.
+    const startAdoptWatchdog = () => {
+      clearAdoptWatchdog();
+      armAdoptWatchdog();
+      adoptBackstop = setTimeout(expireAdoptWatchdog, ADOPT_PICKUP_BACKSTOP_MS);
+      adoptBackstop.unref?.();
+    };
+
+    // [local] The process went silent for ADOPT_PICKUP_WATCHDOG_MS with the
+    // adopted message still unread: tell the user it was not picked up and
+    // end the adopting run, rather than leave it "processing" forever. Should
+    // the CLI run it after all, it is stopped the moment it starts.
+    const expireAdoptWatchdog = () => {
+      clearAdoptWatchdog();
+      const unreadId = adoptedPendingId;
+      if (!unreadId) {
+        return;
+      }
+      console.warn(`[Claude SDK] Adopted message ${unreadId} was never read by the held process of session ${sessionKey()}.`);
+      doomedIds.add(unreadId);
+      void cancelQueuedMessage(liveQuery, unreadId);
+      adoptedPendingId = null;
+      ws.send(createNormalizedMessage({ kind: 'error', content: ADOPTED_MESSAGE_NOT_PICKED_UP, sessionId: capturedSessionId || sessionId || null, provider: 'claude' }));
+      settleTurnResult(ADOPTED_MESSAGE_NOT_PICKED_UP);
+    };
+
+    // [local] Brings the held process in line with what an adopting send
+    // asks for: permission mode (and the tool lists canUseTool reads), model
+    // and effort, each through a live control request. Only a stricter
+    // permission mode that cannot be applied makes the adoption fail (false):
+    // the turn would otherwise run with more permission than chosen. A model
+    // or effort change that fails is logged and the turn runs anyway; nothing
+    // here ever stops background work.
+    //
+    // Every change made (the tool-check mirror, and each control request
+    // sent, whatever it answered) leaves an entry in `undo`, which the caller
+    // runs should the attempt end without a push. Those entries put the
+    // previous values back on a best-effort basis and never throw.
+    const applyLiveOptions = async (request: AdoptRequest, attempt: AdoptAttempt, undo: Array<() => void>): Promise<boolean> => {
+      const control = (send: () => Promise<unknown> | undefined) =>
+        sendControlRequest(() => (ownLiveEntry() ? send() : undefined), attempt.abandoned);
+      // Not tied to the attempt (it has been abandoned by then), and fire and
+      // forget: a revert that fails only leaves what the failed adoption set.
+      const revert = (send: () => Promise<unknown> | undefined) => {
+        void sendControlRequest(() => (ownLiveEntry() ? send() : undefined));
+      };
+      const requestedModel = request.options.model;
+      const resolvedModel = await request.context.resolveResumeModel(sessionId, requestedModel);
+      if (attempt.cancelled) {
+        return false;
+      }
+      let models = effortModels;
+      try {
+        models = await request.context.getProviderModels();
+      } catch (error) {
+        console.warn('[Claude SDK] Unable to load provider models for effort validation:', error);
+      }
+      if (attempt.cancelled) {
+        return false;
+      }
+      const next = mapCliOptionsToSDK({
+        ...request.options,
+        providerSessionId: request.providerSessionId,
+        model: resolvedModel || requestedModel,
+        effortModels: models,
+      });
+
+      const currentMode = typeof sdkOptions.permissionMode === 'string' ? sdkOptions.permissionMode : 'default';
+      const nextMode = typeof next.permissionMode === 'string' ? next.permissionMode : 'default';
+      const hadPermissionMode = Object.prototype.hasOwnProperty.call(sdkOptions, 'permissionMode');
+      const previousPermissionMode = sdkOptions.permissionMode;
+      const previousAllowed = Array.isArray(sdkOptions.allowedTools) ? [...sdkOptions.allowedTools] : sdkOptions.allowedTools;
+      const previousDisallowed = Array.isArray(sdkOptions.disallowedTools) ? [...sdkOptions.disallowedTools] : sdkOptions.disallowedTools;
+      undo.push(() => {
+        if (hadPermissionMode) {
+          sdkOptions.permissionMode = previousPermissionMode;
+        } else {
+          delete sdkOptions.permissionMode;
+        }
+        // Tools a person allowed with "remember" meanwhile stay allowed.
+        sdkOptions.allowedTools = Array.isArray(previousAllowed)
+          ? Array.from(new Set([...previousAllowed, ...rememberedEntries]))
+          : previousAllowed;
+        sdkOptions.disallowedTools = Array.isArray(previousDisallowed)
+          ? previousDisallowed.filter((entry: string) => !rememberedEntries.has(entry))
+          : previousDisallowed;
+      });
+      let modeApplied = currentMode === nextMode;
+      if (!modeApplied) {
+        undo.push(() => revert(() => liveQuery.setPermissionMode?.(currentMode)));
+        modeApplied = await control(() => liveQuery.setPermissionMode?.(nextMode));
+        if (attempt.cancelled) {
+          return false;
+        }
+        if (!modeApplied && isStricterPermissionMode(nextMode, currentMode)) {
+          console.warn(`[Claude SDK] Could not switch the held process of session ${sessionKey()} from ${currentMode} to ${nextMode}; not adopting it.`);
+          return false;
+        }
+      }
+      if (modeApplied) {
+        // canUseTool reads these: once the process runs in the new mode, so do
+        // the tool checks (a bypass process adopted in default mode must ask
+        // again). Tools a person allowed with "remember" stay allowed.
+        if (next.permissionMode) {
+          sdkOptions.permissionMode = next.permissionMode;
+        } else {
+          delete sdkOptions.permissionMode;
+        }
+        sdkOptions.allowedTools = Array.from(new Set([...(next.allowedTools || []), ...rememberedEntries]));
+        sdkOptions.disallowedTools = (next.disallowedTools || []).filter((entry: string) => !rememberedEntries.has(entry));
+      }
+
+      if (next.model !== appliedModel) {
+        const previousModel = appliedModel;
+        undo.push(() => {
+          appliedModel = previousModel;
+          revert(() => liveQuery.setModel?.(previousModel as string | undefined));
+        });
+        if (await control(() => liveQuery.setModel?.(next.model))) {
+          appliedModel = next.model;
+        }
+        if (attempt.cancelled) {
+          return false;
+        }
+      }
+
+      const nextEffort = resolveClaudeEffort(next.model, request.options.effort, models);
+      if (nextEffort !== appliedEffort) {
+        const previousEffort = appliedEffort;
+        undo.push(() => {
+          appliedEffort = previousEffort;
+          revert(() => liveQuery.applyFlagSettings?.(toEffortFlagSettings(previousEffort)));
+        });
+        if (await control(() => liveQuery.applyFlagSettings?.(toEffortFlagSettings(nextEffort)))) {
+          appliedEffort = nextEffort;
+        }
+        if (attempt.cancelled) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    // [local] Writes a new send into this held process as a turn of its own,
+    // while the background work it holds keeps running: the official CLI's
+    // behaviour, where the main thread stays free to chat. Steps: guard,
+    // apply the send's options live, hand the stream over to the adopting
+    // run's writer, reset the per-turn state, push the message with its uuid
+    // (no priority: the CLI starts a turn for it at once when idle). The
+    // CLI's echo of that uuid marks the turn as ours; its `result` ends it.
+    // Refuses (`adopted: false`, nothing changed) whenever any guard fails;
+    // a Stop during setup resolves `adopted: true` with nothing pushed.
+    const adoptTurn: AdoptTurn = async (request) => {
+      const mayAdopt = () => turnCompleteSent && pendingSteerIds.size === 0 && ownLiveEntry() !== null;
+      if (adoptInFlight || !mayAdopt()) {
+        return { adopted: false };
+      }
+      // A cleared context points the session row at a new provider id (or
+      // none). Answering from this process would bring the old context back,
+      // and handing the stream over would map the old id onto the session.
+      if (!request.providerSessionId || request.providerSessionId !== capturedSessionId) {
+        return { adopted: false };
+      }
+      const requestedId = request.messageId;
+      const messageId = UUID_PATTERN.test(requestedId) && !steeredMessageIds.has(requestedId) && !adoptedMessageIds.has(requestedId)
+        ? requestedId
+        : crypto.randomUUID();
+      const cancelledOutcome: AdoptOutcome = { adopted: true, done: Promise.resolve() };
+      const attempt = createAdoptAttempt(request.writer);
+      currentAttempt = attempt;
+      adoptInFlight = true;
+      releaseRequestedWhileAdopting = false;
+      // Undoes the live option changes should the attempt end without a push.
+      const undoLiveOptions: Array<() => void> = [];
+      try {
+        const [message] = await buildPromptMessages(request.command, request.images, request.files, options.cwd);
+        if (attempt.cancelled) {
+          return cancelledOutcome;
+        }
+        if (!message || !mayAdopt()) {
+          return { adopted: false };
+        }
+        const applied = await applyLiveOptions(request, attempt, undoLiveOptions);
+        if (attempt.cancelled) {
+          return cancelledOutcome;
+        }
+        const entry = ownLiveEntry();
+        if (!applied || !entry || !mayAdopt()) {
+          return { adopted: false };
+        }
+
+        // From here to the push nothing awaits, so a Stop sees either the
+        // attempt still being set up or the message pushed.
+        const previousWriter = ws;
+        const saved = {
+          assistantBudgetSent,
+          releaseDeferred: entry.releaseDeferred,
+          sawTaskEventThisTurn,
+          backgroundWorkPending,
+          idleArmed: idleReleaseTimer !== null,
+        };
+        request.writer.adoptConnectionsFrom?.(previousWriter);
+        ws = request.writer;
+        entry.writer = ws;
+        if (capturedSessionId) {
+          ws.setSessionId?.(capturedSessionId);
+        }
+        turnCompleteSent = false;
+        assistantBudgetSent = false;
+        // The adopted turn is not idle time: its own settle re-arms the ceiling.
+        if (idleReleaseTimer) {
+          clearTimeout(idleReleaseTimer);
+          idleReleaseTimer = null;
+        }
+        // A side question's deferred release must not close stdin mid-turn.
+        entry.releaseDeferred = false;
+        carriedStaticHold = heldForBackgroundWork && lastHoldWasStatic;
+        sawTaskEventThisTurn = false;
+        backgroundWorkPending = false;
+        adoptedPendingId = messageId;
+        const done = new Promise<void>((resolve) => { resolveAdoptDone = resolve; });
+
+        if (!pushPromptMessage({ ...message, uuid: messageId })) {
+          ws = previousWriter;
+          entry.writer = previousWriter;
+          turnCompleteSent = true;
+          assistantBudgetSent = saved.assistantBudgetSent;
+          entry.releaseDeferred = saved.releaseDeferred;
+          sawTaskEventThisTurn = saved.sawTaskEventThisTurn;
+          backgroundWorkPending = saved.backgroundWorkPending;
+          carriedStaticHold = false;
+          adoptedPendingId = null;
+          resolveAdoptDone = null;
+          if (saved.idleArmed) {
+            scheduleRelease();
+          }
+          return { adopted: false };
+        }
+        attempt.pushed = true;
+        everAdopted = true;
+        adoptedMessageIds.add(messageId);
+        startAdoptWatchdog();
+        return { adopted: true, done };
+      } finally {
+        attempt.markDecided();
+        if (!attempt.pushed) {
+          // Cancelled or refused: put the process back the way it was.
+          for (const undo of undoLiveOptions) {
+            try {
+              undo();
+            } catch (error) {
+              console.warn(`[Claude SDK] Reverting a live option of session ${sessionKey()} failed:`, errorMessage(error));
+            }
+          }
+        }
+        if (!attempt.pushed && currentAttempt === attempt) {
+          currentAttempt = null;
+          adoptInFlight = false;
+          if (releaseRequestedWhileAdopting) {
+            releaseRequestedWhileAdopting = false;
+            maybeReleasePromptStream();
+          }
+        }
+      }
+    };
+
+    // [local] Stops only the running turn — this run's own, or one adopted
+    // into its process — while background work keeps running. The Stop is
+    // reported at once on the turn's writer, marked `backgroundContinues` so
+    // the client stays in the background state. Tasks the turn is blocking on
+    // (foreground) are stopped; the adopted message and unread steers are
+    // cancelled in the CLI's queue when possible, and the turn itself is
+    // interrupted only once it is ours to stop. Whatever could not be
+    // cancelled is interrupted the moment it starts.
+    const interruptTurn = async (): Promise<boolean> => {
+      const attempt = currentAttempt;
+      // [local] No adoption in flight: the Stop is of this run's own turn.
+      const ownTurn = !adoptInFlight;
+      const pushed = ownTurn || Boolean(attempt?.pushed);
+      const target = !ownTurn && attempt && !attempt.pushed ? attempt.writer : ws;
+      turnCompleteSent = true;
+      target.send({
+        ...createCompleteMessage({ provider: 'claude', sessionId: capturedSessionId || sessionId || null, exitCode: 0, aborted: true }),
+        backgroundContinues: true,
+        pendingPermissions: getPendingApprovalsForSession(sessionId || capturedSessionId || ''),
+      });
+      notifyRunStopped({
+        userId: target?.userId || null,
+        provider: 'claude',
+        sessionId: sessionId || capturedSessionId || null,
+        sessionName: sessionSummary,
+        stopReason: 'aborted'
+      });
+      const unreadAdoptedId = !ownTurn && pushed ? adoptedPendingId : null;
+      const ours = [...(unreadAdoptedId ? [unreadAdoptedId] : []), ...pendingSteerIds];
+      pendingSteerIds.clear();
+      if (steerFollowUpTimer) {
+        clearTimeout(steerFollowUpTimer);
+        steerFollowUpTimer = null;
+      }
+      cancelAdoption();
+      finishAdoptedTurn();
+      if (!pushed) {
+        // Nothing of the user's reached the CLI, which may be running a relay
+        // turn that is not the user's to stop.
+        restoreHold();
+        return true;
+      }
+      // The adopted turn is running: its own `result`, which may land while
+      // the awaits below are still out, ends the interrupted turn and pays no
+      // relay. Set before the first await so it cannot be miscounted.
+      if (!unreadAdoptedId) {
+        interruptedResultPending = true;
+      }
+      // Only what the turn is blocking on. Background tasks, and tasks
+      // launched inside them (flagged nested), keep running.
+      const turnKey = sessionKey()!;
+      sendTaskStops(liveQuery, backgroundWork.outstanding(turnKey).filter((task) => isTurnTask(turnKey, task)));
+      const cancelled = new Set<string>();
+      for (const id of ours) {
+        if (await cancelQueuedMessage(liveQuery, id)) {
+          cancelled.add(id);
+        }
+      }
+      if (unreadAdoptedId && ours.every((id) => cancelled.has(id))) {
+        // The adopted turn never started and nothing of ours is left queued.
+        restoreHold();
+        return true;
+      }
+      if (unreadAdoptedId) {
+        interruptedResultPending = true;
+      }
+      // The interrupted turn's own result decides the hold again.
+      releaseRequestedWhileAdopting = false;
+      let receipt: unknown;
+      try {
+        receipt = await liveQuery.interrupt();
+      } catch (error) {
+        console.warn(`[Claude SDK] Interrupting the turn of session ${sessionKey()} failed:`, errorMessage(error));
+      }
+      const stillQueued = readStillQueued(receipt);
+      for (const id of ours) {
+        if (cancelled.has(id)) {
+          continue;
+        }
+        // A CLI without a receipt gives no word on what survived the interrupt.
+        if (stillQueued === null) {
+          doomedIds.add(id);
+        } else if (stillQueued.includes(id) && !(await cancelQueuedMessage(liveQuery, id))) {
+          doomedIds.add(id);
+        }
+      }
+      // Backstop in case the interrupted turn's result never comes — unless
+      // the process exited meanwhile and its finally cleared every timer.
+      if (!idleReleaseTimer && !loopEnded) {
+        scheduleRelease();
+      }
+      return true;
+    };
+
+    // [local] A full Stop (abortClaudeSDKSession) of a run whose adopted
+    // message was pushed but not read yet: the interrupt alone would leave
+    // that message queued in the CLI, which would then run it after the Stop.
+    // Cancel it in the queue when possible; whatever the CLI does not cancel
+    // is interrupted the moment it starts and shows nothing. The adopting run
+    // still returns when the process exits, as on any full Stop.
+    const cancelPendingAdopted = async (): Promise<void> => {
+      const unreadId = currentAttempt?.pushed ? adoptedPendingId : null;
+      if (!unreadId) {
+        return;
+      }
+      doomedIds.add(unreadId);
+      adoptedPendingId = null;
+      clearAdoptWatchdog();
+      if (await cancelQueuedMessage(liveQuery, unreadId)) {
+        doomedIds.delete(unreadId);
+      }
+    };
+
+    // [local] "Stop all background work": every task is stopped. With no turn
+    // of the user's running, the process is let go as well, which also ends
+    // work the tracker cannot see (a ScheduleWakeup, a cron); a running turn
+    // carries on and its own end decides the hold again.
+    const stopAllBackground = (): boolean => {
+      const key = sessionKey();
+      if (!key) {
+        return false;
+      }
+      const tasks = backgroundWork.outstanding(key);
+      const idle = turnCompleteSent && !adoptInFlight;
+      if (tasks.length === 0 && !(idle && heldForBackgroundWork)) {
+        return false;
+      }
+      sendTaskStops(liveQuery, tasks);
+      if (idle) {
+        heldForBackgroundWork = false;
+        relaysOwed = 0;
+        clearRelayGrace();
+        maybeReleasePromptStream();
+      }
+      return true;
+    };
+
+    // [local] Registered only for an adoptable run; see `adoptable`.
+    const adoptionHooks: AdoptionHooks | null = adoptable
+      ? { adoptTurn, interruptTurn, canInterruptTurnOnly, cancelAdoption, cancelPendingAdopted, requestRelease: () => maybeReleasePromptStream(), stopAllBackground }
+      : null;
+
     // Track the query instance for abort capability
     if (sessionKey()) {
-      addSession(sessionKey()!, queryInstance, ws, releasePromptStream, steerIntoTurn);
+      addSession(sessionKey()!, queryInstance, ws, releasePromptStream, steerIntoTurn, adoptionHooks);
     }
 
     // Settles a turn whose `result` has arrived: tells the client the turn is
     // over, then holds the process for background work or lets it go.
-    const settleTurnResult = () => {
+    // [local] `failure` ends an adopted turn whose message was never read.
+    const settleTurnResult = (failure: string | null = null) => {
+      // [local] The adopted turn's own end: reported on the adopting run's
+      // writer, and only then is that run let go (finishAdoptedTurn below).
+      const settlingAdopted = adoptInFlight && Boolean(currentAttempt?.pushed) && !adoptedPendingId;
+      if (settlingAdopted) {
+        adoptInFlight = false;
+        releaseRequestedWhileAdopting = false;
+      }
       // The turn is done as far as the client is concerned.
-      const abortPending = sessionKey() ? abortedSessionIds.has(sessionKey()) : false;
+      const abortPending = abortedInstances.has(liveQuery);
       const stillOutstanding = backgroundWork.hasOutstanding(sessionKey()!);
       if (!turnCompleteSent && !abortPending) {
         turnCompleteSent = true;
-        ws.send(createCompleteMessage({ provider: 'claude', sessionId: capturedSessionId || sessionId || null, exitCode: 0 }));
-        notifyRunStopped({
-          userId: ws?.userId || null,
-          provider: 'claude',
-          sessionId: sessionId || capturedSessionId || null,
-          sessionName: sessionSummary,
-          stopReason: 'completed'
-        });
+        const complete = createCompleteMessage({ provider: 'claude', sessionId: capturedSessionId || sessionId || null, exitCode: failure ? 1 : 0 });
+        // [local] A background agent's approval may still be pending; the
+        // client drops every prompt on `complete` unless it is listed here.
+        ws.send(settlingAdopted
+          ? { ...complete, pendingPermissions: getPendingApprovalsForSession(sessionId || capturedSessionId || '') }
+          : complete);
+        if (failure) {
+          notifyRunFailed({
+            userId: ws?.userId || null,
+            provider: 'claude',
+            sessionId: sessionId || capturedSessionId || null,
+            sessionName: sessionSummary,
+            error: new Error(failure)
+          });
+        } else {
+          notifyRunStopped({
+            userId: ws?.userId || null,
+            provider: 'claude',
+            sessionId: sessionId || capturedSessionId || null,
+            sessionName: sessionSummary,
+            stopReason: 'completed'
+          });
+        }
       } else if (heldForBackgroundWork && !abortPending && !stillOutstanding) {
         // A result after the turn already reported complete means the work we
         // held the process open for has finished and pushed a follow-up turn
@@ -1585,12 +2660,24 @@ async function queryClaudeSDK(
       // `startsBackgroundWork`, but the CLI runs it in the foreground and
       // it has settled before this `result` — holding for it kept a process
       // alive for the full ceiling with nothing outstanding.
-      const holdForTurn = sawTaskEventThisTurn ? stillOutstanding : backgroundWorkPending || stillOutstanding;
+      const holdForWork = sawTaskEventThisTurn ? stillOutstanding : backgroundWorkPending || stillOutstanding;
+      // [local] After an adoption two more reasons hold the process: a task
+      // that reported in still owes the relay turn the CLI queues for it,
+      // and work held by the launch rule before the adoption (which the
+      // tracker cannot see) is still running. Both are always false for a
+      // run that was never adopted.
+      const holdForRelay = everAdopted && relaysOwed > 0;
+      const holdForTurn = holdForWork || carriedStaticHold || holdForRelay;
+      lastHoldWasStatic = (holdForWork && !stillOutstanding) || carriedStaticHold;
+      carriedStaticHold = false;
       backgroundWorkPending = false;
       sawTaskEventThisTurn = false;
       if (holdForTurn) {
         heldForBackgroundWork = true;
         scheduleRelease();
+        if (!holdForWork && !lastHoldWasStatic) {
+          armRelayGrace();
+        }
       } else {
         // Either nothing was backgrounded, or the background work just
         // reported in — let the CLI exit now, as it always has (unless a
@@ -1599,6 +2686,32 @@ async function queryClaudeSDK(
         heldForBackgroundWork = false;
         maybeReleasePromptStream();
       }
+      // [local] The complete went out above; only now may the adopting run
+      // return (an aborted one returns when the process exits, as before).
+      if (settlingAdopted && !abortPending) {
+        finishAdoptedTurn();
+      }
+    };
+
+    // [local] A `result` that arrived before the CLI read the adopted message
+    // ends a relay turn the CLI ran first. It is not the adopted turn, so no
+    // complete and no release; the per-turn flags and the background
+    // completion notice are settled as for any relay.
+    const settleRelayBeforeAdoptedEcho = () => {
+      if (everAdopted) {
+        relaysOwed = Math.max(0, relaysOwed - 1);
+      }
+      if (heldForBackgroundWork && !abortedInstances.has(liveQuery) && !backgroundWork.hasOutstanding(sessionKey()!)) {
+        heldForBackgroundWork = false;
+        notifyBackgroundWorkCompleted({
+          userId: ws?.userId || null,
+          provider: 'claude',
+          sessionId: sessionId || capturedSessionId || null,
+          sessionName: sessionSummary
+        });
+      }
+      backgroundWorkPending = false;
+      sawTaskEventThisTurn = false;
     };
 
     // A turn that ended with steered messages still unread waits for the
@@ -1627,7 +2740,7 @@ async function queryClaudeSDK(
       if (message.session_id && !capturedSessionId) {
 
         capturedSessionId = message.session_id;
-        addSession(sessionKey()!, queryInstance, ws, releasePromptStream, steerIntoTurn);
+        addSession(sessionKey()!, queryInstance, ws, releasePromptStream, steerIntoTurn, adoptionHooks);
 
         // Set session ID on writer
         if (ws.setSessionId && typeof ws.setSessionId === 'function') {
@@ -1649,10 +2762,45 @@ async function queryClaudeSDK(
         clearTimeout(steerFollowUpTimer);
         steerFollowUpTimer = null;
       }
+      // [local] A relay turn the hold was waiting for has started.
+      if (relayGraceTimer && message.type === 'system' && message.subtype === 'init') {
+        clearRelayGrace();
+      }
+      // [local] Whether the CLI is inside a turn of its own. The adopted
+      // message's pickup watchdog is suspended while it is, and otherwise
+      // measures silence, so any message pushes it back.
+      if (message.type === 'system' && message.subtype === 'init') {
+        cliTurnActive = true;
+      } else if (message.type === 'result') {
+        cliTurnActive = false;
+      }
+      if (adoptedPendingId && adoptWatchdogActive) {
+        armAdoptWatchdog();
+      }
 
       // The CLI's echo of a message it read from stdin (see `extraArgs`).
       if (message.type === 'user' && message.isReplay === true) {
         const echoedId = typeof message.uuid === 'string' ? message.uuid : '';
+        // [local] A message a Stop could not cancel has started after all:
+        // stop it at once, and show nothing of its turn.
+        if (doomedIds.delete(echoedId)) {
+          pendingSteerIds.delete(echoedId);
+          suppressForwarding = true;
+          doomedTurnActive = true;
+          Promise.resolve()
+            .then(() => liveQuery.interrupt())
+            .catch((error) => {
+              console.error(`Error interrupting a stopped message for session ${sessionKey()}:`, errorMessage(error));
+            });
+          continue;
+        }
+        // [local] The CLI has read the adopted message: its turn is under way.
+        // Not shown, because the client already shows the row it sent.
+        if (adoptedPendingId && echoedId === adoptedPendingId) {
+          adoptedPendingId = null;
+          clearAdoptWatchdog();
+          continue;
+        }
         pendingSteerIds.delete(echoedId);
         if (steeredMessageIds.has(echoedId)) {
           if (steerFollowUpTimer && pendingSteerIds.size === 0) {
@@ -1664,7 +2812,10 @@ async function queryClaudeSDK(
             // A message read mid-turn is stored as an attachment of the turn,
             // not a user row of its own, so it is no anchor for editing.
             delete steered.transcriptAnchorId;
-            ws.send(steered);
+            // [local] Nothing of a stopped message's turn is shown.
+            if (!suppressForwarding) {
+              ws.send(steered);
+            }
           }
         }
         continue;
@@ -1682,6 +2833,10 @@ async function queryClaudeSDK(
           msg.parentToolUseId = transformedMessage.parentToolUseId;
         }
         if (isSubagentPromptEcho(msg)) {
+          continue;
+        }
+        // [local] Nothing of a stopped message's turn is shown.
+        if (suppressForwarding) {
           continue;
         }
         ws.send(msg);
@@ -1722,7 +2877,8 @@ async function queryClaudeSDK(
         // The reading stands; only the window it is measured against was wrong.
         tokenBudgetData = { ...(lastSentTokenBudget as TokenBudget), total: turnContextWindow };
       }
-      if (tokenBudgetData) {
+      // [local] ...and none of its budget readings.
+      if (tokenBudgetData && !suppressForwarding) {
         if (message.type === 'assistant') {
           assistantBudgetSent = true;
         }
@@ -1736,7 +2892,22 @@ async function queryClaudeSDK(
       if (message.type === 'system' && message.subtype === 'task_started') {
         sawTaskEventThisTurn = true;
       }
-      backgroundWork.apply(sessionKey()!, message);
+      // [local] After an adoption, a task of the session's own that reports
+      // in (anything but a stop) owes the relay turn the CLI queues for it.
+      if (
+        everAdopted
+        && message.type === 'system'
+        && message.subtype === 'task_notification'
+        && message.status !== 'stopped'
+        && backgroundWork.outstanding(sessionKey()!).some((task) => task.taskId === message.task_id && !task.nested)
+      ) {
+        relaysOwed += 1;
+      }
+      // [local] An aborted process's late task events would bring back tasks
+      // the abort already dropped with its session entry.
+      if (!abortedInstances.has(liveQuery)) {
+        backgroundWork.apply(sessionKey()!, message);
+      }
 
       // A task the user stopped gets no follow-up turn from the CLI — only its
       // `stopped` notification — so when that was the last outstanding task
@@ -1756,14 +2927,30 @@ async function queryClaudeSDK(
       }
 
       if (message.type === 'result') {
-        const abortPending = sessionKey() ? abortedSessionIds.has(sessionKey()) : false;
-        if (pendingSteerIds.size > 0 && !abortPending) {
+        const abortPending = abortedInstances.has(liveQuery);
+        if (doomedTurnActive) {
+          // [local] The end of a stopped message's turn: it owes no complete
+          // (the Stop reported one) and no relay.
+          doomedTurnActive = false;
+          suppressForwarding = false;
+          settleTurnResult();
+        } else if (adoptedPendingId) {
+          // [local] A relay turn the CLI ran before reading the adopted
+          // message; the adopted turn is still to come.
+          settleRelayBeforeAdoptedEcho();
+        } else if (pendingSteerIds.size > 0 && !abortPending) {
           // The turn ended before Claude reached a tool-call boundary, so the
           // steered messages it never read are still queued in the CLI, which
           // runs them as a follow-up turn on this same process. The run is not
           // over for the client yet, and stdin must stay open for that turn.
           awaitSteerFollowUp();
         } else {
+          // [local] A turn ending after the last one was reported complete
+          // (other than one a Stop interrupted) is a relay paying its debt.
+          if (everAdopted && turnCompleteSent && !interruptedResultPending) {
+            relaysOwed = Math.max(0, relaysOwed - 1);
+          }
+          interruptedResultPending = false;
           settleTurnResult();
         }
       } else if (idleReleaseTimer) {
@@ -1771,6 +2958,9 @@ async function queryClaudeSDK(
         scheduleRelease();
       }
     }
+
+    // [local] See `loopEnded`.
+    loopEnded = true;
 
     // Clean up session on completion — only while this run still owns the map
     // entry. A superseding run may have replaced it, and deleting here would
@@ -1786,23 +2976,43 @@ async function queryClaudeSDK(
     // Send the terminal completion event — skipped for aborted runs, whose
     // terminal `complete` (aborted: true) was already sent by abort-session, and
     // for runs that already reported completion when their `result` arrived.
-    const wasAborted = !superseded && sessionKey() ? abortedSessionIds.delete(sessionKey()!) : false;
+    const wasAborted = !superseded ? abortedInstances.delete(queryInstance) : false;
+    // [local] The process ended with an adopted message it never read: that
+    // message was not answered, so its run ends as failed, not completed.
+    const unreadAdoptedId = adoptedPendingId;
+    clearAdoptWatchdog();
     if (!turnCompleteSent && !superseded) {
       turnCompleteSent = true;
-      if (!wasAborted) {
-        ws.send(createCompleteMessage({ provider: 'claude', sessionId: capturedSessionId || sessionId || null, exitCode: 0 }));
+      if (!wasAborted && unreadAdoptedId) {
+        ws.send(createNormalizedMessage({ kind: 'error', content: ADOPTED_MESSAGE_NOT_PICKED_UP, sessionId: capturedSessionId || sessionId || null, provider: 'claude' }));
+        ws.send(createCompleteMessage({ provider: 'claude', sessionId: capturedSessionId || sessionId || null, exitCode: 1 }));
+        notifyRunFailed({
+          userId: ws?.userId || null,
+          provider: 'claude',
+          sessionId: sessionId || capturedSessionId || null,
+          sessionName: sessionSummary,
+          error: new Error(ADOPTED_MESSAGE_NOT_PICKED_UP)
+        });
+      } else {
+        if (!wasAborted) {
+          ws.send(createCompleteMessage({ provider: 'claude', sessionId: capturedSessionId || sessionId || null, exitCode: 0 }));
+        }
+        notifyRunStopped({
+          userId: ws?.userId || null,
+          provider: 'claude',
+          sessionId: sessionId || capturedSessionId || null,
+          sessionName: sessionSummary,
+          stopReason: wasAborted ? 'aborted' : 'completed'
+        });
       }
-      notifyRunStopped({
-        userId: ws?.userId || null,
-        provider: 'claude',
-        sessionId: sessionId || capturedSessionId || null,
-        sessionName: sessionSummary,
-        stopReason: wasAborted ? 'aborted' : 'completed'
-      });
     }
+    // [local] The adopting run, if any, returns now that its end is reported.
+    finishAdoptedTurn();
     // Complete
 
   } catch (error) {
+    // [local] See `loopEnded`.
+    loopEnded = true;
     console.error('SDK query error:', error);
 
     // Clean up session on error — only while this run still owns the map entry
@@ -1817,7 +3027,9 @@ async function queryClaudeSDK(
       return;
     }
 
-    const wasAborted = sessionKey() ? abortedSessionIds.delete(sessionKey()!) : false;
+    // [local] Instance-keyed, like everywhere else.
+    clearAdoptWatchdog();
+    const wasAborted = queryInstance ? abortedInstances.delete(queryInstance) : false;
     if (wasAborted) {
       // The abort already produced the terminal complete; a generator throw
       // caused by interrupt() is expected noise, not a user-facing error. It
@@ -1866,6 +3078,13 @@ async function queryClaudeSDK(
       clearTimeout(steerFollowUpTimer);
       steerFollowUpTimer = null;
     }
+    // [local] No timer of a finished run may fire later (nor be armed again
+    // by a Stop still awaiting a control request), and an adopting run still
+    // waiting returns (after whatever the catch above reported).
+    loopEnded = true;
+    clearAdoptWatchdog();
+    clearRelayGrace();
+    finishAdoptedTurn();
     releasePromptStream();
   }
 }
@@ -1883,12 +3102,40 @@ async function abortClaudeSDKSession(sessionId: string) {
     return false;
   }
 
+  // [local] An adoption still being set up pushes nothing after a Stop.
+  session.cancelAdoption?.();
+
+  // [local] A Stop while background work would outlive the turn stops only
+  // the turn: the process stays held and the work keeps running ("Stop all
+  // background work" is a separate action). The turn's runtime reports the
+  // Stop itself.
+  if (session.interruptTurn && session.canInterruptTurnOnly?.()) {
+    console.log(`Stopping the current turn of SDK session ${sessionId}; its background work keeps running`);
+    try {
+      return await session.interruptTurn();
+    } catch (error) {
+      console.error(`Error stopping the current turn of session ${sessionId}:`, error);
+      return false;
+    }
+  }
+
   try {
     console.log(`Aborting SDK session: ${sessionId}`);
 
     // Mark before interrupting so the run loop knows not to emit its own
     // terminal complete (the abort handler sends the aborted one).
-    abortedSessionIds.add(sessionId);
+    abortedInstances.add(session.instance);
+
+    // [local] An adopted message pushed but not read yet would otherwise run
+    // after the interrupt below. Withdrawn first, while stdin is open.
+    if (session.cancelPendingAdopted) {
+      await session.cancelPendingAdopted();
+    }
+
+    // [local] Every query declares the per-task stop affordance, under which
+    // an interrupt spares background tasks. A full Stop still ends them, as
+    // it did before: stop each tracked task first, while stdin is open.
+    sendTaskStops(session.instance, backgroundWork.outstanding(sessionId));
 
     // Call interrupt() on the query instance
     await session.instance.interrupt();
@@ -1907,9 +3154,33 @@ async function abortClaudeSDKSession(sessionId: string) {
   } catch (error) {
     console.error(`Error aborting session ${sessionId}:`, error);
     // The run keeps going; let it emit its own terminal complete.
-    abortedSessionIds.delete(sessionId);
+    abortedInstances.delete(session.instance);
     return false;
   }
+}
+
+/**
+ * [local] Stops every background task of a session's live process ("Stop all
+ * background work"), and lets the process go when no turn is running. A
+ * Stop of the turn spares background work, so this is how a person ends it
+ * all in one go. Resolves false when the session has nothing to stop.
+ * @param {string} sessionId - Session identifier
+ * @returns {Promise<boolean>} True once the stops are on their way
+ */
+async function stopAllClaudeSDKBackgroundWork(sessionId: string): Promise<boolean> {
+  const session = getSession(sessionId);
+  if (!session || session.status !== 'active') {
+    return false;
+  }
+  if (session.stopAllBackground) {
+    return session.stopAllBackground();
+  }
+  const tasks = backgroundWork.outstanding(sessionId);
+  if (tasks.length === 0) {
+    return false;
+  }
+  sendTaskStops(session.instance, tasks);
+  return true;
 }
 
 /**
@@ -2192,7 +3463,14 @@ async function askSideQuestion(
         entry.pendingNativeSideQuestions = Math.max(0, (entry.pendingNativeSideQuestions || 0) - 1);
         if (entry.pendingNativeSideQuestions === 0 && entry.releaseDeferred) {
           entry.releaseDeferred = false;
-          entry.releaseInput?.();
+          // [local] An adoptable run releases through its own check, which
+          // holds back while an adopted turn is running; any other run
+          // releases directly, as before.
+          if (entry.requestRelease) {
+            entry.requestRelease();
+          } else {
+            entry.releaseInput?.();
+          }
         }
       }
     }
@@ -2213,6 +3491,7 @@ export const claudeRuntime = {
   },
   listBackgroundWork: listClaudeSDKBackgroundWork,
   stopBackgroundTask: stopClaudeSDKTask,
+  stopAllBackgroundWork: stopAllClaudeSDKBackgroundWork,
   askSideQuestion,
   steer: steerClaudeSDKSession,
 };
@@ -2224,6 +3503,7 @@ export {
   steerClaudeSDKSession,
   listClaudeSDKBackgroundWork,
   stopClaudeSDKTask,
+  stopAllClaudeSDKBackgroundWork,
   isClaudeSDKSessionActive,
   getClaudeSDKSessionStartTime,
   getActiveClaudeSDKSessions,

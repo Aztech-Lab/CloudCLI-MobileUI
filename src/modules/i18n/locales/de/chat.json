@@ -247,7 +247,8 @@
         "cancel": "Abbrechen",
         "queue": "Einreihen",
         "sendAnyway": "Trotzdem senden",
-        "sideQuestion": "Nebenfrage"
+        "sideQuestion": "Nebenfrage",
+        "adoptRefused": "Diese Nachricht konnte nicht in die laufende Sitzung aufgenommen werden, ohne deren Hintergrundarbeit zu beenden."
       }
     },
     "controls": {
@@ -343,6 +344,10 @@
     "sendAnyway": {
       "label": "Trotzdem senden",
       "description": "Jetzt senden; das beendet die Hintergrundarbeit"
+    },
+    "sendKeepsWork": {
+      "label": "Senden",
+      "description": "Jetzt senden; die Hintergrundarbeit läuft weiter"
     }
   },
   "modelLibrary": {

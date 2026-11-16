@@ -51,6 +51,13 @@ type UseChatRealtimeHandlersArgs = {
    * for every live user message, steered or not — `delivered` with its id.
    */
   onSteerOutcome?: (sessionId: string, messageId: string, outcome: SteerOutcome) => void;
+  /**
+   * [local] The server could not add a sent message to the session's running
+   * process without stopping its background work, and started nothing for
+   * it. The composer takes the message back and asks again; false means it
+   * did not send that message.
+   */
+  onAdoptRefused?: (sessionId: string, messageId: string) => boolean;
 };
 
 /* ------------------------------------------------------------------ */
@@ -87,6 +94,7 @@ export function useChatRealtimeHandlers({
   requestLatestMessages,
   sessionStore,
   onSteerOutcome,
+  onAdoptRefused,
 }: UseChatRealtimeHandlersArgs) {
   // Session switches can send `chat.subscribe` before this effect has a chance
   // to rebind the websocket listener. Read the visible session id from a ref
@@ -194,6 +202,25 @@ export function useChatRealtimeHandlers({
             onSteerOutcome?.(sid, msg.messageId, 'refused');
             return;
           }
+          // [local] A message the server could not add to the session's
+          // running process without stopping its background work. Nothing
+          // was started and the work still runs, so the session is not
+          // idled; the run's `complete` follows and settles it.
+          if (sid && msg.code === 'ADOPT_UNAVAILABLE') {
+            if (typeof msg.messageId === 'string' && onAdoptRefused?.(sid, msg.messageId)) {
+              return;
+            }
+            // Not a message this tab can put back: say it was not sent.
+            sessionStore.appendRealtime(sid, {
+              id: `protocol_error_${Date.now()}`,
+              sessionId: sid,
+              timestamp: new Date().toISOString(),
+              provider,
+              kind: 'error',
+              content: String(msg.error || 'Request failed'),
+            } as NormalizedMessage);
+            return;
+          }
           console.error('[Chat] Protocol error:', msg.code, msg.error);
           // The ✕ on a task whose end never reached this client (its process
           // went away, say): settle its card and chip instead of reporting a
@@ -232,7 +259,8 @@ export function useChatRealtimeHandlers({
             // the run never started (or was rejected), so no `complete` follows.
             // A refused or failed stop request is not about the run, and
             // idling here would drop a response in flight on that session.
-            if (msg.code !== 'NO_SUCH_TASK' && msg.code !== 'TASK_ID_REQUIRED' && msg.code !== 'TASK_STOP_FAILED') {
+            // [local] Nor is a refused "stop all background work".
+            if (msg.code !== 'NO_SUCH_TASK' && msg.code !== 'TASK_ID_REQUIRED' && msg.code !== 'TASK_STOP_FAILED' && msg.code !== 'NO_BACKGROUND_WORK') {
               onSessionIdle?.(sid);
             }
             sessionStore.appendRealtime(sid, {
@@ -346,14 +374,24 @@ export function useChatRealtimeHandlers({
           // running leaves the session as background work — the CLI is held
           // open for them — and any other leaves it idle. An abort releases
           // the CLI and takes that work down with it.
-          if (sid && !msg.aborted) {
+          // [local] Except a Stop that ended only the turn written into the
+          // running process (`backgroundContinues`): the work it did not
+          // start keeps running, so the session goes back to it.
+          if (sid && (!msg.aborted || msg.backgroundContinues)) {
             reportRemainingBackgroundWork(sid);
           } else {
             onSessionIdle?.(sid);
           }
           if (sid === activeViewSessionId) {
-            pendingPermissionRequestsRef.current = [];
-            setPendingPermissionRequests([]);
+            // [local] A turn written into a running process ends while the
+            // background work's own requests still wait for an answer; that
+            // `complete` lists them, so their prompts stay. Any other
+            // `complete` carries none and clears every prompt, as before.
+            const remainingPermissionRequests = Array.isArray(msg.pendingPermissions)
+              ? msg.pendingPermissions as PendingPermissionRequest[]
+              : [];
+            pendingPermissionRequestsRef.current = remainingPermissionRequests;
+            setPendingPermissionRequests(remainingPermissionRequests);
           }
 
           if (msg.aborted) {
@@ -492,5 +530,6 @@ export function useChatRealtimeHandlers({
     requestLatestMessages,
     sessionStore,
     onSteerOutcome,
+    onAdoptRefused,
   ]);
 }

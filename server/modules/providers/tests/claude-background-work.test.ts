@@ -211,3 +211,112 @@ test('messages that are not task events leave the set untouched', () => {
 
   assert.equal(tracker.has('s1', 't1'), true);
 });
+
+test('[local] the tracker knows which tasks the turn is blocking on', () => {
+  const tracker = createBackgroundWorkTracker();
+  tracker.apply('s1', {
+    type: 'assistant',
+    parent_tool_use_id: null,
+    message: {
+      role: 'assistant',
+      content: [
+        { type: 'tool_use', id: 'toolu_fg', name: 'Agent', input: { run_in_background: false } },
+        { type: 'tool_use', id: 'toolu_bg', name: 'Agent', input: {} },
+        { type: 'tool_use', id: 'toolu_said', name: 'Agent', input: {} },
+        { type: 'tool_use', id: 'toolu_moved', name: 'Bash', input: { command: 'npm test' } },
+      ],
+    },
+  });
+  // An older CLI says nothing: the launching call's input decides.
+  tracker.apply('s1', started('fg', { tool_use_id: 'toolu_fg' }));
+  tracker.apply('s1', started('bg', { tool_use_id: 'toolu_bg' }));
+  // A newer one says where the task runs, which wins.
+  tracker.apply('s1', started('said', { tool_use_id: 'toolu_said', is_backgrounded: false }));
+  tracker.apply('s1', started('moved', { tool_use_id: 'toolu_moved', task_type: 'local_bash', is_backgrounded: false }));
+  tracker.apply('s1', updated('moved', { is_backgrounded: true }));
+
+  assert.equal(tracker.isForeground('s1', 'fg'), true);
+  assert.equal(tracker.isForeground('s1', 'bg'), false);
+  assert.equal(tracker.isForeground('s1', 'said'), true);
+  assert.equal(tracker.isForeground('s1', 'moved'), false, 'moved to the background');
+
+  tracker.apply('s1', notified('fg', 'completed'));
+  assert.equal(tracker.isForeground('s1', 'fg'), false, 'a settled task is nothing');
+  tracker.clear('s1');
+  assert.equal(tracker.isForeground('s1', 'said'), false);
+});
+
+// [local] `background_tasks_changed` is the full set of live background tasks
+// after each change; the tracker follows it so a lost edge leaves no ghost.
+const level = (...tasks: Array<Record<string, unknown>>) => ({
+  type: 'system', subtype: 'background_tasks_changed', uuid: 'u', session_id: 'n', tasks,
+});
+const ownCall = (id: string, name = 'Agent', input: Record<string, unknown> = {}) => ({
+  type: 'assistant',
+  parent_tool_use_id: null,
+  message: { role: 'assistant', content: [{ type: 'tool_use', id, name, input }] },
+});
+
+test('[local] a background task missing from the level is dropped though its end never arrived', () => {
+  const tracker = createBackgroundWorkTracker();
+  tracker.apply('s1', ownCall('toolu_t1'));
+  tracker.apply('s1', ownCall('toolu_t2'));
+  tracker.apply('s1', started('t1'));
+  tracker.apply('s1', started('t2'));
+  tracker.apply('s1', level({ task_id: 't2', task_type: 'local_agent', description: 'Task t2' }));
+
+  assert.equal(tracker.has('s1', 't1'), false);
+  assert.equal(tracker.has('s1', 't2'), true);
+  tracker.apply('s1', level());
+  assert.equal(tracker.hasOutstanding('s1'), false);
+  assert.deepEqual(tracker.list(), []);
+});
+
+test('[local] a task only the level reports is tracked as nested until its task_started names it', () => {
+  const tracker = createBackgroundWorkTracker();
+  // A background task joins the level before its task_started.
+  tracker.apply('s1', level({ task_id: 't1', task_type: 'local_bash', description: 'npm test' }));
+  const [entry] = tracker.list();
+  const { startedAt: _startedAt, ...task } = entry.tasks[0];
+  assert.deepEqual(task, { taskId: 't1', toolUseId: '', taskType: 'local_bash', description: 'npm test', nested: true });
+
+  tracker.apply('s1', ownCall('toolu_t1', 'Bash', { run_in_background: true }));
+  tracker.apply('s1', started('t1', { task_type: 'local_bash', description: 'npm test' }));
+  assert.equal(tracker.list()[0].tasks[0].toolUseId, 'toolu_t1');
+  assert.equal(tracker.list()[0].tasks[0].nested, undefined, 'the session\'s own task after all');
+});
+
+test('[local] the level lists background tasks only: a foreground task is left to its edges', () => {
+  const tracker = createBackgroundWorkTracker();
+  tracker.apply('s1', ownCall('toolu_fg', 'Agent', { run_in_background: false }));
+  tracker.apply('s1', started('fg', { tool_use_id: 'toolu_fg', is_backgrounded: false }));
+  tracker.apply('s1', level());
+  assert.equal(tracker.has('s1', 'fg'), true);
+  assert.equal(tracker.isForeground('s1', 'fg'), true);
+
+  // Moved to the background: the level lists it, so it is no longer foreground.
+  tracker.apply('s1', level({ task_id: 'fg', task_type: 'local_agent', description: 'Task fg' }));
+  assert.equal(tracker.isForeground('s1', 'fg'), false);
+  tracker.apply('s1', level());
+  assert.equal(tracker.has('s1', 'fg'), false);
+});
+
+test('[local] ambient tasks are never added from the level, but one the session started stays while listed', () => {
+  const tracker = createBackgroundWorkTracker();
+  tracker.apply('s1', level({ task_id: 'watch', task_type: 'local_bash', description: 'x', ambient: true }));
+  assert.equal(tracker.hasOutstanding('s1'), false);
+
+  tracker.apply('s1', ownCall('toolu_m1', 'Monitor'));
+  tracker.apply('s1', started('m1', { tool_use_id: 'toolu_m1', task_type: 'local_bash' }));
+  tracker.apply('s1', level({ task_id: 'm1', task_type: 'local_bash', description: 'Task m1', ambient: true }));
+  assert.equal(tracker.has('s1', 'm1'), true);
+});
+
+test('[local] the level is per session', () => {
+  const tracker = createBackgroundWorkTracker();
+  tracker.apply('s1', started('t1'));
+  tracker.apply('s2', started('t2'));
+  tracker.apply('s1', level());
+  assert.equal(tracker.has('s1', 't1'), false);
+  assert.equal(tracker.has('s2', 't2'), true);
+});

@@ -271,6 +271,11 @@
     },
     "providers": {
       "assistant": "助理"
+    },
+    "backgroundTask": {
+      "prompt": {
+        "adoptRefused": "無法在不停止背景工作的情況下將此訊息加入執行中的工作階段。"
+      }
     }
   },
   "projectSelection": {
@@ -335,6 +340,12 @@
     "customModelsOnlyHint": "在所有模型選擇器中隱藏 {{provider}} 的內建模型，並將您的第一個模型設為預設模型。在您新增模型之前，內建模型仍會顯示。",
     "builtInModelsHidden": "開啟「僅使用我的模型」時，這些模型不會出現在模型選擇器中。",
     "customModelsOnlyFailed": "無法變更此設定。"
+  },
+  "sendMenu": {
+    "sendKeepsWork": {
+      "label": "傳送",
+      "description": "立即傳送；背景工作將繼續執行"
+    }
   },
   "errors": {
     "codex_thread_active_writer": "此對話正在 Codex 應用程式中開啟，而同一對話同一時間只允許一個寫入方。請在那邊關閉它（或直接在那邊繼續），然後再傳送。"

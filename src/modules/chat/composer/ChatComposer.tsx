@@ -101,6 +101,13 @@ type ChatComposerProps = {
   supportsSideQuestions?: boolean;
   /** Whether the provider can take a message into a running turn; gates the send menu's Steer row the same way `supportsSideQuestions` gates its row. */
   supportsSteering?: boolean;
+  /**
+   * [local] Whether sending the composer's message joins the session's running
+   * process, so its background work keeps running; the send menu then offers
+   * a plain Send over background work instead of "Send anyway". False for an
+   * edit or a slash command, and for providers that cannot.
+   */
+  adoptsBackground?: boolean;
   /** Messages sent into the running turn that the agent has not read yet, each shown as a card above the composer until its echo lands in the transcript. */
   pendingSteers?: PendingSteer[];
   attachedFiles: File[];
@@ -183,6 +190,7 @@ export default function ChatComposer({
   onSendMenuChoice,
   supportsSideQuestions,
   supportsSteering = false,
+  adoptsBackground = false,
   pendingSteers = NO_PENDING_STEERS,
   attachedFiles,
   onRemoveAttachment,
@@ -568,6 +576,7 @@ export default function ChatComposer({
                 canAbortSession={canAbortSession}
                 supportsSideQuestions={supportsSideQuestions}
                 supportsSteering={supportsSteering}
+                adoptsBackground={adoptsBackground}
                 sendByCtrlEnter={sendByCtrlEnter}
                 onSelect={(choice) => {
                   if (choice === 'stop') {

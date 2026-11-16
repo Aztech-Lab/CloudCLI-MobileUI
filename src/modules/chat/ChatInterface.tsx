@@ -127,6 +127,7 @@ function ChatInterface({
     supportsSessionForking,
     supportsSideQuestions,
     supportsSteering,
+    supportsBackgroundAdoption,
     supportsContextClearing,
   } = useChatProviderState({
     selectedSession,
@@ -269,6 +270,8 @@ function ChatInterface({
     deleteQueuedDraft,
     pendingSteers,
     handleSteerOutcome,
+    adoptsBackground,
+    handleAdoptRefused,
     handleVoiceTranscript,
     handleInputChange,
     handleKeyDown,
@@ -305,7 +308,11 @@ function ChatInterface({
     isConnected,
     sendByCtrlEnter,
     supportsSteering,
+    // [local] Sends join a session's running process instead of stopping its background work.
+    supportsBackgroundAdoption,
     onSessionProcessing,
+    onSessionBackground,
+    removeOptimisticMessage: sessionStore.removeRealtime,
     onSessionEstablished: handleSessionEstablished,
     onFileOpen,
     onShowSettings,
@@ -356,6 +363,7 @@ function ChatInterface({
     requestLatestMessages,
     sessionStore,
     onSteerOutcome: handleSteerOutcome,
+    onAdoptRefused: handleAdoptRefused,
   });
 
   // Lets other modules (the quick settings Commands tab) hand text to the
@@ -614,6 +622,7 @@ function ChatInterface({
           onDeleteQueuedDraft={deleteQueuedDraft}
           onSendMenuChoice={handleSendMenuChoice}
           supportsSteering={supportsSteering}
+          adoptsBackground={adoptsBackground}
           pendingSteers={pendingSteers}
           attachedFiles={attachedFiles}
           onRemoveAttachment={(index) =>

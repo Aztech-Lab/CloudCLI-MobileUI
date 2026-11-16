@@ -396,7 +396,10 @@
     "backgroundMonitor": "Monitor",
     "stopTask": "Stop",
     "taskRowNotLoaded": "Launched earlier in this conversation; click to load it",
-    "taskOfAgent": "Launched by one of this session's agents"
+    "taskOfAgent": "Launched by one of this session's agents",
+    "stopAllBackground": "Stop all background work",
+    "stopAllBackgroundConfirm": "Tap again to stop all",
+    "stopAllBackgroundHint": "Stops every background agent and command of this session. Stop only ends the current reply."
   },
   "cancel": "Cancel"
 }

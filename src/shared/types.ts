@@ -383,6 +383,13 @@ export type ChatMessage = {
    */
   replacesAnchorId?: string;
   /**
+   * [local] The id to store the optimistic echo of a sent message under, set
+   * when the composer may have to withdraw that row again: a send the server
+   * can refuse before it becomes a turn. Starts with `local_`, like every
+   * optimistic row, so the history reconciliation still replaces it.
+   */
+  optimisticId?: string;
+  /**
    * The model that produced this assistant turn, as the provider reported it
    * on the transcript row. Absent on user turns and on rows the provider
    * fabricated locally, so the footer shows nothing rather than guessing.
@@ -875,6 +882,12 @@ export type BackgroundSendChoice = 'send' | 'queue' | 'sideQuestion' | 'cancel';
 /** An open background-work send prompt, listing the session's own background tasks as display strings. */
 export type BackgroundSendPrompt = {
   work: string[];
+  /**
+   * [local] Set when the prompt reopens because the server could not add the
+   * message to the session's running process (`ADOPT_UNAVAILABLE`), so the
+   * dialog can say why the message came back.
+   */
+  adoptRefused?: boolean;
 };
 
 /** Viewport-relative placement box (right/bottom offsets plus max height and width) computed for a composer popover so the model and permission menus stay inside the window. */

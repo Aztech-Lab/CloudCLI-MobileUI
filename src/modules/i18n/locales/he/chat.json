@@ -274,7 +274,10 @@
       "command": "פקודה {{description}}",
       "count_one": "משימה אחת",
       "count_two": "שתי משימות",
-      "count_other": "{{count}} משימות"
+      "count_other": "{{count}} משימות",
+      "prompt": {
+        "adoptRefused": "לא ניתן היה לצרף את ההודעה לסשן הפעיל בלי לעצור את העבודה שלו ברקע."
+      }
     },
     "controls": {
       "stopGeneration": "עצירת היצירה",
@@ -393,5 +396,11 @@
     "customModelsOnlyHint": "מסתיר את המודלים המובנים של {{provider}} מכל בוחרי המודלים, והמודל הראשון שלך הופך לברירת המחדל. המודלים המובנים ממשיכים להופיע עד להוספת מודל.",
     "builtInModelsHidden": "מוסתרים מבוחרי המודלים כל עוד „שימוש רק במודלים שלי” פעיל.",
     "customModelsOnlyFailed": "לא ניתן לשנות את ההגדרה הזו."
+  },
+  "sendMenu": {
+    "sendKeepsWork": {
+      "label": "שליחה",
+      "description": "שליחה עכשיו; העבודה ברקע ממשיכה לרוץ"
+    }
   }
 }

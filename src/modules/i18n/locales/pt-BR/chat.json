@@ -291,7 +291,10 @@
       "workflow": "Workflow {{name}}",
       "agent": "Agente {{description}}",
       "command": "Comando {{description}}",
-      "count": "{{count}} tarefas"
+      "count": "{{count}} tarefas",
+      "prompt": {
+        "adoptRefused": "Não foi possível adicionar esta mensagem à sessão em andamento sem interromper o trabalho em segundo plano."
+      }
     },
     "controls": {
       "stopGeneration": "Parar geração",
@@ -413,5 +416,11 @@
     "customModelsOnlyHint": "Oculta os modelos integrados do {{provider}} em todos os seletores de modelo e torna o seu primeiro modelo o padrão. Os integrados continuam visíveis até você adicionar um modelo.",
     "builtInModelsHidden": "Ocultos nos seletores de modelo enquanto “Usar apenas meus modelos” estiver ativado.",
     "customModelsOnlyFailed": "Não foi possível alterar esta configuração."
+  },
+  "sendMenu": {
+    "sendKeepsWork": {
+      "label": "Enviar",
+      "description": "Enviar agora; o trabalho em segundo plano continua"
+    }
   }
 }

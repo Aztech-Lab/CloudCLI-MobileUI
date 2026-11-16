@@ -290,6 +290,10 @@
     "sendAnyway": {
       "label": "Yine de gönder",
       "description": "Şimdi gönder; arka plan işini durdurur"
+    },
+    "sendKeepsWork": {
+      "label": "Gönder",
+      "description": "Şimdi gönder; arka plan işi çalışmaya devam eder"
     }
   },
   "shell": {
@@ -354,7 +358,8 @@
         "cancel": "İptal",
         "queue": "Sıraya al",
         "sendAnyway": "Yine de gönder",
-        "sideQuestion": "Ara soru"
+        "sideQuestion": "Ara soru",
+        "adoptRefused": "Bu mesaj, arka plan işi durdurulmadan çalışan oturuma eklenemedi."
       }
     },
     "controls": {

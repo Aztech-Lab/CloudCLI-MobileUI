@@ -250,6 +250,11 @@
     },
     "providers": {
       "assistant": "Assistant"
+    },
+    "backgroundTask": {
+      "prompt": {
+        "adoptRefused": "백그라운드 작업을 중지하지 않고는 이 메시지를 실행 중인 세션에 추가할 수 없었습니다."
+      }
     }
   },
   "projectSelection": {
@@ -314,5 +319,11 @@
     "customModelsOnlyHint": "모든 모델 선택기에서 {{provider}} 기본 제공 모델을 숨기고 첫 번째 내 모델을 기본값으로 설정합니다. 모델을 추가하기 전까지는 기본 제공 모델이 계속 표시됩니다.",
     "builtInModelsHidden": "'내 모델만 사용'이 켜져 있는 동안 모델 선택기에서 숨겨집니다.",
     "customModelsOnlyFailed": "이 설정을 변경할 수 없습니다."
+  },
+  "sendMenu": {
+    "sendKeepsWork": {
+      "label": "보내기",
+      "description": "지금 보냅니다. 백그라운드 작업은 계속 실행됩니다"
+    }
   }
 }

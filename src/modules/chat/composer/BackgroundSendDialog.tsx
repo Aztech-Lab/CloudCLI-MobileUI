@@ -50,6 +50,16 @@ export default function BackgroundSendDialog({ prompt, supportsSideQuestions = f
           </ul>
         )}
 
+        {prompt?.adoptRefused && (
+          // [local] The message came back: the server could not add it to
+          // the running process, so sending it now stops the work after all.
+          <p className="mt-3 text-sm text-foreground/90">
+            {t('claudeStatus.backgroundTask.prompt.adoptRefused', {
+              defaultValue: 'This message could not join the running session without stopping its background work.',
+            })}
+          </p>
+        )}
+
         <p id="background-send-dialog-description" className="mt-3 text-sm text-muted-foreground">
           {t('claudeStatus.backgroundTask.prompt.description', {
             defaultValue: 'A new message starts a new turn, which stops that work; anything it has not reported yet is lost. Queue the message to send it when the work finishes.',

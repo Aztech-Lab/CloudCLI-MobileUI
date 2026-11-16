@@ -272,5 +272,10 @@
       "closeSidebar": "关闭侧边栏",
       "resizeSidebar": "调整侧边栏宽度"
     }
+  },
+  "workflow": {
+    "stopAllBackground": "停止全部后台任务",
+    "stopAllBackgroundConfirm": "再点一次全部停止",
+    "stopAllBackgroundHint": "停止此会话的所有后台代理和命令。“停止”按钮只结束当前回复。"
   }
 }

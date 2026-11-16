@@ -226,6 +226,11 @@
     },
     "providers": {
       "assistant": "Assistant"
+    },
+    "backgroundTask": {
+      "prompt": {
+        "adoptRefused": "バックグラウンド作業を停止せずに、このメッセージを実行中のセッションに追加できませんでした。"
+      }
     }
   },
   "message": {
@@ -284,5 +289,11 @@
     "customModelsOnlyHint": "{{provider}} の組み込みモデルをすべてのモデル選択から非表示にし、最初の自分のモデルをデフォルトにします。モデルを追加するまでは組み込みモデルが表示されます。",
     "builtInModelsHidden": "「自分のモデルのみを使用」がオンの間、モデル選択には表示されません。",
     "customModelsOnlyFailed": "この設定を変更できませんでした。"
+  },
+  "sendMenu": {
+    "sendKeepsWork": {
+      "label": "送信",
+      "description": "今すぐ送信します。バックグラウンド作業は続行されます"
+    }
   }
 }

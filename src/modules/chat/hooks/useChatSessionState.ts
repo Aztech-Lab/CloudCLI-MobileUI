@@ -142,7 +142,8 @@ function chatMessageToNormalized(
   sessionId: string,
   provider: LLMProvider,
 ): NormalizedMessage | null {
-  const id = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  // [local] A row the composer may have to withdraw is stored under the id it chose.
+  const id = msg.optimisticId ?? `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const ts = msg.timestamp instanceof Date
     ? msg.timestamp.toISOString()
     : typeof msg.timestamp === 'number'

@@ -1,7 +1,7 @@
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { X } from 'lucide-react';
+import { Square, X } from 'lucide-react';
 
 import type { BackgroundTaskSummary, ChatMessage } from '@/shared/types';
 import {
@@ -97,14 +97,29 @@ function describeTask(message: ChatMessage, t: TFunction) {
   return { kind, name, progress };
 }
 
+// [local] How long the "Stop all background work" button waits for its confirming second tap.
+const STOP_ALL_CONFIRM_MS = 4000;
+
 /**
  * Rendered by chat's ChatMessagesPane above the transcript: one chip per
  * background task — workflow, agent or command — that is still running, each
  * scrolling to its card when clicked and stoppable from its ✕. Renders
  * nothing while nothing runs, which is most of the time.
+ *
+ * [local] Stop (the composer's) ends only the current reply and leaves this
+ * work running, so the strip also offers "Stop all background work", which
+ * takes a second tap to confirm.
  */
 export const BackgroundTasksStrip = memo(({ messages, tasks, sessionId, sendMessage, onReveal, onLoadAll }: BackgroundTasksStripProps) => {
   const { t } = useTranslation();
+  const [confirmingStopAll, setConfirmingStopAll] = useState(false);
+  useEffect(() => {
+    if (!confirmingStopAll) {
+      return undefined;
+    }
+    const timer = setTimeout(() => setConfirmingStopAll(false), STOP_ALL_CONFIRM_MS);
+    return () => clearTimeout(timer);
+  }, [confirmingStopAll]);
   const running = listRunningBackgroundLaunches(messages);
   // A loaded row that has a word on its task — settled or not — is the word;
   // a task whose row is not loaded, or is loaded without one (a backgrounded
@@ -118,6 +133,16 @@ export const BackgroundTasksStrip = memo(({ messages, tasks, sessionId, sendMess
   if (running.length === 0 && fromMap.length === 0) {
     return null;
   }
+  // [local] Offered when at least one task can be stopped from here.
+  const canStopAll = Boolean(sessionId) && (fromMap.length > 0 || running.some((message) => Boolean(readBackgroundTaskId(message))));
+  const stopAll = () => {
+    if (!confirmingStopAll) {
+      setConfirmingStopAll(true);
+      return;
+    }
+    setConfirmingStopAll(false);
+    sendMessage({ type: 'chat.stop-all-background', sessionId });
+  };
 
   return (
     <div
@@ -205,6 +230,19 @@ export const BackgroundTasksStrip = memo(({ messages, tasks, sessionId, sendMess
           </span>
         );
       })}
+      {canStopAll && (
+        <button
+          type="button"
+          onClick={stopAll}
+          title={t('workflow.stopAllBackgroundHint', 'Stops every background agent and command of this session. Stop only ends the current reply.')}
+          className={`ml-auto flex flex-shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-medium ${confirmingStopAll ? 'bg-destructive text-destructive-foreground' : 'text-destructive hover:bg-destructive/10'}`}
+        >
+          <Square className="h-2.5 w-2.5 fill-current" />
+          {confirmingStopAll
+            ? t('workflow.stopAllBackgroundConfirm', 'Tap again to stop all')
+            : t('workflow.stopAllBackground', 'Stop all background work')}
+        </button>
+      )}
     </div>
   );
 });

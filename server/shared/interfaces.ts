@@ -57,6 +57,11 @@ export interface IProviderRuntime {
    */
   stopBackgroundTask?(sessionId: string, taskId: string): Promise<boolean>;
   /**
+   * [local] Stops every outstanding background task of the session ("Stop all
+   * background work"). Resolves false when there is nothing to stop.
+   */
+  stopAllBackgroundWork?(sessionId: string): Promise<boolean>;
+  /**
    * Asks a side question on the provider runtime while a session is active.
    *
    * A provider with this method uses its native fork capability; one without it

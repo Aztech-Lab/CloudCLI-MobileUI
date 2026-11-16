@@ -1580,6 +1580,33 @@ export function findApplicationRoot(startDirectory: string): string {
 export const SIDE_QUESTION_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
 
 // ---------------------------
+//----------------- CHAT MESSAGE ID VALIDATION ------------
+/**
+ * [local] Shape a client-chosen chat message id must have when it becomes the
+ * uuid of a message written into a live Claude CLI (and so its transcript
+ * uuid): any hex UUID, case-insensitive. Used by the websocket gateway for
+ * `chat.steer` ids and by the Claude runtime for the id of a send that adopts
+ * a held process; anything else is replaced with a fresh `randomUUID()`.
+ */
+export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ---------------------------
+//----------------- HELD-PROCESS ADOPTION ERRORS ------------
+/**
+ * [local] `AppError.code` (and `protocol_error.code`) for a send that asked to
+ * adopt a held Claude process (`options.adoptHeld`) when the runtime could not
+ * do it while that process still had background work outstanding.
+ *
+ * The Claude runtime throws an `AppError` with this code, and `details.messageId`
+ * naming the message, instead of falling back to stopping the work and
+ * spawning a new process: the client promised the user the work keeps
+ * running. The websocket gateway turns it into a `protocol_error` for the
+ * sender, and the queued-message dispatcher puts a detached message back in
+ * its queue.
+ */
+export const ADOPT_UNAVAILABLE_ERROR_CODE = 'ADOPT_UNAVAILABLE';
+
+// ---------------------------
 //----------------- SIDE-QUESTION ANSWER JOINING ------------
 /**
  * What a side-question runtime streams between two separate pieces of answer

@@ -824,9 +824,17 @@ export type ProviderRuntimeContext = {
   // 0.3.311): no caller here reads the resolved value, and widening it keeps
   // this structural type assignable from both the real `query()` (whose
   // return type is the SDK's own `Query`) and a test's scripted stand-in.
+  //
+  // [local] The live control requests below are optional so a scripted
+  // stand-in can leave them out. The Claude runtime calls them when a new send
+  // adopts a held process whose model, permission mode or effort differs from
+  // what the process was started with; a missing one counts as failed.
   createQuery?: (input: { prompt: AsyncIterable<unknown>; options: AnyRecord }) => AsyncIterable<unknown> & {
     interrupt(): Promise<unknown>;
     stopTask?(taskId: string): Promise<void>;
+    setModel?(model?: string): Promise<void>;
+    setPermissionMode?(mode: string): Promise<void>;
+    applyFlagSettings?(settings: AnyRecord): Promise<void>;
   };
 };
 

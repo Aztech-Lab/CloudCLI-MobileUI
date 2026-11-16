@@ -70,6 +70,8 @@ type ProviderCapabilities = {
   supportsSessionForking?: boolean;
   supportsSideQuestions?: boolean;
   supportsSteering?: boolean;
+  // [local] Whether a send can join the session's held process, keeping its background work running.
+  supportsBackgroundAdoption?: boolean;
   supportsContextClearing?: boolean;
 };
 
@@ -467,6 +469,10 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
   const supportsSessionForking = Boolean(providerCapabilities?.[provider]?.supportsSessionForking);
   const supportsSideQuestions = Boolean(providerCapabilities?.[provider]?.supportsSideQuestions);
   const supportsSteering = Boolean(providerCapabilities?.[provider]?.supportsSteering);
+  // [local] Whether a send while background work runs joins the held process instead of
+  // stopping that work. False until the matrix loads, like the rest, so the composer keeps
+  // asking before a send that would stop the work.
+  const supportsBackgroundAdoption = Boolean(providerCapabilities?.[provider]?.supportsBackgroundAdoption);
   const supportsContextClearing = Boolean(providerCapabilities?.[provider]?.supportsContextClearing);
 
   const resolvePermissionModeForProvider = useCallback((
@@ -848,6 +854,7 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
     supportsSessionForking,
     supportsSideQuestions,
     supportsSteering,
+    supportsBackgroundAdoption,
     supportsContextClearing,
   };
 }

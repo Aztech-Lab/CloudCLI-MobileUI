@@ -55,6 +55,14 @@ type ProviderCapabilities = {
    */
   supportsSteering: boolean;
   /**
+   * [local] Whether a send made while only background work is running can go
+   * into the CLI process that holds that work (`chat.send` with
+   * `options.adoptHeld`), so the work keeps running instead of being stopped
+   * by a new process. Requires a runtime that holds its CLI's input open after
+   * a turn for background work.
+   */
+  supportsBackgroundAdoption: boolean;
+  /**
    * Whether a session's context can be cleared: the next message starts a new
    * provider session while the earlier conversation stays readable as history.
    * Requires a history reader that can read a transcript the session row no
@@ -90,6 +98,9 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     // Streaming input stays open for the whole run, and a user message written
     // to it with priority `next` joins the running turn.
     supportsSteering: true,
+    // [local] A send over background work is written into the held process
+    // (see the Claude runtime's adoption entry point) instead of replacing it.
+    supportsBackgroundAdoption: true,
     supportsContextClearing: true,
   },
   cursor: {
@@ -107,6 +118,7 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsSessionForking: false,
     supportsSideQuestions: false,
     supportsSteering: false,
+    supportsBackgroundAdoption: false,
     supportsContextClearing: false,
   },
   codex: {
@@ -131,6 +143,7 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsSessionForking: true,
     supportsSideQuestions: true,
     supportsSteering: false,
+    supportsBackgroundAdoption: false,
     supportsContextClearing: false,
   },
   opencode: {
@@ -155,6 +168,7 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsSessionForking: false,
     supportsSideQuestions: true,
     supportsSteering: false,
+    supportsBackgroundAdoption: false,
     supportsContextClearing: false,
   },
 };
