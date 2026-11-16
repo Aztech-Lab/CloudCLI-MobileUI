@@ -1782,6 +1782,43 @@ export function useChatComposerState({
     return true;
   }, [onSessionBackground, removeOptimisticMessage, setInput]);
 
+  /**
+   * [local] The server refused a send because a turn was already running
+   * (`RUN_IN_PROGRESS`), which happens when Claude started one on its own to
+   * report finished background work just before the send arrived. Nothing ran
+   * for the message, so it goes into that turn as a message sent mid-reply
+   * would (its card waits until Claude reads it; if the turn has ended by
+   * then, it is queued as the next message). Anything typed since stays in
+   * the composer. Returns false for a message this composer did not send.
+   */
+  const handleRunInProgress = useCallback((sessionId: string, messageId: string): boolean => {
+    const refused = pendingAdoptedSendsRef.current.get(messageId);
+    if (!refused || refused.sessionKey !== sessionId) {
+      return false;
+    }
+    pendingAdoptedSendsRef.current.delete(messageId);
+    removeOptimisticMessage?.(sessionId, refused.rowId);
+    // A turn is running: show it as one, whatever this client believed.
+    onSessionProcessing?.(sessionId, { statusText: null, canInterrupt: true });
+    const steerId = createSteerMessageId();
+    updatePendingSteers((current) => [...current, {
+      messageId: steerId,
+      sessionKey: sessionId,
+      content: refused.content,
+      attachments: refused.attachments,
+      uploadedAttachments: refused.uploadedAttachments,
+      status: 'sending',
+    }]);
+    sendMessage({
+      type: 'chat.steer',
+      sessionId,
+      messageId: steerId,
+      content: refused.content,
+      options: { attachments: refused.uploadedAttachments },
+    });
+    return true;
+  }, [onSessionProcessing, removeOptimisticMessage, sendMessage, updatePendingSteers]);
+
   // The VPS dispatcher owns sending. While the card is visible, periodically
   // reconcile it with the server, so the UI notices when the server claims it
   // or another tab adds to it.
@@ -2180,6 +2217,8 @@ export function useChatComposerState({
     withdrawSteer,
     adoptsBackground,
     handleAdoptRefused,
+    // [local] A send refused because a turn had just started goes into it.
+    handleRunInProgress,
     handleVoiceTranscript,
     handleInputChange,
     handleKeyDown,

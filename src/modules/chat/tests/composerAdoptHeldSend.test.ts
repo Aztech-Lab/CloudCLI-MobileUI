@@ -403,3 +403,33 @@ test('[local] stage 4: Queue chosen after the running process refused a message 
   assert.equal(appendQueuedMessage.mock.calls[0]?.[1]?.options?.adoptHeld, false, 'it cannot join, so it waits');
   assert.equal(sends().length, 1, 'nothing else was sent');
 });
+
+// [local] Stage 5: the send met a turn Claude had just started on its own.
+
+test('[local] stage 5: RUN_IN_PROGRESS for an adopting send puts the message into the running turn, keeping what was typed since', async () => {
+  const { view, sends, sent, removed, processing } = render();
+  await typeAndEnter(view, 'hello');
+  const messageId = String(sends()[0].options?.messageId);
+  await act(async () => { view.result.current.setInput('typed since'); });
+
+  let handled = false;
+  act(() => { handled = view.result.current.handleRunInProgress('session-1', messageId); });
+  assert.equal(handled, true);
+
+  assert.deepEqual(removed, [{ sessionId: 'session-1', messageId: `local_adopt_${messageId}` }], 'the optimistic row is withdrawn');
+  const steers = sent.filter((frame) => frame.type === 'chat.steer') as Array<Frame & { messageId?: string }>;
+  assert.equal(steers.length, 1, 'sent into the running turn');
+  assert.equal(steers[0].content, 'hello');
+  assert.match(String(steers[0].messageId), UUID_V4);
+  assert.equal(processing.at(-1), 'session-1', 'the session shows a running turn');
+  assert.equal(view.result.current.pendingSteers.length, 1, 'it waits as a card until Claude reads it');
+  assert.equal(view.result.current.input, 'typed since', 'the composer keeps what was typed since');
+});
+
+test('[local] stage 5: RUN_IN_PROGRESS for a message this composer did not send is left to the caller', async () => {
+  const { view, sent } = render();
+  let handled = true;
+  act(() => { handled = view.result.current.handleRunInProgress('session-1', '00000000-0000-4000-8000-000000000000'); });
+  assert.equal(handled, false);
+  assert.equal(sent.filter((frame) => frame.type === 'chat.steer').length, 0);
+});

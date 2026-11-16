@@ -228,7 +228,10 @@ export type MessageKind =
   | 'session_created'
   | 'history_truncated'
   | 'task_notification'
-  | 'task_status';
+  | 'task_status'
+  // [local] A turn the provider started on its own, with no message of the
+  // user's (Claude reporting finished background work). `origin: 'background'`.
+  | 'turn_started';
 
 /**
  * Event kinds added by the chat gateway layer on top of provider message kinds.

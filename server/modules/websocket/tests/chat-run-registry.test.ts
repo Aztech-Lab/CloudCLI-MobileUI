@@ -311,3 +311,95 @@ test('startRun rejects a second concurrent run for the same session', async () =
     assert.ok(third);
   });
 });
+
+// [local] Stage 5: seqs per session, relay turns, catch-up after a reconnect.
+
+function startRunFor(appSessionId: string, connection = new FakeConnection()) {
+  const run = chatRunRegistry.startRun({
+    appSessionId,
+    provider: 'claude',
+    providerSessionId: null,
+    connection,
+    userId: null,
+  });
+  assert.ok(run);
+  return run;
+}
+
+test('seqs run on across a session\'s runs, so a reconnect after a new run still catches up', async () => {
+  await withIsolatedDatabase(() => {
+    sessionsDb.createAppSession('app-seq-1', 'claude', '/workspace/demo');
+    const first = startRunFor('app-seq-1');
+    for (const content of ['a', 'b', 'c']) {
+      first.writer.send({ kind: 'stream_delta', provider: 'claude', sessionId: 'x', content });
+    }
+    first.writer.send({ kind: 'complete', provider: 'claude', sessionId: 'x', exitCode: 0 });
+    assert.equal(first.lastSeq, 4);
+
+    const second = startRunFor('app-seq-1');
+    second.writer.send({ kind: 'text', provider: 'claude', sessionId: 'x', content: 'next turn' });
+    assert.equal(second.lastSeq, 5, 'the new run continues from the old one');
+
+    // A client that saw the whole first run (lastSeq 4) gets the new run's event.
+    assert.deepEqual(chatRunRegistry.catchUpEvents('app-seq-1', 4).map((event) => event.content), ['next turn']);
+  });
+});
+
+test('turn_started reopens the session\'s completed run until that turn\'s complete', async () => {
+  await withIsolatedDatabase(() => {
+    sessionsDb.createAppSession('app-relay-1', 'claude', '/workspace/demo');
+    const run = startRunFor('app-relay-1');
+    run.writer.send({ kind: 'complete', provider: 'claude', sessionId: 'x', exitCode: 0 });
+    assert.equal(chatRunRegistry.isProcessing('app-relay-1'), false);
+
+    run.writer.send({ kind: 'turn_started', provider: 'claude', sessionId: 'x', origin: 'background' } as never);
+    assert.equal(chatRunRegistry.isProcessing('app-relay-1'), true, 'the relay turn is a running turn');
+    assert.deepEqual(chatRunRegistry.listRunningRuns().map((entry) => entry.sessionId), ['app-relay-1']);
+    assert.equal(chatRunRegistry.getRun('app-relay-1')?.origin, 'background');
+    // Nothing else may start on the session meanwhile.
+    assert.equal(chatRunRegistry.startRun({ appSessionId: 'app-relay-1', provider: 'claude', providerSessionId: null, connection: null, userId: null }), null);
+
+    run.writer.send({ kind: 'text', provider: 'claude', sessionId: 'x', content: 'agent done' });
+    run.writer.send({ kind: 'complete', provider: 'claude', sessionId: 'x', exitCode: 0 });
+    assert.equal(chatRunRegistry.isProcessing('app-relay-1'), false);
+  });
+});
+
+test('turn_started does not reopen a run the session has moved on from', async () => {
+  await withIsolatedDatabase(() => {
+    sessionsDb.createAppSession('app-relay-2', 'claude', '/workspace/demo');
+    const old = startRunFor('app-relay-2');
+    old.writer.send({ kind: 'complete', provider: 'claude', sessionId: 'x', exitCode: 0 });
+    const current = startRunFor('app-relay-2');
+    current.writer.send({ kind: 'complete', provider: 'claude', sessionId: 'x', exitCode: 0 });
+
+    old.writer.send({ kind: 'turn_started', provider: 'claude', sessionId: 'x', origin: 'background' } as never);
+    assert.equal(old.status, 'completed');
+    assert.equal(chatRunRegistry.isProcessing('app-relay-2'), false);
+  });
+});
+
+test('catchUpEvents: a reloaded client gets only what came after the last complete', async () => {
+  await withIsolatedDatabase(() => {
+    sessionsDb.createAppSession('app-catch-1', 'claude', '/workspace/demo');
+    const run = startRunFor('app-catch-1');
+    run.writer.send({ kind: 'text', provider: 'claude', sessionId: 'x', content: 'turn text' });
+    run.writer.send({ kind: 'complete', provider: 'claude', sessionId: 'x', exitCode: 0 });
+    run.writer.send({ kind: 'task_status', provider: 'claude', sessionId: 'x', event: 'progress', content: 'agent progress' } as never);
+
+    // lastSeq 0 (a reload): the turn is in the transcript; the progress is not.
+    assert.deepEqual(chatRunRegistry.catchUpEvents('app-catch-1', 0).map((event) => event.content), ['agent progress']);
+    // A client that dropped mid-turn gets the rest of the turn, its complete included.
+    assert.deepEqual(chatRunRegistry.catchUpEvents('app-catch-1', 1).map((event) => event.kind), ['complete', 'task_status']);
+    // A lastSeq beyond this run (from before a server restart) is treated as a reload.
+    assert.deepEqual(chatRunRegistry.catchUpEvents('app-catch-1', 99).map((event) => event.content), ['agent progress']);
+
+    // A relay turn: a reload catches up from its start.
+    run.writer.send({ kind: 'turn_started', provider: 'claude', sessionId: 'x', origin: 'background' } as never);
+    run.writer.send({ kind: 'text', provider: 'claude', sessionId: 'x', content: 'relay text' });
+    assert.deepEqual(
+      chatRunRegistry.catchUpEvents('app-catch-1', 0).map((event) => event.kind),
+      ['task_status', 'turn_started', 'text'],
+    );
+  });
+});

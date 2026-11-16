@@ -29,6 +29,26 @@ type ChatRun = {
   providerSessionId: string | null;
   status: ChatRunStatus;
   lastSeq: number;
+  /**
+   * [local] The session's seq just before this run's first event. Seqs run on
+   * across a session's runs (see `sessionSeqs`), so a `lastSeq` at or above
+   * this came from a client that followed this run.
+   */
+  startSeq: number;
+  /**
+   * [local] Where a client that knows nothing of this run (a reloaded page
+   * sends `lastSeq` 0) starts its replay: the run's start while its first turn
+   * runs, and after each `complete` that turn's end. What came before is in the
+   * persisted transcript the client reads over REST; what came after (task
+   * progress while background work runs, a turn the CLI starts on its own to
+   * report that work) is not, or not yet.
+   */
+  replayFloor: number;
+  /**
+   * [local] `background` while the run was reopened for a turn the provider
+   * started on its own (`turn_started`), not for a message of the user's.
+   */
+  origin: 'user' | 'background';
   events: NormalizedMessage[];
   writer: ChatSessionWriter;
   startedAt: number;
@@ -58,6 +78,15 @@ const MAX_BUFFERED_EVENTS_PER_RUN = 5000;
  * path all consult it instead of asking each provider runtime individually.
  */
 const runs = new Map<string, ChatRun>();
+
+/**
+ * [local] The last seq handed out per session, kept across its runs and their
+ * eviction. Seqs used to restart at 1 with every run while a client only ever
+ * raises the `lastSeq` it remembers, so after a new run (an adopted turn, the
+ * next message) a reconnect asked for "after 120" of a run at 15 and got
+ * nothing back.
+ */
+const sessionSeqs = new Map<string, number>();
 
 /**
  * Answers whether a completed run must stay registered a while longer. Set by
@@ -109,7 +138,22 @@ function decorateAndRecordEvent(run: ChatRun, message: NormalizedMessage): Norma
     return null;
   }
 
-  run.lastSeq += 1;
+  // [local] A turn the provider started on its own while the run was done
+  // (background work reporting in) is a turn like any other: the run is
+  // running again until that turn's `complete`, so it can be stopped, steered
+  // and waited on. Only the session's current run is reopened.
+  if (message.kind === 'turn_started') {
+    if (run.status === 'completed' && runs.get(run.appSessionId) === run) {
+      run.status = 'running';
+      run.origin = 'background';
+      run.startedAt = Date.now();
+      run.completedAt = null;
+    }
+  }
+
+  // [local] Per session, not per run: see `sessionSeqs`.
+  run.lastSeq = Math.max(run.lastSeq, sessionSeqs.get(run.appSessionId) ?? 0) + 1;
+  sessionSeqs.set(run.appSessionId, run.lastSeq);
 
   const outbound: NormalizedMessage = {
     ...message,
@@ -123,6 +167,8 @@ function decorateAndRecordEvent(run: ChatRun, message: NormalizedMessage): Norma
     outbound.actualSessionId = run.appSessionId;
     run.status = 'completed';
     run.completedAt = Date.now();
+    // [local] A client that reloads from here on reads this turn over REST.
+    run.replayFloor = run.lastSeq;
     evictRunLater(run);
     notifyRunSettled(run.appSessionId);
   }
@@ -241,12 +287,17 @@ export const chatRunRegistry = {
       return null;
     }
 
+    // [local] Seqs run on from the session's previous run.
+    const startSeq = Math.max(sessionSeqs.get(input.appSessionId) ?? 0, existing?.lastSeq ?? 0);
     const run: ChatRun = {
       appSessionId: input.appSessionId,
       provider: input.provider,
       providerSessionId: input.providerSessionId,
       status: 'running',
-      lastSeq: 0,
+      lastSeq: startSeq,
+      startSeq,
+      replayFloor: startSeq,
+      origin: 'user',
       events: [],
       writer: null as unknown as ChatSessionWriter,
       startedAt: Date.now(),
@@ -321,6 +372,21 @@ export const chatRunRegistry = {
    * An empty array with `run.lastSeq > afterSeq` not covered by the buffer
    * means the buffer was truncated; the client should refresh over REST.
    */
+  /**
+   * [local] What a client that subscribes with `lastSeq` should be sent: the
+   * events after it when it followed this run, otherwise (a reloaded page, a
+   * client of an earlier run or of a server that has since restarted) the
+   * events after the run's replay floor. Empty when nothing is registered.
+   */
+  catchUpEvents(appSessionId: string, lastSeq: number): NormalizedMessage[] {
+    const run = runs.get(appSessionId);
+    if (!run) {
+      return [];
+    }
+    const followedThisRun = lastSeq > 0 && lastSeq >= run.startSeq && lastSeq <= run.lastSeq;
+    return chatRunRegistry.replayEvents(appSessionId, followedThisRun ? lastSeq : run.replayFloor);
+  },
+
   replayEvents(appSessionId: string, afterSeq: number): NormalizedMessage[] {
     const run = runs.get(appSessionId);
     if (!run) {
@@ -365,5 +431,6 @@ export const chatRunRegistry = {
    */
   clearAll(): void {
     runs.clear();
+    sessionSeqs.clear();
   },
 };

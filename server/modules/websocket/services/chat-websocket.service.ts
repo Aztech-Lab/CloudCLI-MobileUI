@@ -22,6 +22,7 @@ import {
 import type {
   AnyRecord,
   AuthenticatedWebSocketRequest,
+  BackgroundTaskSummary,
   LLMProvider,
   ProviderPermissionDecision,
   ProviderRuntimeWriter,
@@ -100,6 +101,8 @@ export type ProviderRuntimeGateway = SideQuestionRuntime & {
   backgroundTask?(provider: LLMProvider, sessionId: string, toolUseId?: string): Promise<boolean>;
   /** Whether a provider runtime still holds background work for the session after its turn ended. */
   hasBackgroundWork(sessionId: string): boolean;
+  /** [local] The session's outstanding background tasks, as the running-sessions poll lists them. */
+  listBackgroundTasks?(sessionId: string): BackgroundTaskSummary[];
   resolveToolApproval(requestId: string, payload: ProviderPermissionDecision): void;
   getPendingApprovalsForSession(sessionId: string): unknown[];
 };
@@ -280,11 +283,18 @@ async function dispatchRun(
 
   if (!run) {
     if (ws) {
+      // [local] Names the message when the send carried an id, so a client
+      // that did not know a turn had started (one Claude began on its own to
+      // report background work) can send it into that turn instead.
+      const refusedMessageId = typeof (data.options as AnyRecord | undefined)?.messageId === 'string'
+        ? (data.options as AnyRecord).messageId as string
+        : null;
       sendProtocolError(
         ws,
         'RUN_IN_PROGRESS',
         `Session "${sessionId}" already has a run in progress.`,
-        sessionId
+        sessionId,
+        refusedMessageId ? { messageId: refusedMessageId } : {},
       );
     }
     // [local] `code`: nothing ran, so a dispatcher may try again later.
@@ -938,6 +948,7 @@ function handleChatSubscribe(
 
     const run = chatRunRegistry.getRun(sessionId);
     const isProcessing = chatRunRegistry.isProcessing(sessionId);
+    const hasBackgroundWork = dependencies.runtime.hasBackgroundWork(sessionId);
 
     // Future live events for this run should land on the socket that asked —
     // this is what makes mid-stream page refreshes work for all providers.
@@ -945,7 +956,7 @@ function handleChatSubscribe(
     // keeps producing events through the same writer (task progress, the
     // turn the CLI pushes when a task reports), so a tab opened during that
     // work attaches too; the registry keeps the run while the work lasts.
-    if (isProcessing || dependencies.runtime.hasBackgroundWork(sessionId)) {
+    if (isProcessing || hasBackgroundWork) {
       chatRunRegistry.attachConnection(sessionId, ws);
     }
 
@@ -953,21 +964,33 @@ function handleChatSubscribe(
     // Claude runtime, so they can be looked up directly.
     const pendingPermissions = dependencies.runtime.getPendingApprovalsForSession(sessionId);
 
+    // [local] A session with background work but no turn running says so,
+    // with its tasks, so a reloaded page shows the work (strip, composer
+    // state) at once instead of reading the ack as idle until the next poll.
+    const backgroundTasks = !isProcessing && hasBackgroundWork
+      ? dependencies.runtime.listBackgroundTasks?.(sessionId) ?? []
+      : [];
+
     sendJson(ws, {
       kind: 'chat_subscribed',
       sessionId,
       isProcessing,
       lastSeq: run?.lastSeq ?? 0,
       pendingPermissions,
+      ...(!isProcessing && hasBackgroundWork ? { background: true, tasks: backgroundTasks } : {}),
       timestamp: new Date().toISOString(),
     });
 
-    // Replay only for RUNNING runs, strictly after the ack. Completed runs
-    // are fully persisted to the provider transcript and served over REST —
-    // replaying them (e.g. after a page reload where the client's lastSeq is
-    // 0) would duplicate messages the history fetch already returned.
-    if (isProcessing) {
-      for (const event of chatRunRegistry.replayEvents(sessionId, lastSeq)) {
+    // Replay strictly after the ack, and only while the run is still live:
+    // a turn running, or [local] background work still reporting through the
+    // run. What a client missed since its `lastSeq` is replayed; a client that
+    // followed none of this run (a reloaded page) gets only what the persisted
+    // transcript does not hold yet — the current turn, or what the background
+    // work sent since the last turn ended (see `catchUpEvents`). A run that is
+    // simply done is fully persisted and served over REST; replaying it would
+    // duplicate messages the history fetch already returned.
+    if (isProcessing || hasBackgroundWork) {
+      for (const event of chatRunRegistry.catchUpEvents(sessionId, lastSeq)) {
         sendJson(ws, event);
       }
     }

@@ -766,7 +766,9 @@ type MessageKind =
   | 'session_created'
   | 'history_truncated'
   | 'task_notification'
-  | 'task_status';
+  | 'task_status'
+  // [local] A turn the provider started on its own (background work reporting in).
+  | 'turn_started';
 
 // ---------------------------
 

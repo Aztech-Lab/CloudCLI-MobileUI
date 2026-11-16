@@ -1841,6 +1841,12 @@ async function queryClaudeSDK(
   let doomedTurnActive = false;
   // The next `result` ends a turn a Stop interrupted, not a relay.
   let interruptedResultPending = false;
+  // [local] True from the `init` of a turn the CLI started on its own after
+  // the last turn was reported complete (a relay: background work reporting
+  // in) until that turn's `result`. Such a turn is reported like any other
+  // (`turn_started`, then its own `complete`), so it can be stopped and
+  // steered. Only for an adoptable run; always false for any other.
+  let relayTurnActive = false;
   // Tools a person allowed with "remember": kept when an adoption swaps in
   // the adopting send's tool settings.
   const rememberedEntries = new Set<string>();
@@ -2015,6 +2021,11 @@ async function queryClaudeSDK(
   const isTurnTask = (key: string, task: BackgroundTaskSummary) => !task.nested && backgroundWork.isForeground(key, task.taskId);
   const canInterruptTurnOnly = () => {
     const key = sessionKey();
+    // [local] A relay turn is stopped on its own, whatever else runs: it is
+    // the CLI's turn, and the process it runs in is the session's.
+    if (key && relayTurnActive && !turnCompleteSent && !adoptInFlight) {
+      return true;
+    }
     if (!key || (!adoptInFlight && turnCompleteSent)) {
       return false;
     }
@@ -2540,7 +2551,10 @@ async function queryClaudeSDK(
     // Refuses (`adopted: false`, nothing changed) whenever any guard fails;
     // a Stop during setup resolves `adopted: true` with nothing pushed.
     const adoptTurn: AdoptTurn = async (request) => {
-      const mayAdopt = () => turnCompleteSent && pendingSteerIds.size === 0 && ownLiveEntry() !== null;
+      // [local] A relay turn that started after the gateway let this send
+      // through is no reason to refuse it: the CLI runs the message after
+      // the relay, as it always has (see settleRelayBeforeAdoptedEcho).
+      const mayAdopt = () => (turnCompleteSent || relayTurnActive) && pendingSteerIds.size === 0 && ownLiveEntry() !== null;
       if (adoptInFlight || !mayAdopt()) {
         return { adopted: false };
       }
@@ -2582,6 +2596,8 @@ async function queryClaudeSDK(
         // attempt still being set up or the message pushed.
         const previousWriter = ws;
         const saved = {
+          turnCompleteSent,
+          relayTurnActive,
           assistantBudgetSent,
           releaseDeferred: entry.releaseDeferred,
           sawTaskEventThisTurn,
@@ -2595,6 +2611,8 @@ async function queryClaudeSDK(
           ws.setSessionId?.(capturedSessionId);
         }
         turnCompleteSent = false;
+        // [local] A relay under way is now the relay before the adopted echo.
+        relayTurnActive = false;
         assistantBudgetSent = false;
         // The adopted turn is not idle time: its own settle re-arms the ceiling.
         if (idleReleaseTimer) {
@@ -2612,7 +2630,9 @@ async function queryClaudeSDK(
         if (!pushPromptMessage({ ...message, uuid: messageId })) {
           ws = previousWriter;
           entry.writer = previousWriter;
-          turnCompleteSent = true;
+          // [local] Back to what it was: done, or a relay under way.
+          turnCompleteSent = saved.turnCompleteSent;
+          relayTurnActive = saved.relayTurnActive;
           assistantBudgetSent = saved.assistantBudgetSent;
           entry.releaseDeferred = saved.releaseDeferred;
           sawTaskEventThisTurn = saved.sawTaskEventThisTurn;
@@ -2667,10 +2687,15 @@ async function queryClaudeSDK(
       const ownTurn = !adoptInFlight;
       const pushed = ownTurn || Boolean(attempt?.pushed);
       const target = !ownTurn && attempt && !attempt.pushed ? attempt.writer : ws;
+      // [local] A relay turn may report the last task: then nothing runs on
+      // once it is stopped, and the client goes idle rather than background.
+      const stoppingRelay = ownTurn && relayTurnActive;
+      const relayKey = sessionKey();
+      const workContinues = !stoppingRelay || Boolean(relayKey && backgroundWork.outstanding(relayKey).some((task) => !isTurnTask(relayKey, task)));
       turnCompleteSent = true;
       target.send({
         ...createCompleteMessage({ provider: 'claude', sessionId: capturedSessionId || sessionId || null, exitCode: 0, aborted: true }),
-        backgroundContinues: true,
+        backgroundContinues: workContinues,
         pendingPermissions: getPendingApprovalsForSession(sessionId || capturedSessionId || ''),
       });
       notifyRunStopped({
@@ -2814,15 +2839,30 @@ async function queryClaudeSDK(
       // The turn is done as far as the client is concerned.
       const abortPending = abortedInstances.has(liveQuery);
       const stillOutstanding = backgroundWork.hasOutstanding(sessionKey()!);
+      // [local] A relay turn ends here, reported now or (stopped) already.
+      const settlingRelay = relayTurnActive;
+      relayTurnActive = false;
       if (!turnCompleteSent && !abortPending) {
         turnCompleteSent = true;
         const complete = createCompleteMessage({ provider: 'claude', sessionId: capturedSessionId || sessionId || null, exitCode: failure ? 1 : 0 });
         // [local] A background agent's approval may still be pending; the
         // client drops every prompt on `complete` unless it is listed here.
-        ws.send(settlingAdopted
+        ws.send(settlingAdopted || settlingRelay
           ? { ...complete, pendingPermissions: getPendingApprovalsForSession(sessionId || capturedSessionId || '') }
           : complete);
-        if (failure) {
+        if (settlingRelay && !failure) {
+          // [local] Not a run of the user's that stopped: the background
+          // work reported in, and when it was the last of it, that is the
+          // notice the user gets, as before relay turns were reported.
+          if (heldForBackgroundWork && !stillOutstanding) {
+            notifyBackgroundWorkCompleted({
+              userId: ws?.userId || null,
+              provider: 'claude',
+              sessionId: sessionId || capturedSessionId || null,
+              sessionName: sessionSummary
+            });
+          }
+        } else if (failure) {
           notifyRunFailed({
             userId: ws?.userId || null,
             provider: 'claude',
@@ -2963,6 +3003,32 @@ async function queryClaudeSDK(
         // session_id already captured
       }
 
+      // [local] A turn the CLI starts on its own once the last one was
+      // reported complete (background work reporting in) is announced as a
+      // turn: the gateway runs the session's run again until its `complete`,
+      // so a Stop, a steer, the indicator and the queue treat it like any
+      // reply. Not an adopted message's turn (adoptInFlight), and nothing on
+      // a process that is being aborted. While a message a Stop could not
+      // cancel may still start (doomedIds), a turn could be that message's,
+      // which is stopped the moment it is read and must show nothing: such a
+      // turn is left unannounced, as every relay turn was before.
+      if (
+        adoptable
+        && message.type === 'system'
+        && message.subtype === 'init'
+        && turnCompleteSent
+        && !adoptInFlight
+        && !relayTurnActive
+        && !interruptedResultPending
+        && doomedIds.size === 0
+        && !abortedInstances.has(liveQuery)
+      ) {
+        relayTurnActive = true;
+        turnCompleteSent = false;
+        assistantBudgetSent = false;
+        ws.send(createNormalizedMessage({ kind: 'turn_started', origin: 'background', sessionId: capturedSessionId || sessionId || null, provider: 'claude' }));
+      }
+
       // The follow-up turn for unread steered messages has started; its own
       // `result` ends the run.
       if (steerFollowUpTimer && message.type === 'system' && message.subtype === 'init') {
@@ -2997,6 +3063,7 @@ async function queryClaudeSDK(
           pendingSteerIds.delete(echoedId);
           suppressForwarding = true;
           doomedTurnActive = true;
+
           Promise.resolve()
             .then(() => liveQuery.interrupt())
             .catch((error) => {
@@ -3156,8 +3223,9 @@ async function queryClaudeSDK(
           awaitSteerFollowUp();
         } else {
           // [local] A turn ending after the last one was reported complete
-          // (other than one a Stop interrupted) is a relay paying its debt.
-          if (everAdopted && turnCompleteSent && !interruptedResultPending) {
+          // (other than one a Stop interrupted) is a relay paying its debt,
+          // and so is a relay turn that was announced, stopped or not.
+          if (everAdopted && (relayTurnActive || (turnCompleteSent && !interruptedResultPending))) {
             relaysOwed = Math.max(0, relaysOwed - 1);
           }
           interruptedResultPending = false;
