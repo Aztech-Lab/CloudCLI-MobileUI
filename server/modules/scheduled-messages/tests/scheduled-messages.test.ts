@@ -16,6 +16,8 @@ import { scheduledMessagesService } from '@/modules/scheduled-messages/services/
 import { chatRunRegistry, connectedClients } from '@/modules/websocket/index.js';
 
 const SESSION_ID = 'scheduled-session';
+/** [local] A session of a provider that cannot join a held process (Codex). */
+const CODEX_SESSION_ID = 'scheduled-codex-session';
 
 async function withIsolatedDatabase(runTest: (userId: number) => void | Promise<void>): Promise<void> {
   const previousDatabasePath = process.env.DATABASE_PATH;
@@ -28,6 +30,7 @@ async function withIsolatedDatabase(runTest: (userId: number) => void | Promise<
   try {
     const user = userDb.createUser('scheduler', 'hash');
     sessionsDb.createAppSession(SESSION_ID, 'claude', tempDirectory, 'Scheduled session');
+    sessionsDb.createAppSession(CODEX_SESSION_ID, 'codex', tempDirectory, 'Codex session');
     await runTest(Number(user.id));
   } finally {
     chatRunRegistry.clearAll();
@@ -166,25 +169,27 @@ test('a queued message stays pending while its session is busy', async () => {
 
 test('a queued message waits for background work its session\'s last turn left running', async () => {
   await withIsolatedDatabase(async (userId) => {
-    sessionDraftsDb.saveDraft(userId, SESSION_ID, {
+    // [local] A provider that cannot join the held process: for Claude, see
+    // "a queued message joins the held process" below.
+    sessionDraftsDb.saveDraft(userId, CODEX_SESSION_ID, {
       text: '',
       queuedMessage: { content: 'send after the background job' },
     });
     // Turn A ended, so its run is completed, but it backgrounded a command
     // that is still running under A's CLI process.
     const runA = chatRunRegistry.startRun({
-      appSessionId: SESSION_ID,
-      provider: 'claude',
+      appSessionId: CODEX_SESSION_ID,
+      provider: 'codex',
       providerSessionId: null,
       connection: null,
       userId,
     });
     runA!.writer.sendComplete({ exitCode: 0 });
-    assert.equal(chatRunRegistry.isProcessing(SESSION_ID), false);
+    assert.equal(chatRunRegistry.isProcessing(CODEX_SESSION_ID), false);
 
     let backgroundWork = true;
     const runs: RunCall[] = [];
-    const runtime = createRuntime(runs, 'ok', [], (sessionId) => sessionId === SESSION_ID && backgroundWork);
+    const runtime = createRuntime(runs, 'ok', [], (sessionId) => sessionId === CODEX_SESSION_ID && backgroundWork);
 
     // Starting B now would replace that process and stop the command.
     assert.equal(await dispatchQueuedMessages(runtime), 0);
@@ -393,15 +398,17 @@ test('a draft-text save after the queued message was sent does not send it again
 
 test('a due message interrupts a run in progress instead of failing', async () => {
   await withIsolatedDatabase(async (userId) => {
+    // [local] A provider that cannot join a running process; Claude waits for
+    // the turn instead (scheduled-messages-adopt.test.ts).
     scheduledMessagesService.schedule({
       userId,
-      sessionId: SESSION_ID,
+      sessionId: CODEX_SESSION_ID,
       content: 'the schedule wins',
       scheduledFor: new Date(Date.now() - 1_000).toISOString(),
     });
     chatRunRegistry.startRun({
-      appSessionId: SESSION_ID,
-      provider: 'claude',
+      appSessionId: CODEX_SESSION_ID,
+      provider: 'codex',
       providerSessionId: null,
       connection: null,
       userId,
@@ -411,10 +418,10 @@ test('a due message interrupts a run in progress instead of failing', async () =
     const aborts: string[] = [];
     assert.equal(await dispatchDueScheduledMessages(createRuntime(runs, 'ok', aborts)), 1);
 
-    assert.deepEqual(aborts, [SESSION_ID]);
+    assert.deepEqual(aborts, [CODEX_SESSION_ID]);
     assert.equal(runs.length, 1);
     assert.equal(runs[0].command, 'the schedule wins');
-    assert.equal(scheduledMessagesDb.listForSession(userId, SESSION_ID)[0].status, 'sent');
+    assert.equal(scheduledMessagesDb.listForSession(userId, CODEX_SESSION_ID)[0].status, 'sent');
   });
 });
 
