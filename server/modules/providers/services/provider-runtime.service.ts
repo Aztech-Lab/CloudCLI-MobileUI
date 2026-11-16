@@ -118,6 +118,18 @@ export function createProviderRuntimeService(
       return Boolean(await runtime.steer?.(sessionId, command, options));
     },
 
+    // [local] Withdraw an unread steered message.
+    async cancelSteer(providerName: LLMProvider, sessionId: string, messageId: string): Promise<boolean> {
+      const { runtime } = dependencies.resolveProvider(providerName);
+      return Boolean(await runtime.cancelSteer?.(sessionId, messageId));
+    },
+
+    // [local] "Move to background" for a running foreground tool call.
+    async backgroundTask(providerName: LLMProvider, sessionId: string, toolUseId?: string): Promise<boolean> {
+      const { runtime } = dependencies.resolveProvider(providerName);
+      return Boolean(await runtime.backgroundTask?.(sessionId, toolUseId));
+    },
+
     hasBackgroundWork(sessionId: string): boolean {
       return dependencies.listProviders().some((provider) =>
         (provider.runtime.listBackgroundWork?.() ?? []).some((entry) => entry.sessionId === sessionId));

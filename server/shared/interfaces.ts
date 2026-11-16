@@ -84,6 +84,16 @@ export interface IProviderRuntime {
    * a runtime that keeps its CLI's input open during a turn implements this.
    */
   steer?(sessionId: string, command: string, options: AnyRecord): Promise<boolean>;
+  /**
+   * [local] Withdraws a message steered into the running turn that the model
+   * has not read yet. Resolves true only when it was dropped.
+   */
+  cancelSteer?(sessionId: string, messageId: string): Promise<boolean>;
+  /**
+   * [local] Moves a running foreground tool call (by tool_use id; all of them
+   * without one) to the background so the turn goes on. False when nothing moved.
+   */
+  backgroundTask?(sessionId: string, toolUseId?: string): Promise<boolean>;
 }
 
 /**

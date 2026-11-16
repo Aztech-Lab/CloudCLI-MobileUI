@@ -832,6 +832,8 @@ export type ProviderRuntimeContext = {
   createQuery?: (input: { prompt: AsyncIterable<unknown>; options: AnyRecord }) => AsyncIterable<unknown> & {
     interrupt(): Promise<unknown>;
     stopTask?(taskId: string): Promise<void>;
+    // [local] Moves running foreground work to the background (Ctrl+B).
+    backgroundTasks?(toolUseId?: string): Promise<boolean>;
     setModel?(model?: string): Promise<void>;
     setPermissionMode?(mode: string): Promise<void>;
     applyFlagSettings?(settings: AnyRecord): Promise<void>;

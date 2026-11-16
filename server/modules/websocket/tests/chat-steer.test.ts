@@ -33,8 +33,8 @@ type SteerCall = { provider: string; sessionId: string; command: string; options
  * `running` decides whether the session has a chat run in progress.
  */
 async function withGateway(
-  { accepts, running }: { accepts: boolean; running: boolean },
-  runTest: (context: { socket: ReturnType<typeof createFakeSocket>; steers: SteerCall[] }) => Promise<void>,
+  { accepts, running, cancels = false, backgrounds = false }: { accepts: boolean; running: boolean; cancels?: boolean; backgrounds?: boolean },
+  runTest: (context: { socket: ReturnType<typeof createFakeSocket>; steers: SteerCall[]; calls: string[] }) => Promise<void>,
 ): Promise<void> {
   const previousDatabasePath = process.env.DATABASE_PATH;
   const tempDirectory = await mkdtemp(path.join(os.tmpdir(), 'chat-steer-'));
@@ -44,6 +44,8 @@ async function withGateway(
   await initializeDatabase();
 
   const steers: SteerCall[] = [];
+  // [local] `cancelSteer` / `backgroundTask` calls, as "<method>:<provider>:<sessionId>:<id>".
+  const calls: string[] = [];
   const socket = createFakeSocket();
 
   try {
@@ -68,11 +70,19 @@ async function withGateway(
             steers.push({ provider, sessionId, command, options });
             return accepts;
           },
+          cancelSteer: async (provider: string, sessionId: string, messageId: string) => {
+            calls.push(`cancelSteer:${provider}:${sessionId}:${messageId}`);
+            return cancels;
+          },
+          backgroundTask: async (provider: string, sessionId: string, toolUseId: string) => {
+            calls.push(`backgroundTask:${provider}:${sessionId}:${toolUseId}`);
+            return backgrounds;
+          },
         } as never,
       },
     );
 
-    await runTest({ socket, steers });
+    await runTest({ socket, steers, calls });
   } finally {
     connectedClients.clear();
     chatRunRegistry.clearAll();
@@ -155,5 +165,84 @@ test('an empty steer is refused before it reaches the runtime', async () => {
 
     assert.equal(steers.length, 0);
     assert.equal(socket.frames.at(-1)?.code, 'MESSAGE_REQUIRED');
+  });
+});
+
+// [local] Send now, withdraw, and move to background.
+
+test('chat.steer passes "send now" through as urgent, and a plain steer as not urgent', async () => {
+  await withGateway({ accepts: true, running: true }, async ({ socket, steers }) => {
+    socket.emit('message', JSON.stringify({ type: 'chat.steer', sessionId: SESSION_ID, messageId: MESSAGE_ID, content: 'now', urgent: true }));
+    socket.emit('message', JSON.stringify({ type: 'chat.steer', sessionId: SESSION_ID, messageId: MESSAGE_ID, content: 'next' }));
+    await settle();
+
+    assert.equal(steers.length, 2);
+    assert.equal(steers[0].options.urgent, true);
+    assert.equal(steers[1].options.urgent, false);
+  });
+});
+
+test('chat.cancel-steer asks the runtime and reports whether the message was withdrawn', async () => {
+  await withGateway({ accepts: true, running: true, cancels: true }, async ({ socket, calls }) => {
+    socket.emit('message', JSON.stringify({ type: 'chat.cancel-steer', sessionId: SESSION_ID, messageId: MESSAGE_ID }));
+    await settle();
+
+    assert.deepEqual(calls, [`cancelSteer:claude:${SESSION_ID}:${MESSAGE_ID}`]);
+    assert.equal(socket.frames.at(-1)?.kind, 'chat_steer_cancelled');
+    assert.equal(socket.frames.at(-1)?.messageId, MESSAGE_ID);
+    assert.equal(socket.frames.at(-1)?.cancelled, true);
+  });
+});
+
+test('chat.cancel-steer for a message already read answers cancelled: false', async () => {
+  await withGateway({ accepts: true, running: true, cancels: false }, async ({ socket }) => {
+    socket.emit('message', JSON.stringify({ type: 'chat.cancel-steer', sessionId: SESSION_ID, messageId: MESSAGE_ID }));
+    await settle();
+
+    assert.equal(socket.frames.at(-1)?.kind, 'chat_steer_cancelled');
+    assert.equal(socket.frames.at(-1)?.cancelled, false);
+  });
+});
+
+test('chat.cancel-steer needs a message id that is a UUID', async () => {
+  await withGateway({ accepts: true, running: true, cancels: true }, async ({ socket, calls }) => {
+    socket.emit('message', JSON.stringify({ type: 'chat.cancel-steer', sessionId: SESSION_ID, messageId: '../etc' }));
+    await settle();
+
+    assert.deepEqual(calls, []);
+    assert.equal(socket.frames.at(-1)?.code, 'MESSAGE_ID_REQUIRED');
+  });
+});
+
+test('chat.background-task moves the named tool call aside and says nothing on success', async () => {
+  await withGateway({ accepts: true, running: true, backgrounds: true }, async ({ socket, calls }) => {
+    socket.emit('message', JSON.stringify({ type: 'chat.background-task', sessionId: SESSION_ID, toolUseId: 'toolu_1' }));
+    await settle();
+
+    assert.deepEqual(calls, [`backgroundTask:claude:${SESSION_ID}:toolu_1`]);
+    assert.equal(socket.frames.length, 0, 'the tool result and task events arrive on the run stream');
+  });
+});
+
+test('chat.background-task that moved nothing is reported with BACKGROUND_UNAVAILABLE, naming the call', async () => {
+  await withGateway({ accepts: true, running: true, backgrounds: false }, async ({ socket }) => {
+    socket.emit('message', JSON.stringify({ type: 'chat.background-task', sessionId: SESSION_ID, toolUseId: 'toolu_1' }));
+    await settle();
+
+    assert.equal(socket.frames.at(-1)?.code, 'BACKGROUND_UNAVAILABLE');
+    assert.equal(socket.frames.at(-1)?.toolUseId, 'toolu_1');
+  });
+});
+
+test('chat.background-task with no running turn never reaches the runtime', async () => {
+  await withGateway({ accepts: true, running: false, backgrounds: true }, async ({ socket, calls }) => {
+    socket.emit('message', JSON.stringify({ type: 'chat.background-task', sessionId: SESSION_ID, toolUseId: 'toolu_1' }));
+    socket.emit('message', JSON.stringify({ type: 'chat.background-task', sessionId: SESSION_ID }));
+    await settle();
+
+    assert.deepEqual(calls, []);
+    const codes = socket.frames.map((frame) => frame.code);
+    assert.ok(codes.includes('BACKGROUND_UNAVAILABLE'));
+    assert.ok(codes.includes('TOOL_USE_ID_REQUIRED'));
   });
 });

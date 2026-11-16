@@ -94,6 +94,10 @@ export type ProviderRuntimeGateway = SideQuestionRuntime & {
   stopAllBackgroundWork?(provider: LLMProvider, sessionId: string): Promise<boolean>;
   /** Delivers a message into the session's running turn; false when no turn can take it. */
   steer(provider: LLMProvider, sessionId: string, command: string, options: AnyRecord): Promise<boolean>;
+  /** [local] Withdraws an unread steered message; true only when it was dropped. */
+  cancelSteer?(provider: LLMProvider, sessionId: string, messageId: string): Promise<boolean>;
+  /** [local] Moves a running foreground tool call to the background; false when nothing moved. */
+  backgroundTask?(provider: LLMProvider, sessionId: string, toolUseId?: string): Promise<boolean>;
   /** Whether a provider runtime still holds background work for the session after its turn ended. */
   hasBackgroundWork(sessionId: string): boolean;
   resolveToolApproval(requestId: string, payload: ProviderPermissionDecision): void;
@@ -668,6 +672,8 @@ async function handleChatSteer(
       images: attachments.filter(isImageAttachmentDescriptor),
       files: attachments.filter((descriptor) => !isImageAttachmentDescriptor(descriptor)),
       messageId,
+      // [local] "Send now": read at once rather than at the next tool call.
+      urgent: data.urgent === true,
     })
     : false;
 
@@ -690,6 +696,86 @@ async function handleChatSteer(
     messageId,
     timestamp: new Date().toISOString(),
   });
+}
+
+/**
+ * [local] Handles `chat.cancel-steer`: withdraws a steered message the agent
+ * has not read yet. Answers the sender with `chat_steer_cancelled`, whose
+ * `cancelled` is true only when the provider dropped the message; false means
+ * it was already read (its echo follows on the run's stream) or is unknown.
+ */
+async function handleChatCancelSteer(
+  ws: WebSocket,
+  data: AnyRecord,
+  dependencies: ChatWebSocketDependencies
+): Promise<void> {
+  const resolved = resolveSendTarget(ws, data, dependencies, 'chat.cancel-steer');
+  if (!resolved) {
+    return;
+  }
+  const { sessionId, provider } = resolved;
+  const messageId = typeof data.messageId === 'string' ? data.messageId.trim() : '';
+  if (!UUID_PATTERN.test(messageId)) {
+    sendProtocolError(ws, 'MESSAGE_ID_REQUIRED', 'chat.cancel-steer requires the messageId of a steered message.', sessionId);
+    return;
+  }
+
+  let cancelled = false;
+  try {
+    cancelled = Boolean(await dependencies.runtime.cancelSteer?.(provider, sessionId, messageId));
+  } catch (error) {
+    console.warn(`[chat] Withdrawing steered message ${messageId} of ${sessionId} failed:`, error);
+  }
+  sendJson(ws, {
+    kind: 'chat_steer_cancelled',
+    sessionId,
+    messageId,
+    cancelled,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/**
+ * [local] Handles `chat.background-task`: moves a running foreground tool call
+ * (a shell command or subagent, named by its `toolUseId`) of the session's
+ * turn to the background, as Ctrl+B does in the terminal. On success the
+ * call's result and the task's own events arrive on the run's stream, so
+ * nothing is echoed back; `BACKGROUND_UNAVAILABLE` says nothing was moved.
+ */
+async function handleChatBackgroundTask(
+  ws: WebSocket,
+  data: AnyRecord,
+  dependencies: ChatWebSocketDependencies
+): Promise<void> {
+  const resolved = resolveSendTarget(ws, data, dependencies, 'chat.background-task');
+  if (!resolved) {
+    return;
+  }
+  const { sessionId, provider } = resolved;
+  const toolUseId = typeof data.toolUseId === 'string' ? data.toolUseId.trim() : '';
+  if (!toolUseId) {
+    sendProtocolError(ws, 'TOOL_USE_ID_REQUIRED', 'chat.background-task requires a toolUseId.', sessionId);
+    return;
+  }
+
+  const run = chatRunRegistry.getRun(sessionId);
+  let backgrounded = false;
+  if (run?.status === 'running') {
+    try {
+      backgrounded = Boolean(await dependencies.runtime.backgroundTask?.(provider, sessionId, toolUseId));
+    } catch (error) {
+      console.warn(`[chat] Moving tool call ${toolUseId} of ${sessionId} to the background failed:`, error);
+    }
+  }
+  if (!backgrounded) {
+    sendProtocolError(
+      ws,
+      'BACKGROUND_UNAVAILABLE',
+      `Tool call "${toolUseId}" of session "${sessionId}" could not be moved to the background.`,
+      sessionId,
+      { toolUseId },
+    );
+  }
 }
 
 /**
@@ -910,7 +996,9 @@ function handlePermissionResponse(data: AnyRecord, dependencies: ChatWebSocketDe
  * Inbound protocol (client to server):
  * - `chat.send`                { sessionId, content, options? }
  * - `chat.side_question`       { sessionId, sideQuestionId, question, options?: { model? } }
- * - `chat.steer`               { sessionId, messageId, content, options? }
+ * - `chat.steer`               { sessionId, messageId, content, options?, urgent? }
+ * - `chat.cancel-steer`        { sessionId, messageId }  ([local])
+ * - `chat.background-task`     { sessionId, toolUseId }  ([local])
  * - `chat.abort`               { sessionId }
  * - `chat.stop-task`           { sessionId, taskId }
  * - `chat.stop-all-background` { sessionId }  ([local])
@@ -919,7 +1007,7 @@ function handlePermissionResponse(data: AnyRecord, dependencies: ChatWebSocketDe
  *
  * Outbound protocol (server to client): every frame is `kind`-based — either
  * a provider `NormalizedMessage` (with `seq`) or a gateway event
- * (`chat_subscribed`, `chat_steer_accepted`, `session_upserted`,
+ * (`chat_subscribed`, `chat_steer_accepted`, `chat_steer_cancelled`, `session_upserted`,
  * `loading_progress`, `protocol_error`, `side_question`).
  */
 /**
@@ -1021,6 +1109,12 @@ export function handleChatConnection(
           return;
         case 'chat.steer':
           await handleChatSteer(ws, data, dependencies);
+          return;
+        case 'chat.cancel-steer':
+          await handleChatCancelSteer(ws, data, dependencies);
+          return;
+        case 'chat.background-task':
+          await handleChatBackgroundTask(ws, data, dependencies);
           return;
         case 'chat.abort':
           await handleChatAbort(ws, data, dependencies);

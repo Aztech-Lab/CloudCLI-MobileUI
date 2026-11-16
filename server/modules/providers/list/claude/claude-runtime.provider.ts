@@ -104,6 +104,11 @@ type ActiveSession = {
    * it; the caller then falls back to an ordinary next turn.
    */
   steerInput: SteerInput | null;
+  /**
+   * [local] Withdraws a steered message the CLI has not read yet
+   * (`cancel_async_message`). Resolves true only when the CLI dropped it.
+   */
+  cancelSteer: CancelSteer | null;
   // [local] Entry points of an adoptable run (a chat turn dispatched through
   // the gateway, `options.adoptable`), carried across the mid-run
   // re-registration like `steerInput`. All null for any other run, which
@@ -189,9 +194,22 @@ type SteerRequest = {
   images?: unknown;
   files?: unknown;
   messageId: string;
+  /**
+   * [local] "Send now": the message is read at once instead of at the next
+   * tool-call boundary (see `steerIntoTurn`).
+   */
+  urgent?: boolean;
 };
 
 type SteerInput = (request: SteerRequest) => Promise<boolean>;
+
+/** [local] Withdraws an unread steered message by its id; true when the CLI dropped it. */
+type CancelSteer = (messageId: string) => Promise<boolean>;
+
+// [local] Main-thread tools whose running call the CLI can move to the
+// background (`backgroundTasks`, Ctrl+B in the terminal): shell commands and
+// subagents. `Task` is the older name of `Agent`.
+const BACKGROUNDABLE_TOOL_NAMES = new Set(['Bash', 'PowerShell', 'Agent', 'Task']);
 
 type ToolApprovalDecision = AnyRecord | null;
 
@@ -487,6 +505,65 @@ function cancelQueuedMessage(instance: ClaudeQuery, uuid: string): Promise<boole
   });
 }
 
+/**
+ * [local] Asks the CLI to move running foreground tasks (shell commands and
+ * subagents) to the background, as Ctrl+B does in the terminal: each blocking
+ * tool call returns at once and the turn goes on while the task keeps running.
+ * With `toolUseId`, only the task that tool call started. A missing method, a
+ * refusal (background tasks disabled), a failure or a timeout all resolve
+ * false; so does a `toolUseId` that matched no foreground task.
+ */
+function requestBackgroundTasks(instance: ClaudeQuery, toolUseId?: string): Promise<boolean> {
+  const background = instance.backgroundTasks;
+  if (typeof background !== 'function') {
+    return Promise.resolve(false);
+  }
+  return new Promise<boolean>((resolve) => {
+    const timer = setTimeout(() => resolve(false), CONTROL_REQUEST_TIMEOUT_MS);
+    timer.unref?.();
+    const settle = (backgrounded: boolean) => { clearTimeout(timer); resolve(backgrounded); };
+    try {
+      Promise.resolve(background.call(instance, toolUseId)).then(
+        (backgrounded) => settle(backgrounded !== false),
+        (error: unknown) => {
+          console.warn('[Claude SDK] Moving work to the background failed:', errorMessage(error));
+          settle(false);
+        },
+      );
+    } catch (error) {
+      console.warn('[Claude SDK] Moving work to the background failed:', errorMessage(error));
+      settle(false);
+    }
+  });
+}
+
+/**
+ * [local] Updates the running main-thread tool calls from one stream message:
+ * an assistant `tool_use` block starts one, a `tool_result` block in a user
+ * message ends it, and a turn's `result` ends them all. Subagent messages
+ * (`parent_tool_use_id` set) and stdin echoes are not the main thread's calls.
+ */
+function trackForegroundToolCalls(message: AnyRecord, calls: Map<string, string>): void {
+  if (message.type === 'result') {
+    calls.clear();
+    return;
+  }
+  if (message.parent_tool_use_id || message.isReplay === true) {
+    return;
+  }
+  const content = (message.message as AnyRecord | undefined)?.content;
+  if (!Array.isArray(content)) {
+    return;
+  }
+  for (const block of content as AnyRecord[]) {
+    if (message.type === 'assistant' && block?.type === 'tool_use' && typeof block.id === 'string') {
+      calls.set(block.id, typeof block.name === 'string' ? block.name : '');
+    } else if (message.type === 'user' && block?.type === 'tool_result' && typeof block.tool_use_id === 'string') {
+      calls.delete(block.tool_use_id);
+    }
+  }
+}
+
 /** [local] The uuids an interrupt receipt says will still run, or null for a CLI that sends no receipt. */
 function readStillQueued(receipt: unknown): string[] | null {
   const stillQueued = (receipt as AnyRecord | null | undefined)?.still_queued;
@@ -721,6 +798,7 @@ function mapCliOptionsToSDK(options: AnyRecord = {}) {
  * @param {Function} releaseInput - Closes the held stdin stream so the CLI can exit
  * @param {Function} steerInput - Pushes a user message into the running turn
  * @param {Object} adoption - [local] The adoption entry points of an adoptable run
+ * @param {Function} cancelSteer - [local] Withdraws an unread steered message
  */
 function addSession(
   sessionId: string,
@@ -729,6 +807,7 @@ function addSession(
   releaseInput: (() => void) | null = null,
   steerInput: SteerInput | null = null,
   adoption: AdoptionHooks | null = null,
+  cancelSteer: CancelSteer | null = null,
 ) {
   const existing = activeSessions.get(sessionId);
   // A different live instance under the same key means an earlier run was
@@ -776,6 +855,8 @@ function addSession(
     // Re-registered mid-run once the provider session id lands; keep the
     // steer entry point like the closer below.
     steerInput: steerInput || carried?.steerInput || null,
+    // [local] Carried the same way as `steerInput`.
+    cancelSteer: cancelSteer || carried?.cancelSteer || null,
     // [local] Carried the same way as `steerInput`.
     adoptTurn: adoption?.adoptTurn ?? carried?.adoptTurn ?? null,
     interruptTurn: adoption?.interruptTurn ?? carried?.interruptTurn ?? null,
@@ -1472,26 +1553,35 @@ async function buildPromptMessages(command: string, images: unknown, files: unkn
  * waiting for the run to end. A push after `release` is refused, because the
  * CLI is already on its way out and would never read it.
  *
+ * [local] `onTaken` is called once the SDK has taken the pushed message and
+ * asked for the next one (it writes each message to stdin before asking), or
+ * when the stream is released first. A control request that must reach the
+ * CLI after the message waits for it.
+ *
  * @param {Array<Object>} messages - SDKUserMessage records to send
- * @returns {{ stream: AsyncIterable, release: () => void, push: (message: unknown) => boolean }}
+ * @returns {{ stream: AsyncIterable, release: () => void, push: (message: unknown, onTaken?: () => void) => boolean }}
  */
 function createHeldPromptStream(messages: unknown[]) {
   // Messages pushed while parked, waiting for the CLI to read them.
-  const pending: unknown[] = [];
+  const pending: Array<{ message: unknown; onTaken?: () => void }> = [];
   let released = false;
   // Wakes the parked generator for a push or the release.
   let wake: (() => void) | null = null;
 
   const release = () => {
     released = true;
+    // [local] Nothing parked will be taken now.
+    for (const entry of pending) {
+      entry.onTaken?.();
+    }
     wake?.();
   };
 
-  const push = (message: unknown) => {
+  const push = (message: unknown, onTaken?: () => void) => {
     if (released) {
       return false;
     }
-    pending.push(message);
+    pending.push({ message, onTaken });
     wake?.();
     return true;
   };
@@ -1503,7 +1593,9 @@ function createHeldPromptStream(messages: unknown[]) {
     }
     for (;;) {
       while (pending.length > 0 && !released) {
-        yield pending.shift();
+        const entry = pending.shift()!;
+        yield entry.message;
+        entry.onTaken?.();
       }
       // Keeps stdin open — the CLI stays alive until release() is called.
       if (released) {
@@ -1617,7 +1709,7 @@ async function queryClaudeSDK(
   let releasePromptStream: () => void = () => {};
   // Writes one more message to the held stdin stream (steering). Replaced
   // once the stream exists; refuses until then and after the release.
-  let pushPromptMessage: (message: unknown) => boolean = () => false;
+  let pushPromptMessage: (message: unknown, onTaken?: () => void) => boolean = () => false;
   // Every message steered into this run, by the uuid it was sent with. The CLI
   // echoes a message written to its stdin when it reads it, and only these
   // echoes are shown — the turn's own prompt is already on screen.
@@ -1889,7 +1981,15 @@ async function queryClaudeSDK(
   // turn; a turn that ends before one runs it as a follow-up turn instead.
   // Refused once the turn has been reported complete: the client then sends
   // it as an ordinary new turn.
-  const steerIntoTurn: SteerInput = async ({ command: steerCommand, images, files, messageId }) => {
+  //
+  // [local] An `urgent` message ("Send now") is read at once. While a shell
+  // command or subagent of the main thread is running, it is pushed as `next`
+  // and that work is moved to the background (Ctrl+B), so the call returns
+  // and Claude reads the message in the same turn, as Ctrl+Enter does in the
+  // official client. If nothing could be moved, or nothing such is running,
+  // it goes as `now`, which makes the CLI cut the current step short and read
+  // it straight away; work already in the background keeps running.
+  const steerIntoTurn: SteerInput = async ({ command: steerCommand, images, files, messageId, urgent = false }) => {
     // [local] A steer that arrives while an adoption is being set up (the
     // client already shows the adopted turn as running) waits for its push
     // rather than being refused against the previous turn's state.
@@ -1907,12 +2007,66 @@ async function queryClaudeSDK(
     }
     pendingSteerIds.add(messageId);
     steeredMessageIds.add(messageId);
-    const pushed = pushPromptMessage({ ...steerMessage, priority: 'next', uuid: messageId });
+    // [local] See above: `next` unless an urgent message has no work to move aside.
+    const movable = urgent && [...foregroundToolCalls.values()].some((name) => BACKGROUNDABLE_TOOL_NAMES.has(name));
+    let markTaken!: () => void;
+    const taken = new Promise<void>((resolve) => { markTaken = resolve; });
+    const pushed = pushPromptMessage({ ...steerMessage, priority: urgent && !movable ? 'now' : 'next', uuid: messageId }, markTaken);
     if (!pushed) {
       pendingSteerIds.delete(messageId);
       steeredMessageIds.delete(messageId);
+      return false;
     }
-    return pushed;
+    const instance = queryInstance;
+    // [local] The message must be in the CLI's queue before the moved call
+    // returns, or the turn would go on past the boundary that reads it.
+    if (movable) {
+      await taken;
+    }
+    if (movable && instance && !(await requestBackgroundTasks(instance))) {
+      // [local] Nothing moved (background tasks disabled, or an older CLI), so
+      // the message would wait for the running call. Take it back and send it
+      // again as `now`; if the CLI has already taken it, it is being read.
+      if (pendingSteerIds.has(messageId) && await cancelQueuedMessage(instance, messageId)) {
+        if (!pushPromptMessage({ ...steerMessage, priority: 'now', uuid: messageId })) {
+          forgetSteer(messageId);
+        }
+      }
+    }
+    return true;
+  };
+
+  // [local] Main-thread tool calls that have started and not returned yet, by
+  // tool_use id, with the tool's name. Read by an urgent steer to tell whether
+  // there is running work to move to the background.
+  const foregroundToolCalls = new Map<string, string>();
+  // [local] Set once the turn loop below can settle a turn: a turn that ended
+  // waiting only for a message that was then withdrawn is over.
+  let settleAfterWithdrawnSteer: (() => void) | null = null;
+  // [local] Drops a steered message that will never be read.
+  const forgetSteer = (messageId: string) => {
+    pendingSteerIds.delete(messageId);
+    steeredMessageIds.delete(messageId);
+    if (steerFollowUpTimer && pendingSteerIds.size === 0) {
+      clearTimeout(steerFollowUpTimer);
+      steerFollowUpTimer = null;
+      settleAfterWithdrawnSteer?.();
+    }
+  };
+  // [local] Withdraws a steered message the CLI has not read yet (the official
+  // client's Up arrow on a queued message). Only the CLI can say whether it was
+  // still queued: false means it was read, or is being read, and its echo
+  // follows as usual.
+  const cancelSteer: CancelSteer = async (messageId) => {
+    const instance = queryInstance;
+    if (!instance || !pendingSteerIds.has(messageId)) {
+      return false;
+    }
+    if (!(await cancelQueuedMessage(instance, messageId))) {
+      return false;
+    }
+    forgetSteer(messageId);
+    return true;
   };
 
   try {
@@ -2591,7 +2745,7 @@ async function queryClaudeSDK(
 
     // Track the query instance for abort capability
     if (sessionKey()) {
-      addSession(sessionKey()!, queryInstance, ws, releasePromptStream, steerIntoTurn, adoptionHooks);
+      addSession(sessionKey()!, queryInstance, ws, releasePromptStream, steerIntoTurn, adoptionHooks, cancelSteer);
     }
 
     // Settles a turn whose `result` has arrived: tells the client the turn is
@@ -2719,6 +2873,7 @@ async function queryClaudeSDK(
     // arrives within milliseconds); the grace timer only covers a CLI that
     // drops them instead, so the run cannot sit "processing" until the idle
     // ceiling with nothing coming.
+    settleAfterWithdrawnSteer = () => settleTurnResult();
     const awaitSteerFollowUp = () => {
       if (steerFollowUpTimer) {
         clearTimeout(steerFollowUpTimer);
@@ -2740,7 +2895,7 @@ async function queryClaudeSDK(
       if (message.session_id && !capturedSessionId) {
 
         capturedSessionId = message.session_id;
-        addSession(sessionKey()!, queryInstance, ws, releasePromptStream, steerIntoTurn, adoptionHooks);
+        addSession(sessionKey()!, queryInstance, ws, releasePromptStream, steerIntoTurn, adoptionHooks, cancelSteer);
 
         // Set session ID on writer
         if (ws.setSessionId && typeof ws.setSessionId === 'function') {
@@ -2777,6 +2932,9 @@ async function queryClaudeSDK(
       if (adoptedPendingId && adoptWatchdogActive) {
         armAdoptWatchdog();
       }
+      // [local] Keeps `foregroundToolCalls` current: a main-thread tool_use
+      // starts a call, its tool_result (not an echo of stdin) ends it.
+      trackForegroundToolCalls(message, foregroundToolCalls);
 
       // The CLI's echo of a message it read from stdin (see `extraArgs`).
       if (message.type === 'user' && message.isReplay === true) {
@@ -3206,7 +3364,47 @@ async function steerClaudeSDKSession(sessionId: string, command: string, options
   const messageId = typeof options.messageId === 'string' && options.messageId
     ? options.messageId
     : crypto.randomUUID();
-  return session.steerInput({ command, images: options.images, files: options.files, messageId });
+  return session.steerInput({
+    command,
+    images: options.images,
+    files: options.files,
+    messageId,
+    // [local] "Send now".
+    urgent: options.urgent === true,
+  });
+}
+
+/**
+ * [local] Withdraws a message steered into a session's running turn that
+ * Claude has not read yet. Resolves true only when the CLI dropped it from its
+ * queue; false when there is no such message or it has already been read.
+ * @param {string} sessionId - App session identifier
+ * @param {string} messageId - The id the message was steered with
+ * @returns {Promise<boolean>} True once the message is withdrawn
+ */
+async function cancelSteerClaudeSDKSession(sessionId: string, messageId: string): Promise<boolean> {
+  const session = getSession(sessionId);
+  if (!session || session.status !== 'active' || !session.cancelSteer) {
+    return false;
+  }
+  return session.cancelSteer(messageId);
+}
+
+/**
+ * [local] Moves a running foreground tool call (a shell command or subagent)
+ * of a session's turn to the background, as Ctrl+B does in the terminal: the
+ * call returns at once, the turn goes on, and the task keeps running and is
+ * tracked like any background task. Without `toolUseId`, all such calls.
+ * @param {string} sessionId - App session identifier
+ * @param {string} [toolUseId] - The tool_use id of the call to move
+ * @returns {Promise<boolean>} False when nothing was moved
+ */
+async function backgroundClaudeSDKTask(sessionId: string, toolUseId?: string): Promise<boolean> {
+  const session = getSession(sessionId);
+  if (!session || session.status !== 'active' || session.inputReleased) {
+    return false;
+  }
+  return requestBackgroundTasks(session.instance, toolUseId);
 }
 
 /**
@@ -3494,6 +3692,8 @@ export const claudeRuntime = {
   stopAllBackgroundWork: stopAllClaudeSDKBackgroundWork,
   askSideQuestion,
   steer: steerClaudeSDKSession,
+  cancelSteer: cancelSteerClaudeSDKSession,
+  backgroundTask: backgroundClaudeSDKTask,
 };
 
 // Export public API
@@ -3501,6 +3701,8 @@ export {
   queryClaudeSDK,
   abortClaudeSDKSession,
   steerClaudeSDKSession,
+  cancelSteerClaudeSDKSession,
+  backgroundClaudeSDKTask,
   listClaudeSDKBackgroundWork,
   stopClaudeSDKTask,
   stopAllClaudeSDKBackgroundWork,

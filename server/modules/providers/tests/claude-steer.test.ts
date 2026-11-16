@@ -7,6 +7,8 @@ import test from 'node:test';
 import { ClaudeSessionsProvider } from '@/modules/providers/list/claude/claude-sessions.provider.js';
 import { CLAUDE_PREDEFINED_MODELS } from '@/modules/providers/list/claude/claude-models.provider.js';
 import {
+  backgroundClaudeSDKTask,
+  cancelSteerClaudeSDKSession,
   queryClaudeSDK,
   steerClaudeSDKSession,
 } from '@/modules/providers/list/claude/claude-runtime.provider.js';
@@ -33,14 +35,23 @@ type Scripted = {
   stdin: AnyRecord[];
   /** The options the runtime started the query with. */
   options: () => AnyRecord | null;
+  /** [local] Control requests the runtime made, in order, interleaved with stdin writes. */
+  calls: string[];
 };
 
-function createScriptedQuery(): { createQuery: NonNullable<ProviderRuntimeContext['createQuery']>; script: Scripted } {
+/** [local] How the scripted CLI answers the control requests a steer may send. */
+type Controls = {
+  backgroundTasks?: (toolUseId?: string) => Promise<boolean>;
+  cancelAsyncMessage?: (uuid: string) => Promise<boolean>;
+};
+
+function createScriptedQuery(controls: Controls = {}): { createQuery: NonNullable<ProviderRuntimeContext['createQuery']>; script: Scripted } {
   const queue: Array<Record<string, unknown> | null> = [];
   let wake: (() => void) | null = null;
   let released = false;
   let startedWith: AnyRecord | null = null;
   const stdin: AnyRecord[] = [];
+  const calls: string[] = [];
 
   const script: Scripted = {
     emit: (message) => { queue.push(message); wake?.(); },
@@ -48,6 +59,7 @@ function createScriptedQuery(): { createQuery: NonNullable<ProviderRuntimeContex
     released: () => released,
     stdin,
     options: () => startedWith,
+    calls,
   };
 
   const createQuery: NonNullable<ProviderRuntimeContext['createQuery']> = ({ prompt, options }) => {
@@ -55,6 +67,7 @@ function createScriptedQuery(): { createQuery: NonNullable<ProviderRuntimeContex
     void (async () => {
       for await (const message of prompt) {
         stdin.push(message as AnyRecord);
+        calls.push(`stdin:${String((message as AnyRecord).priority ?? '')}`);
       }
       released = true;
     })();
@@ -77,6 +90,18 @@ function createScriptedQuery(): { createQuery: NonNullable<ProviderRuntimeContex
     return Object.assign(iterator, {
       interrupt: async () => {},
       stopTask: async () => {},
+      ...(controls.backgroundTasks && {
+        backgroundTasks: (toolUseId?: string) => {
+          calls.push(`backgroundTasks:${toolUseId ?? ''}`);
+          return controls.backgroundTasks!(toolUseId);
+        },
+      }),
+      ...(controls.cancelAsyncMessage && {
+        cancelAsyncMessage: (uuid: string) => {
+          calls.push(`cancelAsyncMessage:${uuid}`);
+          return controls.cancelAsyncMessage!(uuid);
+        },
+      }),
     });
   };
 
@@ -85,9 +110,10 @@ function createScriptedQuery(): { createQuery: NonNullable<ProviderRuntimeContex
 
 async function withRun(
   runTest: (context: { script: Scripted; sent: NormalizedMessage[] }) => Promise<void>,
+  controls: Controls = {},
 ): Promise<void> {
   const cwd = await mkdtemp(path.join(os.tmpdir(), 'claude-steer-'));
-  const { createQuery, script } = createScriptedQuery();
+  const { createQuery, script } = createScriptedQuery(controls);
   const sent: NormalizedMessage[] = [];
   const writer = { send: (message: NormalizedMessage) => { sent.push(message); }, userId: null };
   const sessions = new ClaudeSessionsProvider({ getLiveRunStartTime: () => null });
@@ -121,9 +147,9 @@ async function waitFor(condition: () => boolean): Promise<void> {
 }
 
 const init = () => ({ type: 'system', subtype: 'init', session_id: NATIVE_ID });
-const toolUse = (id: string) => ({
-  type: 'assistant', session_id: NATIVE_ID, parent_tool_use_id: null,
-  message: { role: 'assistant', content: [{ type: 'tool_use', id, name: 'Bash', input: { command: 'sleep 4' } }] },
+const toolUse = (id: string, name = 'Bash', parent: string | null = null) => ({
+  type: 'assistant', session_id: NATIVE_ID, parent_tool_use_id: parent,
+  message: { role: 'assistant', content: [{ type: 'tool_use', id, name, input: { command: 'sleep 4' } }] },
 });
 const toolResult = (id: string) => ({
   type: 'user', session_id: NATIVE_ID, parent_tool_use_id: null,
@@ -259,4 +285,159 @@ test('history leaves the CLI\'s own queued notes out', () => {
   };
 
   assert.deepEqual(sessions.normalizeMessage(row, SESSION_ID), []);
+});
+
+// [local] "Send now", withdrawing a steered message, and "Move to background".
+
+test('send now with no running shell or agent call goes as `now`, so the CLI reads it at once', async () => {
+  await withRun(async ({ script }) => {
+    script.emit(init());
+    script.emit(toolUse('toolu_1', 'Read'));
+    await settle();
+
+    assert.equal(await steerClaudeSDKSession(SESSION_ID, 'stop and look here', { messageId: STEER_ID, urgent: true }), true);
+    await waitFor(() => script.stdin.length === 2);
+    assert.equal(script.stdin[1].priority, 'now');
+    assert.equal(script.stdin[1].uuid, STEER_ID);
+    assert.deepEqual(script.calls.filter((call) => call.startsWith('backgroundTasks')), [], 'nothing to move aside');
+
+    script.emit(echo(STEER_ID, 'stop and look here'));
+    script.emit(result());
+  }, { backgroundTasks: async () => true });
+});
+
+test('send now during a foreground command moves it to the background and is read in the same turn', async () => {
+  await withRun(async ({ script }) => {
+    script.emit(init());
+    script.emit(toolUse('toolu_1', 'Bash'));
+    await settle();
+
+    assert.equal(await steerClaudeSDKSession(SESSION_ID, 'meanwhile, check the logs', { messageId: STEER_ID, urgent: true }), true);
+    await waitFor(() => script.stdin.length === 2);
+    assert.equal(script.stdin[1].priority, 'next', 'read at the boundary the backgrounded call creates');
+    assert.deepEqual(script.calls.slice(1), ['stdin:next', 'backgroundTasks:'], 'queued before the call returns');
+
+    script.emit(echo(STEER_ID, 'meanwhile, check the logs'));
+    script.emit(result());
+  }, { backgroundTasks: async () => true });
+});
+
+test('send now does not count a subagent\'s own calls as the main thread\'s running work', async () => {
+  await withRun(async ({ script }) => {
+    script.emit(init());
+    script.emit(toolUse('toolu_agent', 'Agent'));
+    script.emit(toolUse('toolu_inner', 'Bash', 'toolu_agent'));
+    script.emit(toolResult('toolu_agent'));
+    await settle();
+
+    // The agent call has returned; only its subagent's Bash is still listed, which is not the main thread's.
+    assert.equal(await steerClaudeSDKSession(SESSION_ID, 'one', { messageId: STEER_ID, urgent: true }), true);
+    await waitFor(() => script.stdin.length === 2);
+    assert.equal(script.stdin[1].priority, 'now');
+    script.emit(echo(STEER_ID, 'one'));
+    script.emit(result());
+  }, { backgroundTasks: async () => true });
+});
+
+test('send now falls back to `now` when the CLI cannot move the command to the background', async () => {
+  await withRun(async ({ script }) => {
+    script.emit(init());
+    script.emit(toolUse('toolu_1', 'Bash'));
+    await settle();
+
+    assert.equal(await steerClaudeSDKSession(SESSION_ID, 'urgent', { messageId: STEER_ID, urgent: true }), true);
+    await waitFor(() => script.stdin.length === 3);
+    assert.deepEqual(script.calls.slice(1), ['stdin:next', 'backgroundTasks:', `cancelAsyncMessage:${STEER_ID}`, 'stdin:now']);
+    assert.equal(script.stdin[2].uuid, STEER_ID, 'sent again under the same id');
+
+    script.emit(echo(STEER_ID, 'urgent'));
+    script.emit(result());
+  }, {
+    backgroundTasks: async () => { throw new Error('background tasks are disabled'); },
+    cancelAsyncMessage: async () => true,
+  });
+});
+
+test('a plain steer never asks the CLI to move anything to the background', async () => {
+  await withRun(async ({ script }) => {
+    script.emit(init());
+    script.emit(toolUse('toolu_1', 'Bash'));
+    await settle();
+
+    assert.equal(await steerClaudeSDKSession(SESSION_ID, 'later is fine', { messageId: STEER_ID }), true);
+    await waitFor(() => script.stdin.length === 2);
+    assert.equal(script.stdin[1].priority, 'next');
+    assert.deepEqual(script.calls.filter((call) => call.startsWith('backgroundTasks')), []);
+    script.emit(echo(STEER_ID, 'later is fine'));
+    script.emit(result());
+  }, { backgroundTasks: async () => true });
+});
+
+test('an unread steered message can be withdrawn, and the turn then ends without waiting for it', async () => {
+  await withRun(async ({ script, sent }) => {
+    script.emit(init());
+    await settle();
+    assert.equal(await steerClaudeSDKSession(SESSION_ID, 'never mind', { messageId: STEER_ID }), true);
+    script.emit(result());
+    await settle();
+    assert.equal(sent.some((message) => message.kind === 'complete'), false, 'waiting for the follow-up turn');
+
+    assert.equal(await cancelSteerClaudeSDKSession(SESSION_ID, STEER_ID), true);
+    assert.ok(script.calls.includes(`cancelAsyncMessage:${STEER_ID}`));
+    await waitFor(() => sent.some((message) => message.kind === 'complete'));
+    assert.equal(userTexts(sent).length, 0);
+    // Withdrawn once is withdrawn: a second try has nothing to cancel.
+    assert.equal(await cancelSteerClaudeSDKSession(SESSION_ID, STEER_ID), false);
+  }, { cancelAsyncMessage: async () => true });
+});
+
+test('a steered message the CLI has already taken cannot be withdrawn and is shown when read', async () => {
+  await withRun(async ({ script, sent }) => {
+    script.emit(init());
+    script.emit(toolUse('toolu_1'));
+    await settle();
+    assert.equal(await steerClaudeSDKSession(SESSION_ID, 'too late to take back', { messageId: STEER_ID }), true);
+
+    assert.equal(await cancelSteerClaudeSDKSession(SESSION_ID, STEER_ID), false);
+    script.emit(toolResult('toolu_1'));
+    script.emit(echo(STEER_ID, 'too late to take back'));
+    script.emit(result());
+    await settle();
+    assert.equal(userTexts(sent).length, 1);
+  }, { cancelAsyncMessage: async () => false });
+});
+
+test('withdrawing is refused for a message that was never steered', async () => {
+  await withRun(async ({ script }) => {
+    script.emit(init());
+    await settle();
+    assert.equal(await cancelSteerClaudeSDKSession(SESSION_ID, STEER_ID), false);
+    assert.deepEqual(script.calls.filter((call) => call.startsWith('cancelAsyncMessage')), [], 'the CLI is not asked');
+    script.emit(result());
+  }, { cancelAsyncMessage: async () => true });
+});
+
+test('move to background targets the one tool call it names', async () => {
+  const asked: Array<string | undefined> = [];
+  await withRun(async ({ script }) => {
+    script.emit(init());
+    script.emit(toolUse('toolu_1', 'Bash'));
+    await settle();
+
+    assert.equal(await backgroundClaudeSDKTask(SESSION_ID, 'toolu_1'), true);
+    assert.equal(await backgroundClaudeSDKTask(SESSION_ID, 'toolu_other'), false, 'no such foreground call');
+    assert.deepEqual(asked, ['toolu_1', 'toolu_other']);
+    script.emit(result());
+  }, { backgroundTasks: async (toolUseId) => { asked.push(toolUseId); return toolUseId === 'toolu_1'; } });
+  assert.equal(await backgroundClaudeSDKTask('no-such-session', 'toolu_1'), false);
+});
+
+test('move to background reports nothing moved when the CLI has no such request', async () => {
+  await withRun(async ({ script }) => {
+    script.emit(init());
+    script.emit(toolUse('toolu_1', 'Bash'));
+    await settle();
+    assert.equal(await backgroundClaudeSDKTask(SESSION_ID, 'toolu_1'), false);
+    script.emit(result());
+  });
 });
