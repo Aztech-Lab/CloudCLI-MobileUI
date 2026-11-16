@@ -5,6 +5,7 @@ import path from 'node:path';
 import { projectGroupsDb, sessionsDb } from '@/modules/database/index.js';
 import { broadcastSessionUpserted, chatRunRegistry } from '@/modules/websocket/index.js';
 import { providerRegistry } from '@/modules/providers/provider.registry.js';
+import { backgroundWorkLedger } from '@/modules/providers/services/background-work-ledger.service.js';
 import { listBusyClaudeCliSessions } from '@/modules/providers/services/claude-cli-liveness.service.js';
 import { providerCapabilitiesService } from '@/modules/providers/services/provider-capabilities.service.js';
 import { sessionHistoryCache } from '@/modules/providers/services/session-history-cache.service.js';
@@ -209,6 +210,8 @@ async function readCurrentContextHistory(
   session: { session_id: string; provider: string; provider_session_id: string | null; project_path: string | null; jsonl_path: string | null },
   requestedLimit: number | null,
   requestedOffset: number,
+  // [local] False when the caller places the restart notices itself.
+  withRestartNotices = true,
 ): Promise<FetchHistoryResult> {
   const sessionId = session.session_id;
 
@@ -252,9 +255,14 @@ async function readCurrentContextHistory(
   if (fullHistory) {
     // Providers slice with this same helper, so a cached page is identical
     // to what a direct `(limit, offset)` read would have returned.
-    const { page, hasMore } = sliceTailPage(fullHistory.messages, requestedLimit, Math.max(0, requestedOffset));
+    // [local] With a notice where a restart ended the session's background work.
+    const messages = withRestartNotices
+      ? backgroundWorkLedger.withLostNotices(sessionId, provider, fullHistory.messages)
+      : fullHistory.messages;
+    const { page, hasMore } = sliceTailPage(messages, requestedLimit, Math.max(0, requestedOffset));
     result = {
       ...fullHistory,
+      ...(messages !== fullHistory.messages ? { total: messages.length } : {}),
       messages: page,
       hasMore,
       offset: requestedOffset,
@@ -712,15 +720,17 @@ export const sessionsService = {
       // would let the client keep showing the cleared context's numbers.
       let tokenUsage: unknown = null;
       if (session.provider_session_id) {
-        const current = await readCurrentContextHistory(session, null, 0);
+        const current = await readCurrentContextHistory(session, null, 0, false);
         messages.push(...current.messages);
         tokenUsage = current.tokenUsage;
       }
 
-      const { page, hasMore } = sliceTailPage(messages, requestedLimit, Math.max(0, requestedOffset));
+      // [local] Restart notices, placed across every part of the conversation.
+      const withNotices = backgroundWorkLedger.withLostNotices(sessionId, provider, messages);
+      const { page, hasMore } = sliceTailPage(withNotices, requestedLimit, Math.max(0, requestedOffset));
       return {
         messages: page.map((message) => ({ ...message, sessionId })),
-        total: messages.length,
+        total: withNotices.length,
         hasMore,
         offset: requestedOffset,
         limit: requestedLimit,

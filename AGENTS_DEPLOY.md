@@ -13,7 +13,7 @@ Audience: an AI agent (or a technical human) installing, configuring, updating o
 | Build output | `dist/` (web client), `dist-server/` (server) |
 | Start command | `npm run server` (= `node dist-server/server/index.js`) |
 | Default address | `0.0.0.0:3001` (env `HOST`, `SERVER_PORT`) |
-| Health check | `GET /health` → `{"status":"ok","version":"…"}` |
+| Health check | `GET /health` → `{"status":"ok","version":"…","activeWork":{…}}` (no login needed) |
 | Setup check | `GET /api/auth/status` → `{"needsSetup":true,…}` until the first account exists |
 | User data | `~/.cloudcli/auth.db` (login database); Claude Code sessions are read from `~/.claude/` |
 | Accounts | Exactly one. The first registration becomes the only account. |
@@ -146,6 +146,28 @@ npm run build
 ```
 
 Check `/health` again; `version` reflects the upstream base version.
+
+**Before restarting, check for running work.** A restart stops every Claude process the server started, and with them every turn being written and all background work (agents, workflows, backgrounded commands). It cannot be resumed. `GET /health` reports what a restart would end, as counts only:
+
+```json
+"activeWork": { "turns": 0, "backgroundSessions": 1, "backgroundTasks": 2 }
+```
+
+- `turns`: replies being written now (including a turn Claude started on its own to report finished background work).
+- `backgroundSessions` / `backgroundTasks`: sessions whose turn has ended but whose background work still runs, and how many tasks they run in total.
+
+If any count is above 0, **ASK THE USER** before restarting, or wait and check again. A restart script can do the same check, for example:
+
+```bash
+curl -s http://127.0.0.1:3001/health | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const w=JSON.parse(s).activeWork||{};process.exit((w.turns||0)+(w.backgroundSessions||0)>0?1:0)})"
+```
+
+```powershell
+$w = (Invoke-RestMethod http://127.0.0.1:3001/health).activeWork
+if ($w.turns -gt 0 -or $w.backgroundSessions -gt 0) { Write-Warning "Work is running: $($w | ConvertTo-Json -Compress)"; exit 1 }
+```
+
+The field is absent on builds that predate it. When a restart does end background work, each affected session shows one notice in its history ("Background work was stopped by a server restart") at the point of the restart. The server keeps the list of sessions with background work in its database for this, updated every 2 seconds, so work started in the last 2 seconds before a hard kill may go unmentioned.
 
 ## 10. Troubleshooting
 
