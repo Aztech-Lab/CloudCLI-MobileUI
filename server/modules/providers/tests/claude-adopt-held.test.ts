@@ -1891,3 +1891,40 @@ test('[local] a task only the level reports keeps the process held', { concurren
     await endRuns([first.script], [done]);
   });
 });
+
+// ----------------------------------------------------------------------------
+// [local] A subagent resumed with SendMessage (ported from the abandoned
+// fix/bg-tracking work in progress): the CLI announces it with a task_started
+// that names no launching call, and an older CLI sends no level for it.
+// ----------------------------------------------------------------------------
+
+test('[local] a subagent resumed with SendMessage keeps the process held, and a send joins it', { concurrency: false }, async () => {
+  await withCwd(async (cwd) => {
+    const writer = createWriter();
+    const first = createScriptedQuery();
+    const done = queryClaudeSDK('resume the agent', { sessionId: SESSION_ID, cwd, adoptable: true }, writer as never, makeContext(first.createQuery));
+    await waitFor(() => first.script.stdin.length > 0, 'run 1 started');
+    await emitAndFlush(first.script, init());
+    first.script.emit(toolUse('toolu_sm', 'SendMessage', { to: 'a22c', message: 'Please continue.' }));
+    first.script.emit({
+      type: 'system', subtype: 'task_started', session_id: NATIVE_ID, task_id: 'a22c',
+      description: 'Resumed agent', task_type: 'local_agent', is_backgrounded: true, run_id: 'r2',
+    });
+    await emitAndFlush(first.script, ack('toolu_sm', 'Resuming agent a22c', { success: true }));
+    await emitAndFlush(first.script, result());
+    await waitFor(() => completes(writer).length === 1, 'run 1 complete');
+    await settle();
+    assert.equal(first.script.released(), false, 'stdin stays open for the resumed agent');
+    assert.deepEqual(listClaudeSDKBackgroundWork().map((entry) => entry.tasks.map((task) => task.taskId)), [['a22c']]);
+
+    const w2 = createWriter();
+    const second = createScriptedQuery();
+    const run2 = track(adoptSend(cwd, w2, second.createQuery));
+    await waitFor(() => first.script.stdin.length === 2, 'the send is written into the held process');
+    await playAdoptedTurn(first.script, MSG_ID);
+    await waitFor(run2.resolved, 'the adopted turn ends');
+    assert.equal(second.script.options(), null, 'no new process');
+    assert.deepEqual(first.script.stopped, [], 'no stop_task');
+    await endRuns([first.script], [done]);
+  });
+});
