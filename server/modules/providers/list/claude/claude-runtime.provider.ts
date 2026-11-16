@@ -2020,8 +2020,11 @@ async function queryClaudeSDK(
     const instance = queryInstance;
     // [local] The message must be in the CLI's queue before the moved call
     // returns, or the turn would go on past the boundary that reads it.
+    // Bounded, so a stalled stream cannot hold the sender's answer forever.
     if (movable) {
-      await taken;
+      await Promise.race([taken, new Promise<void>((resolve) => {
+        setTimeout(resolve, CONTROL_REQUEST_TIMEOUT_MS).unref?.();
+      })]);
     }
     if (movable && instance && !(await requestBackgroundTasks(instance))) {
       // [local] Nothing moved (background tasks disabled, or an older CLI), so
