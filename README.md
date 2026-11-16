@@ -9,7 +9,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-b8793c?style=flat-square)](LICENSE)
 [![Node.js 22+](https://img.shields.io/badge/node-22%2B-4f7a4a?style=flat-square)](https://nodejs.org)
-[![Based on CloudCLI 1.37.8](https://img.shields.io/badge/based%20on-CloudCLI%201.37.8-6f726a?style=flat-square)](https://github.com/siteboon/claudecodeui)
+[![Based on CloudCLI 1.37.9](https://img.shields.io/badge/based%20on-CloudCLI%201.37.9-6f726a?style=flat-square)](https://github.com/siteboon/claudecodeui)
 [![Last commit](https://img.shields.io/github/last-commit/Aztech-Lab/CloudCLI-MobileUI?style=flat-square&color=6f726a)](https://github.com/Aztech-Lab/CloudCLI-MobileUI/commits/main)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-b8793c?style=flat-square)](CONTRIBUTING.md)
 
@@ -155,6 +155,7 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 - Background agents keep running when you send a new message ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
 
 **16 November 2026**
+- Updated to CloudCLI 1.37.9: the Claude model picker also offers pinned model versions, and pressing Escape in a rename box or menu no longer stops the running reply.
 - The agent's replies now sit in a bubble of their own, like your messages, so a conversation reads as a back-and-forth ([#8](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/8)). Under Settings › Appearance you can choose a solid bubble, a translucent one, or none ([#9](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/9)).
 - Codex chats have a new mode, "Approve for me": Codex's own reviewer decides on routine approvals, as in the Codex app. And when a conversation is still open in the Codex app, which lets only one program write to it at a time, CloudCLI now says so instead of showing a generic failure ([#11](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/11)).
 
