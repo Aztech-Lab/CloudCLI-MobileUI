@@ -427,3 +427,35 @@ test('an unreadable registry never fails the running-sessions poll', { concurren
     );
   });
 });
+
+test('[local] a session with background work the CLI also reports busy is listed once, as background work', { concurrency: false }, async () => {
+  await withIsolatedDatabase(async () => {
+    sessionsDb.createAppSession('held-busy-session', 'claude', '/tmp/running-project');
+    sessionsDb.assignProviderSessionId('held-busy-session', 'claude-native-held-busy');
+    const run = chatRunRegistry.startRun({
+      appSessionId: 'held-busy-session', provider: 'claude', providerSessionId: 'claude-native-held-busy', connection: null, userId: null,
+    });
+    assert.ok(run);
+    run.writer.sendComplete({ exitCode: 0 });
+
+    const tasks = [task('agent', 3_000)];
+    // The CLI says the process is busy: it is running the background agent.
+    await withClaudeCliRegistry(
+      [{ pid: process.pid, sessionId: 'claude-native-held-busy', status: 'busy', startedAt: 9_000 }],
+      async () => await withProviders(
+        { claude: { run: async () => undefined, abort: () => false, listBackgroundWork: () => [{ sessionId: 'held-busy-session', tasks }] } },
+        async () => {
+          assert.deepEqual(await sessionsService.listRunningSessions(), [{
+            sessionId: 'held-busy-session',
+            provider: 'claude',
+            startedAt: 3_000,
+            lastSeq: run.lastSeq,
+            background: true,
+            canInterrupt: false,
+            tasks,
+          }]);
+        },
+      ),
+    );
+  });
+});
