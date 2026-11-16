@@ -71,9 +71,9 @@ A skin setting changes how the whole interface looks. The first skin, OTSR, take
 </td>
 <td width="50%" valign="top">
 
-**Coming next**
+**Keep talking while work runs**
 
-Sending a new message while background agents are still working will no longer stop them: they keep going and report back when they are done, the same way the official Claude Code app behaves. This is being tested now ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
+Background agents and long commands keep running while you go on talking to the main conversation, and report back when they are done, the way the official Claude Code app behaves. Stop ends only the current reply; a separate button stops all background work ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)). Next: messages that reach the agent mid-step, and moving a running step to the background.
 
 </td>
 </tr>
@@ -109,7 +109,7 @@ This is a young, small project, and there is room to help whether or not you wri
 <tr>
 <td valign="top">
 
-Background agents that keep running while you chat ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)). It needs testing on real phones, with real long-running work.
+Matching the official Claude Code app while work runs in the background: a message you send mid-step should reach the agent at the next pause instead of waiting for the step to end, and a running step should be movable to the background.
 
 </td>
 <td valign="top">
@@ -151,10 +151,8 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 
 ## What's new
 
-**In testing**
-- Background agents keep running when you send a new message ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
-
 **16 November 2026**
+- You can keep talking to the main conversation while background agents and long commands run: a new message no longer stops them, Stop ends only the current reply, a "Stop all background work" button ends the rest, and quiet long-running tasks are no longer cut off after 30 minutes ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
 - Updated to CloudCLI 1.37.9: the Claude model picker also offers pinned model versions, and pressing Escape in a rename box or menu no longer stops the running reply.
 - The agent's replies now sit in a bubble of their own, like your messages, so a conversation reads as a back-and-forth ([#8](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/8)). Under Settings › Appearance you can choose a solid bubble, a translucent one, or none ([#9](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/9)).
 - Codex chats have a new mode, "Approve for me": Codex's own reviewer decides on routine approvals, as in the Codex app. And when a conversation is still open in the Codex app, which lets only one program write to it at a time, CloudCLI now says so instead of showing a generic failure ([#11](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/11)).
