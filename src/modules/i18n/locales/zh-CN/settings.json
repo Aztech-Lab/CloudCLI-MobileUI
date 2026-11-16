@@ -234,6 +234,13 @@
       "dark": "深色",
       "system": "跟随系统外观"
     },
+    "assistantBubble": {
+      "label": "Agent 回复气泡",
+      "description": "对话中 agent 文字回复的外框样式",
+      "off": "无气泡",
+      "translucent": "半透明",
+      "solid": "实心"
+    },
     "skin": {
       "label": "皮肤",
       "description": "界面的视觉风格；浅色和深色对每种皮肤都适用",

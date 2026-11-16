@@ -1052,3 +1052,22 @@
     }
   }
 }
+
+/* [local] The agent-bubble style (src/shared/assistantBubble.ts), from
+   data-assistant-bubble on <html>. Solid is the default and needs no selector:
+   the bubble's own classes in MessageComponent are the solid look. Translucent
+   lets the pane show through, as the user bubble and the side-question aside do;
+   off removes the frame and its padding so the text sits where it did before. */
+:root[data-assistant-bubble="translucent"] .chat-assistant-bubble {
+  background-color: hsl(var(--card) / 0.55);
+  box-shadow: none;
+}
+:root[data-assistant-bubble="off"] .chat-assistant-bubble {
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+  clip-path: none;
+}

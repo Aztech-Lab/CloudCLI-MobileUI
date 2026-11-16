@@ -59,6 +59,12 @@
               });
             }
           }
+          /* The agent-bubble style too (src/shared/assistantBubble.ts); solid is the
+             default and sets nothing. */
+          var bubble = prefs.assistantBubble;
+          if (bubble === 'off' || bubble === 'translucent') {
+            document.documentElement.setAttribute('data-assistant-bubble', bubble);
+          }
         } catch (error) { /* no mirror, or an unreadable one: the default skin */ }
       })();
     </script>

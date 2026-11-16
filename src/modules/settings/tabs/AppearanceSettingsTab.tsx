@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useUiPreferences, useSetUiPreference } from '@/shared/context/UiPreferencesContext';
 import { useSkin } from '@/shared/context/SkinContext';
 import { useTheme } from '@/shared/context/ThemeContext';
+import { ASSISTANT_BUBBLE_STYLES, type AssistantBubbleStyle } from '@/shared/assistantBubble';
 import { SKIN_IDS, type SkinId } from '@/shared/skin';
 import { SKIN_OPTIONS } from '@/shared/skinOptions';
 import type { CodeEditorSettingsState, ProjectSortOrder, ThemeMode } from '@/shared/types';
@@ -33,7 +34,7 @@ export default function AppearanceSettingsTab({
   onCodeEditorFontSizeChange,
 }: AppearanceSettingsTabProps) {
   const { t } = useTranslation('settings');
-  const { themeMode, setThemeMode } = useTheme();
+  const { themeMode, setThemeMode, assistantBubble, setAssistantBubble } = useTheme();
   const { skin, setSkin, skinOptions, setSkinOption } = useSkin();
   // [local] The active skin's own dials, rendered from its declaration (skinOptions.ts).
   const skinOptionDefinitions = SKIN_OPTIONS[skin];
@@ -57,6 +58,22 @@ export default function AppearanceSettingsTab({
               <option value="light">{t('appearanceSettings.theme.light')}</option>
               <option value="dark">{t('appearanceSettings.theme.dark')}</option>
               <option value="system">{t('appearanceSettings.theme.system')}</option>
+            </select>
+          </SettingsRow>
+          {/* [local] How the agent's spoken replies are framed (src/shared/assistantBubble.ts). */}
+          <SettingsRow
+            label={t('appearanceSettings.assistantBubble.label', { defaultValue: 'Agent reply bubble' })}
+            description={t('appearanceSettings.assistantBubble.description', { defaultValue: 'How the agent’s written replies are framed in the conversation' })}
+          >
+            <select
+              value={assistantBubble}
+              onChange={(event) => setAssistantBubble(event.target.value as AssistantBubbleStyle)}
+              aria-label={t('appearanceSettings.assistantBubble.label', { defaultValue: 'Agent reply bubble' })}
+              className="w-full touch-manipulation rounded-lg border border-input bg-card p-2.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary sm:w-36"
+            >
+              {ASSISTANT_BUBBLE_STYLES.map((style) => (
+                <option key={style} value={style}>{t(`appearanceSettings.assistantBubble.${style}`, { defaultValue: style })}</option>
+              ))}
             </select>
           </SettingsRow>
         </SettingsCard>
