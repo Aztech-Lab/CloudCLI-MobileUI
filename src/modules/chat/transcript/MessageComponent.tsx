@@ -478,12 +478,18 @@ const MessageComponent = memo(({ message, prevMessage, createDiff, onFileOpen, s
                   // Normal rendering for non-JSON content
                   // One component for both states on purpose: swapping element
                   // types here remounted the whole reply the instant it finished.
+                  // [local] A spoken reply gets a bubble, mirrored from the
+                  // user's: on the left, open towards the avatar, as wide as its
+                  // text and no wider than the row. Tool calls, thinking and the
+                  // JSON card above keep their own frames.
                   return message.type === 'assistant' ? (
-                    <StreamingMarkdown
-                      content={content}
-                      isStreaming={Boolean(message.isStreaming)}
-                      className="prose prose-sm prose-gray max-w-none font-serif dark:prose-invert"
-                    />
+                    <div className="chat-assistant-bubble w-fit max-w-full rounded-2xl rounded-bl-md border border-border/60 bg-card px-3 py-2 shadow-sm sm:px-4">
+                      <StreamingMarkdown
+                        content={content}
+                        isStreaming={Boolean(message.isStreaming)}
+                        className="prose prose-sm prose-gray max-w-none font-serif dark:prose-invert"
+                      />
+                    </div>
                   ) : (
                     <div className="whitespace-pre-wrap">
                       {content}
