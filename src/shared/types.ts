@@ -864,7 +864,12 @@ export type PendingSteer = {
   attachments: File[];
   /** Descriptors uploaded before it was sent, reused if it has to be queued instead. */
   uploadedAttachments: unknown[];
-  status: 'sending' | 'accepted';
+  /** [local] `withdrawing` while a withdraw (`chat.cancel-steer`) is on its way. */
+  status: 'sending' | 'accepted' | 'withdrawing';
+  /** [local] Sent with "Send now": read at once rather than at the next tool call. */
+  urgent?: boolean;
+  /** [local] A withdraw came too late: the agent had already taken the message. */
+  withdrawFailed?: boolean;
 };
 
 /**
@@ -874,7 +879,9 @@ export type PendingSteer = {
  * agent read it; its echo is in the transcript). `delivered` is reported for
  * every live user message, so the composer matches it against its own ids.
  */
-export type SteerOutcome = 'accepted' | 'refused' | 'delivered';
+export type SteerOutcome = 'accepted' | 'refused' | 'delivered'
+  // [local] The answer to a withdraw: dropped before the agent read it, or too late.
+  | 'withdrawn' | 'notWithdrawn';
 
 /** The answer to the prompt shown when sending over a session's background work: send now (stopping that work), queue the message until the work finishes, ask a side question instead, or do nothing. */
 export type BackgroundSendChoice = 'send' | 'queue' | 'sideQuestion' | 'cancel';

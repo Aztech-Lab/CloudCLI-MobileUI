@@ -122,6 +122,12 @@ const enter = () => ({
 }) as unknown as KeyboardEvent<HTMLTextAreaElement>;
 
 /** Types the message and presses Enter, letting the send finish. */
+// [local] During a turn, Enter steers; the send menu's Queue is what queues.
+const typeAndQueue = async (view: View, text: string) => {
+  await act(async () => { view.result.current.setInput(text); });
+  await act(async () => { await view.result.current.handleSendMenuChoice('queue'); });
+};
+
 const typeAndEnter = async (view: View, text: string, files: File[] = []) => {
   await act(async () => {
     view.result.current.setInput(text);
@@ -322,7 +328,7 @@ test('ADOPT_UNAVAILABLE for a message this composer did not send is left to the 
 
 test('a message queued during a turn, with the capability, is marked to join the running process', async () => {
   const { view, sends } = render({ isLoading: true, processingSessions: processingOverBackground });
-  await typeAndEnter(view, 'next step');
+  await typeAndQueue(view, 'next step');
 
   assert.equal(sends().length, 0, 'queued, not sent');
   assert.equal(appendQueuedMessage.mock.calls.length, 1);
@@ -333,7 +339,8 @@ test('a message queued during a turn, with the capability, is marked to join the
 
 test('a message queued during a turn without the capability, or a slash command, is not marked', async () => {
   const off = render({ supportsBackgroundAdoption: false, isLoading: true, processingSessions: processingOverBackground });
-  await typeAndEnter(off.view, 'next step');
+  await typeAndQueue(off.view, 'next step');
+  assert.equal(appendQueuedMessage.mock.calls.length, 1);
   assert.equal('adoptHeld' in (appendQueuedMessage.mock.calls[0]?.[1]?.options ?? {}), false);
   off.view.unmount();
 
@@ -341,6 +348,7 @@ test('a message queued during a turn without the capability, or a slash command,
   resetChatDrafts();
   const slash = render({ isLoading: true, processingSessions: processingOverBackground });
   await typeAndEnter(slash.view, '/compact');
+  assert.equal(appendQueuedMessage.mock.calls.length, 1, 'a slash command is never steered');
   assert.equal('adoptHeld' in (appendQueuedMessage.mock.calls[0]?.[1]?.options ?? {}), false);
 });
 

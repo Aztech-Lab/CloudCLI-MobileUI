@@ -33,7 +33,13 @@
     "readFile": "读取文件",
     "updateTodo": "更新待办列表",
     "readTodo": "读取待办列表",
-    "searchResults": "结果"
+    "searchResults": "结果",
+    "moveToBackground": {
+      "label": "转入后台",
+      "description": "让它在后台继续运行，回复接着进行",
+      "moving": "转入中…",
+      "failed": "无法转入后台"
+    }
   },
   "search": {
     "found": "找到 {{count}} 个{{type}}",
@@ -154,6 +160,18 @@
       "willSend": "将在当前完成后发送",
       "edit": "编辑排队消息",
       "delete": "删除排队消息"
+    },
+    "steer": {
+      "label": "插话",
+      "labelNow": "立即发送",
+      "sending": "发送中…",
+      "willRead": "{{provider}} 将在下一次工具调用时读取",
+      "willReadNow": "{{provider}} 马上读取",
+      "withdraw": "撤回",
+      "withdrawing": "撤回中…",
+      "withdrawTooLate": "来不及撤回：{{provider}} 已在读取",
+      "attachments_one": "附带 {{count}} 个文件",
+      "attachments_other": "附带 {{count}} 个文件"
     }
   },
   "providerSelection": {
@@ -326,6 +344,31 @@
     "sendKeepsWork": {
       "label": "发送",
       "description": "立即发送；后台任务将继续运行"
+    },
+    "queue": {
+      "label": "排队",
+      "descriptionResponding": "等这次回复结束后再发送",
+      "descriptionBackground": "等后台任务结束后再发送"
+    },
+    "steer": {
+      "label": "发送",
+      "description": "在下一次工具调用时读取；回复继续进行"
+    },
+    "sendNow": {
+      "label": "立即发送",
+      "description": "马上读取；正在运行的命令或子代理转入后台"
+    },
+    "sideQuestion": {
+      "label": "旁路提问",
+      "description": "现在在旁边提问；会话不会看到"
+    },
+    "stop": {
+      "label": "停止",
+      "description": "结束正在生成的回复"
+    },
+    "sendAnyway": {
+      "label": "仍然发送",
+      "description": "立即发送；这会停止后台任务"
     }
   },
   "errors": {

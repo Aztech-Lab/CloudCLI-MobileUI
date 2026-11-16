@@ -209,8 +209,31 @@ test('a message the agent read before the run ended is not restored', async () =
   assert.equal(view.result.current.input, '');
 });
 
-test('Enter during a turn still queues, as before', async () => {
+// [local] Enter during a turn steers, as it does while the official client is
+// working: the agent reads the message at its next tool call.
+test('Enter during a turn sends the message into the turn instead of queueing it', async () => {
   const { view, sent } = render();
+  await submit(view, 'while you work');
+
+  const frames = steerFrames(sent);
+  assert.equal(frames.length, 1);
+  assert.equal(frames[0].content, 'while you work');
+  assert.equal(frames[0].urgent, undefined, 'read at the next tool call, not at once');
+  assert.equal(queued.size, 0);
+  assert.deepEqual(view.result.current.pendingSteers.map((steer) => steer.content), ['while you work']);
+});
+
+test('Queue from the send menu still waits for the turn to end', async () => {
+  const { view, sent } = render();
+  await act(async () => { view.result.current.setInput('after this'); });
+  await act(async () => { await view.result.current.handleSendMenuChoice('queue'); });
+
+  assert.equal(steerFrames(sent).length, 0);
+  assert.equal(queued.get('session-1')?.content, 'after this');
+});
+
+test('Enter during a turn queues for a provider that cannot steer', async () => {
+  const { view, sent } = render({ supportsSteering: false });
   await submit(view, 'after this');
 
   assert.equal(steerFrames(sent).length, 0);
@@ -239,4 +262,69 @@ test('Steer chosen just as the turn ended sends the message as the next turn', a
 
   assert.equal(steerFrames(sent).length, 0);
   assert.equal(sent.filter((frame) => frame.type === 'chat.send').length, 1);
+});
+
+// [local] Send now and withdraw.
+
+test('Send now steers the message with urgent set, and the card says it is read right away', async () => {
+  const { view, sent } = render();
+  await act(async () => { view.result.current.setInput('look here first'); });
+  await act(async () => { await view.result.current.handleSendMenuChoice('sendNow'); });
+
+  const frames = steerFrames(sent);
+  assert.equal(frames.length, 1);
+  assert.equal(frames[0].urgent, true);
+  assert.equal(view.result.current.pendingSteers[0]?.urgent, true);
+});
+
+test('an unread steered message can be withdrawn back into the composer', async () => {
+  const { view, sent } = render();
+  await steer(view, 'actually, never mind');
+  const messageId = String(steerFrames(sent)[0].messageId);
+
+  // Nothing to withdraw before the server has taken it.
+  act(() => view.result.current.withdrawSteer(messageId));
+  assert.equal(sent.filter((frame) => frame.type === 'chat.cancel-steer').length, 0);
+
+  act(() => view.result.current.handleSteerOutcome('session-1', messageId, 'accepted'));
+  await act(async () => { view.result.current.setInput('typed since'); });
+  act(() => view.result.current.withdrawSteer(messageId));
+
+  const cancels = sent.filter((frame) => frame.type === 'chat.cancel-steer');
+  assert.deepEqual(cancels, [{ type: 'chat.cancel-steer', sessionId: 'session-1', messageId }]);
+  assert.equal(view.result.current.pendingSteers[0]?.status, 'withdrawing');
+
+  act(() => view.result.current.handleSteerOutcome('session-1', messageId, 'withdrawn'));
+  assert.deepEqual(view.result.current.pendingSteers, []);
+  assert.equal(view.result.current.input, 'actually, never mind\n\ntyped since');
+  assert.equal(queued.size, 0);
+});
+
+test('a withdraw that comes too late keeps the card, which then goes when the agent reads it', async () => {
+  const { view, sent } = render();
+  await steer(view, 'already on its way');
+  const messageId = String(steerFrames(sent)[0].messageId);
+  act(() => view.result.current.handleSteerOutcome('session-1', messageId, 'accepted'));
+  act(() => view.result.current.withdrawSteer(messageId));
+
+  act(() => view.result.current.handleSteerOutcome('session-1', messageId, 'notWithdrawn'));
+  assert.equal(view.result.current.pendingSteers[0]?.status, 'accepted');
+  assert.equal(view.result.current.pendingSteers[0]?.withdrawFailed, true);
+  assert.equal(view.result.current.input, '');
+
+  act(() => view.result.current.handleSteerOutcome('session-1', messageId, 'delivered'));
+  assert.deepEqual(view.result.current.pendingSteers, []);
+});
+
+test('a run that ends while a withdraw is on its way still puts the message back', async () => {
+  const { view, sent } = render();
+  await steer(view, 'stop after this file');
+  const messageId = String(steerFrames(sent)[0].messageId);
+  act(() => view.result.current.handleSteerOutcome('session-1', messageId, 'accepted'));
+  act(() => view.result.current.withdrawSteer(messageId));
+
+  view.rerender({ isLoading: false, supportsSteering: true });
+
+  assert.deepEqual(view.result.current.pendingSteers, []);
+  assert.equal(view.result.current.input, 'stop after this file');
 });

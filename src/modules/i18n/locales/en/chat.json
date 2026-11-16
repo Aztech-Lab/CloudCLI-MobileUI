@@ -33,7 +33,13 @@
     "readFile": "Read file",
     "updateTodo": "Update todo list",
     "readTodo": "Read todo list",
-    "searchResults": "results"
+    "searchResults": "results",
+    "moveToBackground": {
+      "label": "Move to background",
+      "description": "Keep it running in the background and let the reply go on",
+      "moving": "Moving…",
+      "failed": "Could not move it to the background"
+    }
   },
   "search": {
     "found": "Found {{count}} {{type}}",
@@ -196,7 +202,12 @@
       "sending": "Sending…",
       "willRead": "{{provider}} reads it at its next tool call",
       "attachments_one": "{{count}} file attached",
-      "attachments_other": "{{count}} files attached"
+      "attachments_other": "{{count}} files attached",
+      "labelNow": "Sent now",
+      "willReadNow": "{{provider}} reads it right away",
+      "withdraw": "Withdraw",
+      "withdrawing": "Withdrawing…",
+      "withdrawTooLate": "Too late to withdraw: {{provider}} is already reading it"
     }
   },
   "composer": {
@@ -278,8 +289,8 @@
       "descriptionBackground": "Send when the background work ends"
     },
     "steer": {
-      "label": "Steer",
-      "description": "Send into this turn; read at the next tool call"
+      "label": "Send",
+      "description": "Read at the next tool call; the reply keeps going"
     },
     "sideQuestion": {
       "label": "Side question",
@@ -296,6 +307,10 @@
     "sendKeepsWork": {
       "label": "Send",
       "description": "Send now; the background work keeps running"
+    },
+    "sendNow": {
+      "label": "Send now",
+      "description": "Read right away; a running command or agent moves to the background"
     }
   },
   "shell": {

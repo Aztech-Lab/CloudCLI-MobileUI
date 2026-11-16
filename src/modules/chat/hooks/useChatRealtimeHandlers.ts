@@ -58,6 +58,12 @@ type UseChatRealtimeHandlersArgs = {
    * did not send that message.
    */
   onAdoptRefused?: (sessionId: string, messageId: string) => boolean;
+  /**
+   * [local] A "Move to background" on a running tool call moved nothing (the
+   * call had already returned, or the CLI cannot). Not a failure of the run,
+   * so the session is not idled; the tool card says it did not work.
+   */
+  onBackgroundTaskRefused?: (sessionId: string, toolUseId: string) => void;
 };
 
 /* ------------------------------------------------------------------ */
@@ -95,6 +101,7 @@ export function useChatRealtimeHandlers({
   sessionStore,
   onSteerOutcome,
   onAdoptRefused,
+  onBackgroundTaskRefused,
 }: UseChatRealtimeHandlersArgs) {
   // Session switches can send `chat.subscribe` before this effect has a chance
   // to rebind the websocket listener. Read the visible session id from a ref
@@ -194,6 +201,15 @@ export function useChatRealtimeHandlers({
           return;
         }
 
+        // [local] The answer to a withdraw (`chat.cancel-steer`), sent only to
+        // the tab that asked. Not a transcript row.
+        case 'chat_steer_cancelled': {
+          if (sid && typeof msg.messageId === 'string') {
+            onSteerOutcome?.(sid, msg.messageId, msg.cancelled === true ? 'withdrawn' : 'notWithdrawn');
+          }
+          return;
+        }
+
         case 'protocol_error': {
           // A message sent into a turn that had already ended. The run is not
           // failing — it finished — so nothing is shown or idled here; the
@@ -219,6 +235,14 @@ export function useChatRealtimeHandlers({
               kind: 'error',
               content: String(msg.error || 'Request failed'),
             } as NormalizedMessage);
+            return;
+          }
+          // [local] "Move to background" moved nothing: the tool card says so.
+          // The run goes on, so nothing is idled or added to the transcript.
+          if (sid && msg.code === 'BACKGROUND_UNAVAILABLE') {
+            if (typeof msg.toolUseId === 'string') {
+              onBackgroundTaskRefused?.(sid, msg.toolUseId);
+            }
             return;
           }
           console.error('[Chat] Protocol error:', msg.code, msg.error);
@@ -531,5 +555,6 @@ export function useChatRealtimeHandlers({
     sessionStore,
     onSteerOutcome,
     onAdoptRefused,
+    onBackgroundTaskRefused,
   ]);
 }
