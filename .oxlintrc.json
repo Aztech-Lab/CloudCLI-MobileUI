@@ -99,7 +99,10 @@
           "src/shared/codeEditorSettings.ts",
           "src/shared/userSettings.ts",
           "src/shared/chatDrafts.ts",
-          "src/shared/syntaxHighlighter.ts"
+          "src/shared/syntaxHighlighter.ts",
+          "src/shared/assistantBubble.ts",
+          "src/shared/skin.ts",
+          "src/shared/skinOptions.ts"
         ],
         "mode": "file"
       },

@@ -1,281 +1,189 @@
-> **CloudCLI-Mobile** — this is an independent downstream fork of [siteboon/claudecodeui](https://github.com/siteboon/claudecodeui), tuned for self-hosting and phone use. It is not affiliated with the upstream project; please report issues with this fork here, not upstream. What differs and how to run it: **[FORK.md](FORK.md)**.
-
 <div align="center">
- <img src="public/logo.svg" alt="CloudCLI UI" width="64" height="64">
- <h1>Cloud CLI (aka Claude Code UI)</h1>
- <p>A desktop and mobile UI for <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>, <a href="https://docs.cursor.com/en/cli/overview">Cursor CLI</a>, and <a href="https://developers.openai.com/codex">Codex</a>.<br>Use it locally or remotely to view your active projects and sessions from everywhere.</p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.svg">
+  <img alt="CloudCLI-MobileUI: run Claude Code on your own computer and keep working with it from your phone" src="docs/assets/hero-light.svg" width="100%">
+</picture>
+
+<br>
+
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-b8793c?style=flat-square)](LICENSE)
+[![Node.js 22+](https://img.shields.io/badge/node-22%2B-4f7a4a?style=flat-square)](https://nodejs.org)
+[![Based on CloudCLI 1.37.9](https://img.shields.io/badge/based%20on-CloudCLI%201.37.9-6f726a?style=flat-square)](https://github.com/siteboon/claudecodeui)
+[![Last commit](https://img.shields.io/github/last-commit/Aztech-Lab/CloudCLI-MobileUI?style=flat-square&color=6f726a)](https://github.com/Aztech-Lab/CloudCLI-MobileUI/commits/main)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-b8793c?style=flat-square)](CONTRIBUTING.md)
+
+**[Getting started](#getting-started)** · **[Help wanted](#help-wanted)** · **[What's new](#whats-new)** · **[Deploy with an agent](AGENTS_DEPLOY.md)**
+
 </div>
 
-<p align="center">
- <a href="https://cloudcli.ai">CloudCLI Cloud</a> · <a href="https://cloudcli.ai/docs">Documentation</a> · <a href="https://discord.gg/buxwujPNRE">Discord</a> · <a href="https://github.com/siteboon/claudecodeui/issues">Bug Reports</a> · <a href="CONTRIBUTING.md">Contributing</a>
-</p>
+## What it is
 
-<p align="center">
- <a href="https://cloudcli.ai"><img src="https://img.shields.io/badge/☁️_CloudCLI_Cloud-Try_Now-0066FF?style=for-the-badge" alt="CloudCLI Cloud"></a>
- <a href="https://discord.gg/buxwujPNRE"><img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join our Discord"></a>
- <br><br>
- <a href="https://trendshift.io/repositories/15586" target="_blank"><img src="https://trendshift.io/api/badge/repositories/15586" alt="siteboon%2Fclaudecodeui | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</p>
+CloudCLI-MobileUI is a web interface for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that you host yourself. Claude Code keeps running on your workstation, with your files, your tools and your login, and you open the interface from any phone, tablet or laptop on your network. On an iPhone or Android phone you can add it to the home screen, and it behaves like an app.
 
-<div align="right"><i><b>English</b> · <a href="./docs/README.ru.md">Русский</a> · <a href="./docs/README.de.md">Deutsch</a> · <a href="./docs/README.ko.md">한국어</a> · <a href="./docs/README.zh-CN.md">简体中文</a> · <a href="./docs/README.zh-TW.md">繁體中文</a> · <a href="./docs/README.ja.md">日本語</a> · <a href="./docs/README.tr.md">Türkçe</a> · <a href="./docs/README.id.md">Bahasa Indonesia</a></i></div>
+You get the whole Claude Code session in your hand: the conversation, the files it is working on, git, and a terminal. You can read what the agent did while you were away, answer its questions, approve a tool, or start the next task.
 
----
+> **Setting this up with an AI agent?** Point it at [AGENTS_DEPLOY.md](AGENTS_DEPLOY.md). It has the exact steps, checks and settings, written for agents.
 
-## Screenshots
+## How it works
 
-<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/how-it-works-dark.svg">
+  <img alt="Your phone talks to CloudCLI-MobileUI on your workstation over your own network. CloudCLI-MobileUI runs Claude Code, which works on your project." src="docs/assets/how-it-works-light.svg" width="100%">
+</picture>
+
+The interface is a small Node.js server that runs on your workstation, right next to Claude Code. Your phone only talks to that server, over your home network or a VPN. Claude Code, your files and your login stay on the workstation, and conversations you started in the terminal show up in the interface too.
+
+## Why we built it
+
+Long agent runs, such as a literature search, a test suite or a data-processing job, happen on a workstation, but the questions and decisions tend to come up when you are away from the desk. We wanted to keep working with the very same session from a phone, instead of waiting until we were back at the keyboard.
+
+[CloudCLI](https://github.com/siteboon/claudecodeui) already provided a solid open-source web interface for Claude Code, and this project is built on its code. What we kept running into was the phone side of things: moving around on a small touch screen, scrolling long conversations, the iPhone home-screen app, very large projects, files that live outside the home folder, and background agents being stopped when we sent a new message. This project collects the changes that fix those.
+
+It is an independent project and is not affiliated with the CloudCLI authors. If something goes wrong, please [open an issue here](https://github.com/Aztech-Lab/CloudCLI-MobileUI/issues) rather than upstream.
+
+## What is different from CloudCLI
 
 <table>
 <tr>
-<td align="center">
-<h3>Desktop View</h3>
-<img src="public/screenshots/desktop-main.png" alt="Desktop Interface" width="400">
-<br>
-<em>Main interface showing project overview and chat</em>
+<td width="50%" valign="top">
+
+**Easier on a phone**
+
+Swipe left and right anywhere on the screen to move between the chat, files, git and the terminal; swipe right from the chat to open the menu. Long conversations scroll smoothly, the iPhone home-screen app fills the whole screen, and your most recent conversations are one tap away when you open it.
+
 </td>
-<td align="center">
-<h3>Mobile Experience</h3>
-<img src="public/screenshots/mobile-chat.png" alt="Mobile Interface" width="250">
-<br>
-<em>Responsive mobile design with touch navigation</em>
+<td width="50%" valign="top">
+
+**Built for longer work**
+
+The model picker lists exactly the models your Claude Code account offers. Projects with tens of thousands of files still show their file tree, and folders load when you open them. Files the agent mentions can be opened even when they live on another drive, as long as you allow that folder.
+
 </td>
 </tr>
 <tr>
-<td align="center" colspan="2">
-<h3>CLI Selection</h3>
-<img src="public/screenshots/cli-selection.png" alt="CLI Selection" width="400">
-<br>
-<em>Select between Claude Code, Cursor CLI and Codex</em>
+<td width="50%" valign="top">
+
+**Your own look**
+
+A skin setting changes how the whole interface looks. The first skin, OTSR, takes its look from the [OTSR design](https://github.com/Aztech-Lab/OTSR): a quiet lab-white (or near-black) design with a copper accent and square edges, and you can tune its details, such as the dotted background, to taste.
+
+</td>
+<td width="50%" valign="top">
+
+**Coming next**
+
+Sending a new message while background agents are still working will no longer stop them: they keep going and report back when they are done, the same way the official Claude Code app behaves. This is being tested now ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
+
 </td>
 </tr>
 </table>
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/skins-dark.svg">
+  <img alt="The same conversation in the OTSR skin, light and dark, next to an open slot for a new skin" src="docs/assets/skins-light.svg" width="100%">
+</picture>
 
+<sub>The pictures in this README use the OTSR colors and shapes. OTSR design: <a href="https://github.com/Aztech-Lab/OTSR">github.com/Aztech-Lab/OTSR</a>.</sub>
 
-</div>
+## Getting started
 
-## Features
+You need a computer that stays on, with [Node.js](https://nodejs.org) 22 or newer and Claude Code installed and logged in. Then download this project, build it and start it. The commands are in [AGENTS_DEPLOY.md](AGENTS_DEPLOY.md) and take a few minutes; you can also hand that file to an AI agent and let it do the setup for you.
 
-- **Responsive Design** - Works seamlessly across desktop, tablet, and mobile so you can also use Agents from mobile 
-- **Interactive Chat Interface** - Built-in chat interface for seamless communication with the Agents
-- **Integrated Shell Terminal** - Direct access to the Agents CLI through built-in shell functionality
-- **File Explorer** - Interactive file tree with syntax highlighting and live editing
-- **Git Explorer** - View, stage and commit your changes. You can also switch branches 
-- **Browser Use** - Open browser sessions for web research, testing, and agent-driven browser tasks
-- **Session Management** - Resume conversations, manage multiple sessions, and track history
-- **Plugin System** - Extend CloudCLI with custom plugins — add new tabs, backend services, and integrations. [Build your own →](https://github.com/cloudcli-ai/cloudcli-plugin-starter)
-- **TaskMaster AI Integration** *(Optional)* - Advanced project management with AI-powered task planning, PRD parsing, and workflow automation
-- **Model Compatibility** - Works with Claude and GPT model families (the full list of supported models is available at runtime via `GET /api/providers/:provider/models`)
+When it is running, open `http://<your-computer's-address>:3001` in a browser. The first person to open it creates the one and only account, so do that yourself straight away. On an iPhone, open the page in Safari, tap **Share**, then **Add to Home Screen**.
 
+## Please keep it private
 
-## Quick Start
+Whoever logs in can do anything on that computer that you can. Use the interface only on your own network or through a VPN, never expose it directly to the internet, choose a strong password, and in the tool settings allow only the tools you actually need. [AGENTS_DEPLOY.md](AGENTS_DEPLOY.md#security) shows how to limit the port to your own network.
 
-### CloudCLI Cloud (Recommended)
+## Help wanted
 
-The fastest way to get started — no local setup required. Get a fully managed, containerized development environment accessible from the web, mobile app, API, or your favorite IDE.
+This is a young, small project, and there is room to help whether or not you write code. Here is where things stand:
 
-**[Get started with CloudCLI Cloud](https://cloudcli.ai)**
+<table>
+<tr>
+<th width="33%" align="left">Now</th>
+<th width="33%" align="left">Next</th>
+<th width="34%" align="left">Ideas</th>
+</tr>
+<tr>
+<td valign="top">
 
-### Self-Hosted (Open source)
+Background agents that keep running while you chat ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)). It needs testing on real phones, with real long-running work.
 
-#### npm
+</td>
+<td valign="top">
 
-Try CloudCLI UI instantly with **npx** (requires **Node.js** v22+):
+A few links inside the app (the About page, the star badge, the issue and community links) still point to the original CloudCLI project. They should point here, so that nobody sends our problems to its authors.
 
+</td>
+<td valign="top">
+
+More skins · code colors that follow the skin · a tablet layout · translations · testing on Android
+
+</td>
+</tr>
+</table>
+
+Good places to start:
+
+- **Design a skin.** A skin is mostly a set of CSS variables, plus a few optional signature rules and settings, so you can change the whole look without touching any component. [docs/fork/THEMING.md](docs/fork/THEMING.md) has a step-by-step checklist. The designs themselves live in [`themes/`](themes/) as packages that any project can apply.
+- **Make code colors follow the skin.** Syntax highlighting in the chat, the code editor and the git graph still use fixed colors; THEMING.md lists where they live.
+- **Translate.** Several languages are missing strings, including some that this project added for the home screen and the file tree. They live in `src/modules/i18n/locales`, with English as the reference.
+- **Try it on your phone and tell us what breaks.** Reports from Android phones and tablets are especially welcome, because most testing so far has been on iPhones.
+
+### How a change gets in
+
+```mermaid
+gitGraph
+   commit id: "upstream snapshot"
+   commit id: "main today"
+   branch your-change
+   checkout your-change
+   commit id: "your fix or feature"
+   commit id: "tests pass"
+   checkout main
+   merge your-change id: "reviewed and merged"
+   commit id: "listed in What's new"
 ```
-npx @cloudcli-ai/cloudcli
-```
 
-Or install **globally** for regular use:
-
-```
-npm install -g @cloudcli-ai/cloudcli
-cloudcli
-```
-
-Open `http://localhost:3001` — all your existing sessions are discovered automatically.
-
-Visit the **[documentation →](https://cloudcli.ai/docs)** for full configuration options, PM2, remote server setup and more.
-
-#### Docker Sandboxes (Experimental)
-
-Run agents in isolated sandboxes with hypervisor-level isolation. Starts Claude Code by default. Requires the [`sbx` CLI](https://docs.docker.com/ai/sandboxes/get-started/).
-
-```
-npx @cloudcli-ai/cloudcli@latest sandbox ~/my-project
-```
-
-Supports Claude Code and Codex. See the [sandbox docs](docker/) for setup and advanced options.
-
-### Desktop Companion App
-
-CloudCLI Desktop is an optional native companion for CloudCLI Cloud and Local CloudCLI. It ships from this repository's GitHub Releases and keeps CloudCLI available from your menu bar or tray.
-
-- **[macOS](https://cloudcli.ai/download/macos)**
-- **[Windows](https://cloudcli.ai/download/windows)**
-- **Linux** — `.deb` (Debian/Ubuntu) from [GitHub Releases](https://github.com/siteboon/claudecodeui/releases)
-- **[Download page](https://cloudcli.ai/download)** · **[GitHub Releases and checksums](https://github.com/siteboon/claudecodeui/releases)**
-
-Use it to open CloudCLI Cloud environments, switch between local and remote workspaces, and copy mobile/browser URLs. To work locally, choose **Local CloudCLI** in the desktop app; it will use your running local server or start one for you.
-
-
----
-
-## Which option is right for you?
-
-CloudCLI UI is the open source UI layer that powers CloudCLI Cloud. You can self-host it on your own machine, run it in a Docker sandbox for isolation, or use CloudCLI Cloud for a fully managed environment.
-
-| | Self-Hosted (npm) | Self-Hosted (Docker Sandbox) *(Experimental)* | CloudCLI Cloud |
-|---|---|---|---|
-| **Best for** | Local agent sessions on your own machine | Isolated agents with web/mobile IDE | Teams who want agents in the cloud |
-| **How you access it** | Browser via `[yourip]:port` | Browser via `localhost:port` | Browser, any IDE, REST API, n8n |
-| **Setup** | `npx @cloudcli-ai/cloudcli` | `npx @cloudcli-ai/cloudcli@latest sandbox ~/project` | No setup required |
-| **Isolation** | Runs on your host | Hypervisor-level sandbox (microVM) | Full cloud isolation |
-| **Machine needs to stay on** | Yes | Yes | No |
-| **Mobile access** | Any browser on your network | Any browser on your network | Any device |
-| **Desktop companion** | Optional. Choose Local CloudCLI | Optional. Choose Local CloudCLI | Optional. Opens cloud environments |
-| **Agents supported** | Claude Code, Cursor CLI, Codex | Claude Code, Codex | Claude Code, Cursor CLI, Codex |
-| **File explorer and Git** | Yes | Yes | Yes |
-| **MCP configuration** | Synced with `~/.claude` | Managed via UI | Managed via UI |
-| **REST API** | Yes | Yes | Yes |
-| **Team sharing** | No | No | Yes |
-| **Platform cost** | Free, open source | Free, open source | Starts at €7/month |
-
-> All options use your own AI subscriptions (Claude, Cursor, etc.) — CloudCLI provides the environment, not the AI.
-
----
-
-## Security & Tools Configuration
-
-**🔒 Important Notice**: All Claude Code tools are **disabled by default**. This prevents potentially harmful operations from running automatically.
-
-### Enabling Tools
-
-To use Claude Code's full functionality, you'll need to manually enable tools:
-
-1. **Open Tools Settings** - Click the gear icon in the sidebar
-2. **Enable Selectively** - Turn on only the tools you need
-3. **Apply Settings** - Your preferences are saved locally
-
-<div align="center">
-
-![Tools Settings Modal](public/screenshots/tools-modal.png)
-*Tools Settings interface - enable only what you need*
-
-</div>
-
-**Recommended approach**: Start with basic tools enabled and add more as needed. You can always adjust these settings later.
-
----
-
-## Plugins
-
-CloudCLI has a plugin system that lets you add custom tabs with their own frontend UI and optional Node.js backend. Install plugins from git repos directly in **Settings > Plugins**, or build your own.
-
-### Available Plugins
-
-| Plugin | Description |
-|---|---|
-| **[Project Stats](https://github.com/cloudcli-ai/cloudcli-plugin-starter)** | Shows file counts, lines of code, file-type breakdown, largest files, and recently modified files for your current project |
-| **[Web Terminal](https://github.com/cloudcli-ai/cloudcli-plugin-terminal)** | Full xterm.js terminal with multi-tab support |
-| **[CloudCLI Scheduler](https://github.com/grostim/cloudcli-cron)** | Create workspace-scoped scheduled prompts and execute them through a local CLI such as Codex or Claude Code |
-| **[PRISM CloudCLI](https://github.com/jakeefr/cloudcli-plugin-prism)** | Session intelligence for Claude Code inside CloudCLI, including token burn visibility |
-| **[Sessions](https://github.com/strykereye2/cloudcli-plugin-session-manager)** | View, manage, and kill active Claude Code sessions |
-| **[Token Cost Calculator](https://github.com/NightmareAway/cloudcli-plugin-token-cost-calculator)** | Calculate API costs from model prices and token usage, with preset model pricing support |
-| **[Task Queue](https://github.com/TadMSTR/cloudcli-plugin-task-queue)** | Task queue dashboard to view, filter, and launch agent tasks |
-| **[GitHub Issues Board](https://github.com/szmidtpiotr/claude-github-issue)** | Kanban board for GitHub Issues with bidirectional TaskMaster sync and /github-task CLI skill auto-install |
-| **[ccx](https://github.com/AaronWong1999/cloudcli-plugin-ccx)** | Shows Claude and Codex usage and hands the open session to the other agent with its conversation history (macOS, needs ccx) |
-
-### Build Your Own
-
-**[Plugin Starter Template →](https://github.com/cloudcli-ai/cloudcli-plugin-starter)** — fork this repo to create your own plugin. It includes a working example with frontend rendering, live context updates, and RPC communication to a backend server.
-
-**[Plugin Documentation →](https://cloudcli.ai/docs/plugin-overview)** — full guide to the plugin API, manifest format, security model, and more.
-
-### Private Repositories
-
-The server installs and updates plugins with `git clone` and `git pull`, using the git credentials of the operating-system user it runs as (for a systemd service, the unit's `User=`). The server cannot answer a password or passphrase prompt during an install, so set up credentials for that user before installing from a private repository:
-
-- **`https://` URLs:** configure a git credential helper, for example `gh auth login` followed by `gh auth setup-git`, or a token in `~/.git-credentials` with `git config --global credential.helper store`.
-- **`git@` URLs:** give that user an SSH key the git host accepts and that works without a prompt: either it has no passphrase, or it is loaded into an `ssh-agent` whose `SSH_AUTH_SOCK` the server process inherits. Also add the host to that user's `~/.ssh/known_hosts`, for example by running `ssh -T git@github.com` once as that user.
-
-Without credentials, an `https://` install fails with a message saying that the repository is private or does not exist. Most git hosts, GitHub included, answer the same way for both. If the host rejects the credentials (wrong, expired or revoked), or ssh cannot log in for a `git@` URL, the message says so.
-
----
-## FAQ
-
-<details>
-<summary>How is this different from Claude Code Remote Control?</summary>
-
-Claude Code Remote Control lets you send messages to a session already running in your local terminal. Your machine has to stay on, your terminal has to stay open, and sessions time out after roughly 10 minutes without a network connection.
-
-CloudCLI UI and CloudCLI Cloud extend Claude Code rather than sit alongside it — your MCP servers, permissions, settings, and sessions are the exact same ones Claude Code uses natively. Nothing is duplicated or managed separately.
-
-Here's what that means in practice:
-
-- **All your sessions, not just one** — CloudCLI UI auto-discovers every session from your `~/.claude` folder. Remote Control only exposes the single active session to make it available in the Claude mobile app.
-- **Your settings are your settings** — MCP servers, tool permissions, and project config you change in CloudCLI UI are written directly to your Claude Code config and take effect immediately, and vice versa.
-- **Works with more agents** — Claude Code, Cursor CLI and Codex, not just Claude Code.
-- **Full UI, not just a chat window** — file explorer, Git integration, MCP management, and a shell terminal are all built in.
-- **CloudCLI Cloud runs in the cloud** — close your laptop, the agent keeps running. No terminal to babysit, no machine to keep awake.
-
-</details>
-
-<details>
-<summary>Do I need to pay for an AI subscription separately?</summary>
-
-Yes. CloudCLI provides the environment, not the AI. You bring your own Claude, Cursor, or Codex subscription. CloudCLI Cloud starts at €7/month for the hosted environment on top of that.
-
-</details>
-
-<details>
-<summary>Can I use CloudCLI UI on my phone?</summary>
-
-Yes. For self-hosted, run the server on your machine and open `[yourip]:port` in any browser on your network. For CloudCLI Cloud, open it from any device — no VPN, no port forwarding, no setup. A native app is also in the works.
-
-</details>
-
-<details>
-<summary>Will changes I make in the UI affect my local Claude Code setup?</summary>
-
-Yes, for self-hosted. CloudCLI UI reads from and writes to the same `~/.claude` config that Claude Code uses natively. MCP servers you add via the UI show up in Claude Code immediately and vice versa.
-
-</details>
-
----
-
-## Community & Support
-
-- **[Documentation](https://cloudcli.ai/docs)** — installation, configuration, features, and troubleshooting
-- **[Discord](https://discord.gg/buxwujPNRE)** — get help and connect with other users
-- **[GitHub Issues](https://github.com/siteboon/claudecodeui/issues)** — bug reports and feature requests
-- **[Contributing Guide](CONTRIBUTING.md)** — how to contribute to the project
-
-## License
-
-GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later) — see [LICENSE](LICENSE) for the full text, including additional terms under Section 7.
-
-This project is open source and free to use, modify, and distribute under the AGPL-3.0-or-later license. If you modify this software and run it as a network service, you must make your modified source code available to users of that service.
-
-CloudCLI UI - (https://cloudcli.ai).
-
-## Acknowledgments
-
-### Built With
-- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** - Anthropic's official CLI
-- **[Cursor CLI](https://docs.cursor.com/en/cli/overview)** - Cursor's official CLI
-- **[Codex](https://developers.openai.com/codex)** - OpenAI Codex
-- **[React](https://react.dev/)** - User interface library
-- **[Vite](https://vitejs.dev/)** - Fast build tool and dev server
-- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
-- **[CodeMirror](https://codemirror.net/)** - Advanced code editor
-- **[TaskMaster AI](https://github.com/eyaltoledano/claude-task-master)** *(Optional)* - AI-powered project management and task planning
-
-
-### Sponsors
-- [Siteboon - AI powered website builder](https://siteboon.ai)
----
-
-<div align="center">
- <strong>Made with care for the Claude Code, Cursor and Codex community.</strong>
-</div>
+Make one branch per change, starting from `main`, and open a pull request in this repository. The template asks what changed, why, and how you tested it. A maintainer reviews and merges it and writes it up under "What's new". [CONTRIBUTING.md](CONTRIBUTING.md) has the details, including how to set up a development copy.
+
+## What's new
+
+**In testing**
+- Background agents keep running when you send a new message ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
+
+**16 November 2026**
+- Updated to CloudCLI 1.37.9: the Claude model picker also offers pinned model versions, and pressing Escape in a rename box or menu no longer stops the running reply.
+- The agent's replies now sit in a bubble of their own, like your messages, so a conversation reads as a back-and-forth ([#8](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/8)). Under Settings › Appearance you can choose a solid bubble, a translucent one, or none ([#9](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/9)).
+- Codex chats have a new mode, "Approve for me": Codex's own reviewer decides on routine approvals, as in the Codex app. And when a conversation is still open in the Codex app, which lets only one program write to it at a time, CloudCLI now says so instead of showing a generic failure ([#11](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/11)).
+
+**15 November 2026**
+- Codex chats use Codex 0.169, so newer models such as gpt-6.1-sol work from CloudCLI. This is ahead of the version upstream CloudCLI pins ([#7](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/7)).
+- A Codex conversation that you edited in CloudCLI and then continued in the Codex app no longer disappears from the sidebar ([#6](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/6)).
+- On Windows, a folder that was opened both as `E:\…` and `e:\…` now shows up as one project with all its sessions, instead of two. Nothing is rewritten: each session keeps running in the folder it was recorded with ([#5](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/5)).
+- The header stays on one line at every width: wide screens show the full conversation title instead of cutting it short, and phones no longer stack the title above the tabs.
+- The OTSR skin now uses the exact colors of the original design: the real copper and secondary text, black labels on copper and green buttons in dark mode, and a soft shadow under floating panels ([#4](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/4)).
+- The OTSR design is now also a reusable package in [`themes/otsr`](themes/otsr/), and the theming guide describes the skin system as it really works ([#2](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/2), [#3](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/3)).
+- Skins now have their own settings. For OTSR you can choose how strong the dotted background is, and switch the cut corners, monospaced labels and square status dots on or off. The dotted background is softer by default.
+
+**14 November 2026**
+- New skin setting, with the OTSR skin in light and dark.
+- Behind the scenes, the interface was prepared for skins; nothing changed visually.
+- The home screen shows your recent conversations and projects.
+- Swipe between tabs anywhere on the screen; the terminal tab moved to the end.
+- Long conversations no longer stutter when you scroll up on a phone.
+- The iPhone home-screen app no longer leaves an empty strip at the bottom.
+- The model picker shows the models your account actually has.
+- Large projects and files outside the home folder can be browsed and opened.
+- First release, based on CloudCLI 1.37.8.
+
+## License and credits
+
+CloudCLI-MobileUI is free software under the [GNU AGPL v3](LICENSE) or later. If you run a modified version for other people, the license asks you to share its source with them.
+
+It is based on CloudCLI by Siteboon AI B.V. and its contributors (see [NOTICE](NOTICE)). Guides for contributors and maintainers: [CONTRIBUTING.md](CONTRIBUTING.md), [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md) and [docs/fork/MAINTAINING.md](docs/fork/MAINTAINING.md).
+
+## Acknowledgements
+The changes in this repository and their ongoing maintenance are by [Aztech Labs](https://github.com/Aztech-Lab). 

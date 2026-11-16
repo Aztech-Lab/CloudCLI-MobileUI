@@ -1,3 +1,5 @@
+import { borderRadius, fontFamily, paletteColors, ringColor, themeTokensPlugin } from './tailwind.tokens.js';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
@@ -14,11 +16,11 @@ export default {
       },
     },
     extend: {
-      fontFamily: {
-        sans: ['"Encode Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
-        serif: ['Merriweather', 'Georgia', 'Cambria', '"Times New Roman"', 'serif'],
-      },
+      // [local] Fonts, palette colours and radii read CSS variables whose defaults are
+      // the previous values (tailwind.tokens.js), so themes can override them.
+      fontFamily,
       colors: {
+        ...paletteColors,
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -53,11 +55,8 @@ export default {
           foreground: "hsl(var(--card-foreground))",
         },
       },
-      borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-      },
+      borderRadius,
+      ringColor,
       spacing: {
         'safe-area-inset-bottom': 'env(safe-area-inset-bottom)',
         'mobile-nav': 'var(--mobile-nav-total)',
@@ -88,5 +87,5 @@ export default {
       },
     },
   },
-  plugins: [require('@tailwindcss/typography')],
+  plugins: [require('@tailwindcss/typography'), themeTokensPlugin],
 }

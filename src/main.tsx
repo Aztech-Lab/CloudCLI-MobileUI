@@ -4,6 +4,8 @@ import { scan } from 'react-scan'
 
 import App from '@/App'
 import '@/index.css'
+// [local] Skins override the design tokens; they must come after index.css.
+import '@/skins/otsr.css'
 import 'katex/dist/katex.min.css'
 
 // Initialize i18n

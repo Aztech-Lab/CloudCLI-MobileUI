@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-import { projectsDb, sessionsDb } from '@/modules/database/index.js';
+import { projectGroupsDb, projectsDb, sessionsDb } from '@/modules/database/index.js';
 import { AppError } from '@/shared/utils.js';
 
 function uniqueJsonlPathsFromSessions(
@@ -77,7 +77,11 @@ export async function deleteOrArchiveProject(projectId: string, force: boolean):
   }
 
   if (!force) {
-    projectsDb.updateProjectIsArchivedById(projectId, true);
+    // [local] Archives every row of a project stored under several path
+    // spellings, so the merged entry leaves the sidebar as a whole.
+    for (const sibling of projectGroupsDb.getRowsSharingIdentityWith(projectId)) {
+      projectsDb.updateProjectIsArchivedById(sibling.project_id, true);
+    }
     return;
   }
 
@@ -98,5 +102,8 @@ export function restoreArchivedProject(projectId: string): void {
     });
   }
 
-  projectsDb.updateProjectIsArchivedById(projectId, false);
+  // [local] Restores every row of the merged project, as archiving does.
+  for (const sibling of projectGroupsDb.getRowsSharingIdentityWith(projectId)) {
+    projectsDb.updateProjectIsArchivedById(sibling.project_id, false);
+  }
 }

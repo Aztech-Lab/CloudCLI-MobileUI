@@ -1,6 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import {
+  applyAssistantBubble,
+  readStoredAssistantBubble,
+  writeAssistantBubble,
+  type AssistantBubbleStyle,
+} from '@/shared/assistantBubble';
+import { readThemeToken } from '@/shared/utils';
 import type { ThemeMode } from '@/shared/types';
 import {
   readUserPreference,
@@ -13,6 +20,9 @@ type ThemeContextValue = {
   toggleDarkMode: () => void;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
+  /** [local] How the agent's spoken replies are framed: off, translucent or solid. */
+  assistantBubble: AssistantBubbleStyle;
+  setAssistantBubble: (style: AssistantBubbleStyle) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -55,6 +65,9 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   // The resolved colour. It is not derivable from `themeMode` alone, because
   // under `system` it changes when the OS does, with no state change here.
   const [isDarkMode, setIsDarkMode] = useState(() => resolveIsDarkMode(readStoredThemeMode()));
+  // [local] The agent-bubble style rides along with the theme: same store, same
+  // mirror, same rule that only an explicit choice is written.
+  const [assistantBubble, setAssistantBubbleState] = useState<AssistantBubbleStyle>(readStoredAssistantBubble);
 
   // The theme now lives in auth.db, so a change made on another device (or in
   // another tab) arrives through the preference store rather than a re-render.
@@ -62,7 +75,12 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     const storedMode = readStoredThemeMode();
     setThemeModeState(storedMode);
     setIsDarkMode(resolveIsDarkMode(storedMode));
+    setAssistantBubbleState(readStoredAssistantBubble());
   }), []);
+
+  useEffect(() => {
+    applyAssistantBubble(assistantBubble);
+  }, [assistantBubble]);
 
   // Applying the theme to the document and persisting it are deliberately
   // separate. Persisting from here would also fire on mount — before the stored
@@ -80,7 +98,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
       const themeColorMeta = document.querySelector('meta[name="theme-color"]');
       if (themeColorMeta) {
-        themeColorMeta.setAttribute('content', '#141414'); // Dark background color (hsl(0 0% 8%))
+        // Dark background color (hsl(0 0% 8%)). [local] A theme may override it.
+        themeColorMeta.setAttribute('content', readThemeToken('--app-theme-color-dark') || '#141414');
       }
     } else {
       document.documentElement.classList.remove('dark');
@@ -93,7 +112,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
       const themeColorMeta = document.querySelector('meta[name="theme-color"]');
       if (themeColorMeta) {
-        themeColorMeta.setAttribute('content', '#f6f4ef'); // Light background color (warm cream)
+        // Light background color (warm cream). [local] A theme may override it.
+        themeColorMeta.setAttribute('content', readThemeToken('--app-theme-color-light') || '#f6f4ef');
       }
     }
   }, [isDarkMode]);
@@ -123,6 +143,11 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     setIsDarkMode(resolveIsDarkMode(mode));
   }, []);
 
+  const setAssistantBubble = useCallback((style: AssistantBubbleStyle) => {
+    writeAssistantBubble(style);
+    setAssistantBubbleState(style);
+  }, []);
+
   // Kept for the callers that only offer a light/dark switch: choosing either
   // one is an explicit choice, so it leaves `system` behind exactly as before.
   const toggleDarkMode = useCallback(() => {
@@ -137,8 +162,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   // A fresh object here would re-render every consumer in the app on any
   // render of this provider, theme change or not.
   const value = useMemo<ThemeContextValue>(
-    () => ({ isDarkMode, toggleDarkMode, themeMode, setThemeMode }),
-    [isDarkMode, toggleDarkMode, themeMode, setThemeMode],
+    () => ({ isDarkMode, toggleDarkMode, themeMode, setThemeMode, assistantBubble, setAssistantBubble }),
+    [isDarkMode, toggleDarkMode, themeMode, setThemeMode, assistantBubble, setAssistantBubble],
   );
 
   return (

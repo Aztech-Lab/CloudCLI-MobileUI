@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 
-import { projectsDb, sessionsDb } from '@/modules/database/index.js';
+import { projectGroupsDb, sessionsDb } from '@/modules/database/index.js';
 import { broadcastSessionUpserted, chatRunRegistry } from '@/modules/websocket/index.js';
 import { providerRegistry } from '@/modules/providers/provider.registry.js';
 import { listBusyClaudeCliSessions } from '@/modules/providers/services/claude-cli-liveness.service.js';
@@ -349,14 +349,15 @@ export const sessionsService = {
    */
   listRecentSessions(limit: number, offset: number): RecentSessionsPage {
     const page = sessionsDb.getRecentSessionsPage(limit, offset);
-    const projectCache = new Map<string, ReturnType<typeof projectsDb.getProjectPath>>();
+    const projectCache = new Map<string, ReturnType<typeof projectGroupsDb.getDisplayProjectForPath>>();
     const conversations = page.sessions.map((session) => {
       const projectPath = session.project_path?.trim() ? session.project_path : null;
       let project = null;
 
       if (projectPath) {
         if (!projectCache.has(projectPath)) {
-          projectCache.set(projectPath, projectsDb.getProjectPath(projectPath));
+          // [local] Labelled with the project the sidebar lists it under.
+          projectCache.set(projectPath, projectGroupsDb.getDisplayProjectForPath(projectPath));
         }
         project = projectCache.get(projectPath) ?? null;
       }
@@ -772,7 +773,9 @@ export const sessionsService = {
     }
 
     const projectPath = session.project_path?.trim() ? session.project_path : null;
-    const project = projectPath ? projectsDb.getProjectPath(projectPath) : null;
+    // [local] The project the sidebar lists this session under; a project
+    // stored under several path spellings is listed once, by its representative.
+    const project = projectPath ? projectGroupsDb.getDisplayProjectForPath(projectPath) : null;
 
     return {
       sessionId: session.session_id,
@@ -785,9 +788,9 @@ export const sessionsService = {
       project: project && projectPath
         ? {
             projectId: project.project_id,
-            path: projectPath,
-            fullPath: projectPath,
-            displayName: resolveProjectDisplayName(projectPath, project.custom_project_name),
+            path: project.project_path,
+            fullPath: project.project_path,
+            displayName: resolveProjectDisplayName(project.project_path, project.custom_project_name),
             isStarred: Boolean(project.isStarred),
             isArchived: Boolean(project.isArchived),
           }
@@ -801,7 +804,7 @@ export const sessionsService = {
    */
   listArchivedSessions(): ArchivedSessionListItem[] {
     const archivedSessions = sessionsDb.getArchivedSessions();
-    const projectCache = new Map<string, ReturnType<typeof projectsDb.getProjectPath>>();
+    const projectCache = new Map<string, ReturnType<typeof projectGroupsDb.getDisplayProjectForPath>>();
 
     return archivedSessions.map((session) => {
       const projectPath = session.project_path?.trim() ? session.project_path : null;
@@ -809,7 +812,8 @@ export const sessionsService = {
 
       if (projectPath) {
         if (!projectCache.has(projectPath)) {
-          projectCache.set(projectPath, projectsDb.getProjectPath(projectPath));
+          // [local] Labelled with the project the sidebar lists it under.
+          projectCache.set(projectPath, projectGroupsDb.getDisplayProjectForPath(projectPath));
         }
         project = projectCache.get(projectPath) ?? null;
       }

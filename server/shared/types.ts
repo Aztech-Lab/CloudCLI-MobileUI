@@ -538,6 +538,11 @@ export type NormalizedMessage = {
     toolUseResult?: unknown;
   };
   isError?: boolean;
+  /**
+   * [local] On an `error` row, a stable code the client can translate instead
+   * of showing `content` (which stays the English fallback).
+   */
+  errorCode?: string;
   text?: string;
   tokens?: number;
   canInterrupt?: boolean;

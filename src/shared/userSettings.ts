@@ -18,6 +18,12 @@ import { CODE_EDITOR_STORAGE_KEYS } from '@/shared/constants';
 /** Every setting the server stores for a user. */
 export type UserPreferences = {
   theme: 'light' | 'dark';
+  /** [local] The skin (visual theme) applied on top of light/dark; see src/shared/skin.ts. */
+  skin: string;
+  /** [local] Per-skin option values, keyed by skin id; see src/shared/skinOptions.ts. */
+  skinOptions: unknown;
+  /** [local] How the agent's spoken replies are framed; see src/shared/assistantBubble.ts. */
+  assistantBubble: string;
   userLanguage: string;
   tasksEnabled: boolean;
   projectSortOrder: 'name' | 'date';
@@ -55,6 +61,10 @@ const SERVER_WRITE_DEBOUNCE_MS = 400;
  */
 const LEGACY_STORAGE_KEYS: Record<UserPreferenceKey, string> = {
   theme: 'theme',
+  // [local] Never stored anywhere else; the keys only have to exist for PREFERENCE_KEYS.
+  skin: 'skin',
+  skinOptions: 'skinOptions',
+  assistantBubble: 'assistantBubble',
   userLanguage: 'userLanguage',
   tasksEnabled: 'tasks-enabled',
   projectSortOrder: 'claude-settings',
@@ -214,7 +224,7 @@ function readLegacyPreference(key: UserPreferenceKey): unknown {
     return undefined;
   }
 
-  if (key === 'theme' || key === 'userLanguage' || key === 'selectedProvider') {
+  if (key === 'theme' || key === 'skin' || key === 'userLanguage' || key === 'selectedProvider') {
     return raw;
   }
 

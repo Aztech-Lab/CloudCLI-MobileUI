@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 import { getConnection } from '@/modules/database/connection.js';
 import { projectsDb } from '@/modules/database/repositories/projects.db.js';
 import { normalizeProjectPath } from '@/shared/utils.js';
@@ -25,6 +27,21 @@ type RecentSessionsPage = {
   sessions: SessionRow[];
   total: number;
 };
+
+/**
+ * [local] Comparable form of a transcript path. The Codex app server can hand
+ * back extended-length (`\\?\`) paths while the indexer records plain ones,
+ * and Windows paths compare case-insensitively.
+ */
+const comparableTranscriptPath = (filePath: string): string => {
+  const plain = filePath.startsWith('\\\\?\\') ? filePath.slice(4) : filePath;
+  const resolved = path.resolve(plain);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+};
+
+/** [local] True when two transcript paths name the same file. */
+export const isSameTranscriptPath = (left: string, right: string): boolean =>
+  comparableTranscriptPath(left) === comparableTranscriptPath(right);
 
 const SESSION_ROW_COLUMNS =
   'session_id, provider, provider_session_id, project_path, jsonl_path, custom_name, model, effort, forked_from_session_id, isArchived, created_at, updated_at';
@@ -88,7 +105,11 @@ export const sessionsDb = {
     customName?: string,
     createdAt?: string,
     updatedAt?: string,
-    jsonlPath?: string | null
+    jsonlPath?: string | null,
+    // [local] App id for a new row. Defaults to the provider id; the Codex
+    // indexer passes a fresh one when that id already belongs to a session
+    // that was edited off this thread.
+    appSessionId?: string
   ): string {
     const db = getConnection();
     const createdAtValue = normalizeTimestamp(createdAt);
@@ -153,7 +174,7 @@ export const sessionsDb = {
            ELSE COALESCE(excluded.custom_name, sessions.custom_name)
          END`
     ).run(
-      providerSessionId,
+      appSessionId ?? providerSessionId,
       provider,
       providerSessionId,
       customName ?? null,
@@ -164,7 +185,7 @@ export const sessionsDb = {
       updatedAtValue
     );
 
-    return providerSessionId;
+    return appSessionId ?? providerSessionId;
   },
 
   /**
@@ -451,6 +472,34 @@ export const sessionsDb = {
       .get(providerSessionId, provider) as { found: number } | undefined;
 
     return Boolean(row);
+  },
+
+  /**
+   * [local] Whether this one transcript file is a provider session a session
+   * has left behind.
+   *
+   * Codex can write a later rollout file for the same thread id (an edit or
+   * rollback made in the Codex app starts a new file that keeps the id). That
+   * file is the thread as the user continued it, not the version a CloudCLI
+   * session was edited off, so only the file that was actually left behind is
+   * refused. A record written before its path was known matches every file of
+   * that id, as before.
+   */
+  isProviderTranscriptSuperseded(providerSessionId: string, provider: string, jsonlPath: string): boolean {
+    const db = getConnection();
+    const row = db
+      .prepare(
+        `SELECT jsonl_path FROM superseded_provider_sessions
+         WHERE provider_session_id = ? AND provider = ?
+         LIMIT 1`
+      )
+      .get(providerSessionId, provider) as { jsonl_path: string | null } | undefined;
+
+    if (!row) {
+      return false;
+    }
+
+    return !row.jsonl_path || isSameTranscriptPath(row.jsonl_path, jsonlPath);
   },
 
   /**
@@ -762,6 +811,81 @@ export const sessionsDb = {
       .get(normalizedProjectPath) as { count: number } | undefined;
 
     return Number(row?.count ?? 0);
+  },
+
+  // [local] Multi-path reads for a project shown as one entry while it is
+  // stored under several spellings (see project-groups.db.ts). The paths are
+  // matched exactly as stored; every row keeps its own project_path.
+
+  getSessionsByProjectPathsPage(projectPaths: string[], limit: number, offset: number): SessionRow[] {
+    if (projectPaths.length === 0) {
+      return [];
+    }
+    const db = getConnection();
+    const placeholders = projectPaths.map(() => '?').join(', ');
+    const rows = db
+      .prepare(
+        `SELECT ${SESSION_ROW_COLUMNS}
+         FROM sessions
+         WHERE project_path IN (${placeholders})
+           AND isArchived = 0
+         ORDER BY datetime(COALESCE(updated_at, created_at)) DESC, session_id DESC
+         LIMIT ? OFFSET ?`
+      )
+      .all(...projectPaths, limit, offset) as SessionRow[];
+
+    return normalizeSessionRows(rows);
+  },
+
+  countSessionsByProjectPaths(projectPaths: string[]): number {
+    if (projectPaths.length === 0) {
+      return 0;
+    }
+    const db = getConnection();
+    const placeholders = projectPaths.map(() => '?').join(', ');
+    const row = db
+      .prepare(
+        `SELECT COUNT(*) AS count
+         FROM sessions
+         WHERE project_path IN (${placeholders})
+           AND isArchived = 0`
+      )
+      .get(...projectPaths) as { count: number } | undefined;
+
+    return Number(row?.count ?? 0);
+  },
+
+  getSessionsByProjectPathsIncludingArchived(projectPaths: string[]): SessionRow[] {
+    if (projectPaths.length === 0) {
+      return [];
+    }
+    const db = getConnection();
+    const placeholders = projectPaths.map(() => '?').join(', ');
+    const rows = db
+      .prepare(
+        `SELECT ${SESSION_ROW_COLUMNS}
+         FROM sessions
+         WHERE project_path IN (${placeholders})
+         ORDER BY datetime(COALESCE(updated_at, created_at)) DESC, session_id DESC`
+      )
+      .all(...projectPaths) as SessionRow[];
+
+    return normalizeSessionRows(rows);
+  },
+
+  /** Most recent activity among a path's active sessions, or null when it has none. */
+  getLatestSessionActivityByProjectPath(projectPath: string): string | null {
+    const db = getConnection();
+    const row = db
+      .prepare(
+        `SELECT MAX(datetime(COALESCE(updated_at, created_at))) AS latest
+         FROM sessions
+         WHERE project_path = ?
+           AND isArchived = 0`
+      )
+      .get(projectPath) as { latest: string | null } | undefined;
+
+    return row?.latest ?? null;
   },
 
   deleteSessionsByProjectPath(projectPath: string): void {

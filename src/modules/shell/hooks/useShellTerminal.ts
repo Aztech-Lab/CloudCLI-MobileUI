@@ -8,8 +8,8 @@ import { Terminal } from '@xterm/xterm';
 import type { ITerminalOptions } from '@xterm/xterm';
 
 import { useTheme } from '@/shared/context/ThemeContext';
+import { copyTextToClipboard, readThemeToken, toTokenName } from '@/shared/utils';
 import type { MobileTerminalSelectionManager, Project } from '@/shared/types';
-import { copyTextToClipboard } from '@/shared/utils';
 import { TERMINAL_INIT_DELAY_MS } from '@/shared/constants';
 import { installMobileTerminalSelection } from '@/modules/shell/utils/mobileTerminalSelection';
 import { sendSocketMessage } from '@/modules/shell/utils/socket';
@@ -119,6 +119,34 @@ const LIGHT_TERMINAL_COLORS: TerminalColorOptions = {
     brightWhite: '#8c959f',
   },
 };
+
+// [local] The palette keys a theme may override, as `--terminal-dark-<key>` /
+// `--terminal-light-<key>` on <html> (kebab-case: --terminal-dark-selection-background),
+// plus `--terminal-{dark|light}-minimum-contrast-ratio`. Unset tokens keep the
+// defaults above, so with no theme the terminal is exactly as before.
+const THEMEABLE_TERMINAL_COLORS = [
+  'background', 'foreground', 'cursor', 'cursorAccent', 'selectionBackground', 'selectionForeground',
+  'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
+  'brightBlack', 'brightRed', 'brightGreen', 'brightYellow', 'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
+] as const;
+
+/** The terminal colours for the app's light/dark mode, with any theme overrides applied. */
+export function resolveTerminalColors(isDarkMode: boolean): TerminalColorOptions {
+  const base = isDarkMode ? DARK_TERMINAL_COLORS : LIGHT_TERMINAL_COLORS;
+  const prefix = isDarkMode ? '--terminal-dark-' : '--terminal-light-';
+
+  let theme = base.theme;
+  for (const key of THEMEABLE_TERMINAL_COLORS) {
+    const override = readThemeToken(`${prefix}${toTokenName(key)}`);
+    if (override) theme = { ...theme, [key]: override };
+  }
+
+  const ratio = Number.parseFloat(readThemeToken(`${prefix}minimum-contrast-ratio`));
+  return {
+    theme,
+    minimumContrastRatio: Number.isFinite(ratio) ? ratio : base.minimumContrastRatio,
+  };
+}
 
 // CLIs running inside the pty (e.g. `claude auth login`'s "press c to copy"
 // device-flow prompt) write to the clipboard via an OSC 52 escape sequence,
@@ -231,7 +259,7 @@ export function useShellTerminal({
 
     const nextTerminal = new Terminal({
       ...TERMINAL_OPTIONS,
-      ...(isDarkModeRef.current ? DARK_TERMINAL_COLORS : LIGHT_TERMINAL_COLORS),
+      ...resolveTerminalColors(isDarkModeRef.current),
     });
     terminalRef.current = nextTerminal;
 
@@ -425,7 +453,7 @@ export function useShellTerminal({
       return;
     }
 
-    const colors = isDarkMode ? DARK_TERMINAL_COLORS : LIGHT_TERMINAL_COLORS;
+    const colors = resolveTerminalColors(isDarkMode);
     currentTerminal.options.theme = colors.theme;
     currentTerminal.options.minimumContrastRatio = colors.minimumContrastRatio;
   }, [isDarkMode, terminalRef]);

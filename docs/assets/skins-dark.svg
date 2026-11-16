@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="520" viewBox="0 0 1280 520" role="img" aria-labelledby="t d" fill="#e2e3dc">
+  <title id="t">Skins</title>
+  <desc id="d">The same conversation in the OTSR skin, light and dark, next to an open slot for a new skin.</desc>
+  <style>
+  .sans { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; }
+  .flow { stroke-dasharray: 4 7; animation: flow 1.4s linear infinite; }
+  .pulse { animation: pulse 1.6s ease-in-out infinite; }
+  .pulse2 { animation: pulse 1.6s ease-in-out .8s infinite; }
+  .cursor { animation: blink 1.1s steps(1) infinite; }
+  .swipe { animation: swipe 9s ease-in-out infinite; }
+  @keyframes flow { to { stroke-dashoffset: -22; } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  @keyframes swipe {
+    0%, 18% { transform: translateX(0); }
+    25%, 43% { transform: translateX(43.5px); }
+    50%, 68% { transform: translateX(83px); }
+    75%, 93% { transform: translateX(121.5px); }
+    100% { transform: translateX(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .flow, .pulse, .pulse2, .cursor, .swipe { animation: none; }
+  }</style>
+  
+  <defs>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="11" cy="11" r="1.1" fill="rgba(232,232,226,0.07)"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9ba09a"/>
+    </marker>
+  </defs>
+  <rect width="1280" height="520" fill="#0f1112"/>
+  <rect width="1280" height="520" fill="url(#dots)"/>
+  <polygon points="20,20 1242,20 1260,38 1260,500 38,500 20,482" fill="none" stroke="#2b302f"/>
+  <text class="mono" x="60" y="150" font-size="13" letter-spacing="2.6" fill="#d9a25f">SKINS</text>
+  <text class="sans" x="58" y="204" font-size="42" font-weight="700" letter-spacing="-0.5" fill="#f1f1ea">Make it yours.</text>
+  <g class="sans" font-size="17">
+    <text x="60" y="250">A skin restyles the whole interface:</text>
+    <text x="60" y="275">colors, corners, labels and background.</text>
+    <text x="60" y="312">OTSR comes in light and dark.</text>
+    <text x="60" y="337">The next skin could be yours.</text>
+  </g>
+  <text class="mono" x="60" y="388" font-size="11" letter-spacing="1.4" fill="#d9a25f">HOW TO · DOCS/FORK/THEMING.MD  →</text>
+  
+  <rect x="529.5" y="55.5" width="201" height="401" rx="30.5" fill="none" stroke="#2b302f"/>
+  <g fill="#24261f">
+  <rect x="530" y="56" width="200" height="400" rx="30" fill="#1d201e"/>
+  <rect x="540" y="66" width="180" height="380" rx="22" fill="#f4f4f1"/>
+  <rect x="600" y="74" width="60" height="12" rx="6" fill="#1d201e"/>
+  <g class="mono" font-size="9" letter-spacing="1" font-weight="600">
+    <text x="552" y="108" fill="#6f726a">CHAT</text>
+    <text x="592" y="108" fill="#6f726a">FILES</text>
+    <text x="638" y="108" fill="#6f726a">GIT</text>
+    <text x="670" y="108" fill="#6f726a">SHELL</text>
+  </g>
+  <g class="swipe"><rect x="554" y="114" width="22" height="2" fill="#b8793c"/></g>
+  <line x1="548" y1="122" x2="712" y2="122" stroke="#c7c8c0"/>
+  <polygon points="592,134 702,134 708,140 708,168 598,168 592,162" fill="#e8d3b6"/>
+  <g class="sans" font-size="10">
+    <text x="600" y="149">Run the test suite</text>
+    <text x="600" y="162">and fix what fails</text>
+  </g>
+  <rect x="552" y="180" width="150" height="6" rx="3" fill="#c7c8c0"/>
+  <rect x="552" y="192" width="128" height="6" rx="3" fill="#c7c8c0"/>
+  <rect x="552" y="204" width="96" height="6" rx="3" fill="#c7c8c0"/>
+  <polygon points="552,220 702,220 708,226 708,268 558,268 552,262" fill="#ebebe8" stroke="#b8793c"/>
+  <rect class="pulse" x="562" y="232" width="8" height="8" fill="#b8793c"/>
+  <text class="mono" x="576" y="239" font-size="8.5" letter-spacing=".8" fill="#b8793c">SUBAGENT · RUNNING</text>
+  <text class="sans" x="562" y="258" font-size="10">literature search</text>
+  <rect x="552" y="282" width="146" height="6" rx="3" fill="#c7c8c0"/>
+  <rect x="552" y="294" width="118" height="6" rx="3" fill="#c7c8c0"/>
+  <polygon points="552,314 702,314 708,320 708,344 558,344 552,338" fill="#ebebe8" stroke="#c7c8c0"/>
+  <rect x="562" y="325" width="8" height="8" fill="#4f7a4a"/>
+  <text class="mono" x="576" y="332.5" font-size="8.5" letter-spacing=".8" fill="#4f7a4a">TESTS · 24 PASSED</text>
+  <rect x="552" y="358" width="140" height="6" rx="3" fill="#c7c8c0"/>
+  <rect x="552" y="370" width="100" height="6" rx="3" fill="#c7c8c0"/>
+  <polygon points="552,398 702,398 708,404 708,430 558,430 552,424" fill="#ebebe8" stroke="#c7c8c0"/>
+  <text class="sans" x="562" y="418" font-size="10" fill="#6f726a">Message</text>
+  <rect x="684" y="406" width="16" height="16" fill="#b8793c"/>
+  </g>
+  
+  <rect x="769.5" y="55.5" width="201" height="401" rx="30.5" fill="none" stroke="#2b302f"/>
+  <g fill="#e2e3dc">
+  <rect x="770" y="56" width="200" height="400" rx="30" fill="#2b302f"/>
+  <rect x="780" y="66" width="180" height="380" rx="22" fill="#161919"/>
+  <rect x="840" y="74" width="60" height="12" rx="6" fill="#2b302f"/>
+  <g class="mono" font-size="9" letter-spacing="1" font-weight="600">
+    <text x="792" y="108" fill="#9ba09a">CHAT</text>
+    <text x="832" y="108" fill="#9ba09a">FILES</text>
+    <text x="878" y="108" fill="#9ba09a">GIT</text>
+    <text x="910" y="108" fill="#9ba09a">SHELL</text>
+  </g>
+  <g class="swipe"><rect x="794" y="114" width="22" height="2" fill="#d9a25f"/></g>
+  <line x1="788" y1="122" x2="952" y2="122" stroke="#2b302f"/>
+  <polygon points="832,134 942,134 948,140 948,168 838,168 832,162" fill="#3a3226"/>
+  <g class="sans" font-size="10">
+    <text x="840" y="149">Run the test suite</text>
+    <text x="840" y="162">and fix what fails</text>
+  </g>
+  <rect x="792" y="180" width="150" height="6" rx="3" fill="#2b302f"/>
+  <rect x="792" y="192" width="128" height="6" rx="3" fill="#2b302f"/>
+  <rect x="792" y="204" width="96" height="6" rx="3" fill="#2b302f"/>
+  <polygon points="792,220 942,220 948,226 948,268 798,268 792,262" fill="#0f1112" stroke="#d9a25f"/>
+  <rect class="pulse" x="802" y="232" width="8" height="8" fill="#d9a25f"/>
+  <text class="mono" x="816" y="239" font-size="8.5" letter-spacing=".8" fill="#d9a25f">SUBAGENT · RUNNING</text>
+  <text class="sans" x="802" y="258" font-size="10">literature search</text>
+  <rect x="792" y="282" width="146" height="6" rx="3" fill="#2b302f"/>
+  <rect x="792" y="294" width="118" height="6" rx="3" fill="#2b302f"/>
+  <polygon points="792,314 942,314 948,320 948,344 798,344 792,338" fill="#0f1112" stroke="#2b302f"/>
+  <rect x="802" y="325" width="8" height="8" fill="#8fbf7a"/>
+  <text class="mono" x="816" y="332.5" font-size="8.5" letter-spacing=".8" fill="#8fbf7a">TESTS · 24 PASSED</text>
+  <rect x="792" y="358" width="140" height="6" rx="3" fill="#2b302f"/>
+  <rect x="792" y="370" width="100" height="6" rx="3" fill="#2b302f"/>
+  <polygon points="792,398 942,398 948,404 948,430 798,430 792,424" fill="#0f1112" stroke="#2b302f"/>
+  <text class="sans" x="802" y="418" font-size="10" fill="#9ba09a">Message</text>
+  <rect x="924" y="406" width="16" height="16" fill="#d9a25f"/>
+  </g>
+  
+  <rect class="flow" x="1010" y="56" width="200" height="400" rx="30" fill="none" stroke="#d9a25f" stroke-width="1.6"/>
+  <line x1="1110" y1="206" x2="1110" y2="246" stroke="#d9a25f" stroke-width="2"/>
+  <line x1="1090" y1="226" x2="1130" y2="226" stroke="#d9a25f" stroke-width="2"/>
+  <text class="mono" x="1110" y="288" font-size="12" letter-spacing="2" text-anchor="middle">YOUR SKIN</text>
+  <text class="mono" x="1110" y="310" font-size="10" letter-spacing=".6" text-anchor="middle" fill="#9ba09a">src/skins/*.css</text>
+  
+  <text class="mono" x="630" y="488" font-size="11" letter-spacing="1.8" text-anchor="middle" fill="#9ba09a">OTSR · LIGHT</text>
+  
+  <text class="mono" x="870" y="488" font-size="11" letter-spacing="1.8" text-anchor="middle" fill="#9ba09a">OTSR · DARK</text>
+  
+  <text class="mono" x="1110" y="488" font-size="11" letter-spacing="1.8" text-anchor="middle" fill="#d9a25f">OPEN SLOT</text>
+</svg>

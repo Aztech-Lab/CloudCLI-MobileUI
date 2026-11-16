@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { projectsDb } from '@/modules/database/index.js';
+import { projectGroupsDb, projectsDb } from '@/modules/database/index.js';
 import { applyLegacyStarredProjectIds, toggleProjectStar } from '@/modules/projects/services/project-star.service.js';
 import { AppError } from '@/shared/utils.js';
 
@@ -42,19 +42,22 @@ test('toggleProjectStar throws when project does not exist', () => {
 test('toggleProjectStar flips star state and persists it', () => {
   const originalGetProjectById = projectsDb.getProjectById;
   const originalUpdateProjectIsStarredById = projectsDb.updateProjectIsStarredById;
+  const originalGetRowsSharingIdentityWith = projectGroupsDb.getRowsSharingIdentityWith;
 
   let capturedProjectId = '';
   let capturedState = false;
 
   try {
-    projectsDb.getProjectById = () =>
-      ({
-        project_id: 'project-1',
-        project_path: '/workspace/project-1',
-        custom_project_name: 'project-1',
-        isStarred: 0,
-        isArchived: 0,
-      }) as ProjectRow;
+    const row = {
+      project_id: 'project-1',
+      project_path: '/workspace/project-1',
+      custom_project_name: 'project-1',
+      isStarred: 0,
+      isArchived: 0,
+    } as ProjectRow;
+    projectsDb.getProjectById = () => row;
+    // [local] The toggle applies to every row stored under another spelling of the path.
+    projectGroupsDb.getRowsSharingIdentityWith = () => [row];
     projectsDb.updateProjectIsStarredById = (projectId: string, isStarred: boolean) => {
       capturedProjectId = projectId;
       capturedState = isStarred;
@@ -68,6 +71,7 @@ test('toggleProjectStar flips star state and persists it', () => {
   } finally {
     projectsDb.getProjectById = originalGetProjectById;
     projectsDb.updateProjectIsStarredById = originalUpdateProjectIsStarredById;
+    projectGroupsDb.getRowsSharingIdentityWith = originalGetRowsSharingIdentityWith;
   }
 });
 

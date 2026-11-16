@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { projectsDb, sessionsDb } from '@/modules/database/index.js';
+import { projectGroupsDb, sessionsDb } from '@/modules/database/index.js';
 import { generateDisplayName } from '@/modules/projects/index.js';
 import { broadcastToConnectedClients } from '@/modules/websocket/services/websocket-state.service.js';
 import type { SessionUpsertedEvent } from '@/shared/types.js';
@@ -32,10 +32,13 @@ async function buildSessionUpsertedEvent(
   }
 
   const projectPath = row.project_path;
-  const project = projectPath ? projectsDb.getProjectPath(projectPath) : null;
+  // [local] The entry the sidebar lists this session under: a project stored
+  // under several path spellings is listed once, by its representative row.
+  const project = projectPath ? projectGroupsDb.getDisplayProjectForPath(projectPath) : null;
+  const projectLabelPath = project?.project_path ?? projectPath;
   const displayName = project?.custom_project_name?.trim()
     ? project.custom_project_name
-    : await generateDisplayName(path.basename(projectPath ?? '') || (projectPath ?? ''), projectPath);
+    : await generateDisplayName(path.basename(projectLabelPath ?? '') || (projectLabelPath ?? ''), projectLabelPath);
 
   return {
     kind: 'session_upserted',

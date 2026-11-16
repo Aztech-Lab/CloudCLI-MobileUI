@@ -746,3 +746,61 @@ test('other shells and initial commands only get the COLORFGBG hint', () => {
     );
   });
 });
+
+// [local] A project stored under two drive-letter spellings is listed once; a
+// resumed session must still start in its own stored spelling.
+test('resuming a session starts in its stored path when the listed project spells the drive differently', (t) => {
+  const cwd = process.cwd();
+  if (!/^[a-zA-Z]:[\\/]/.test(cwd)) {
+    t.skip('needs a Windows drive-letter path');
+    return;
+  }
+  const swapDrive = (value: string) => `${value[0] === value[0].toUpperCase() ? value[0].toLowerCase() : value[0].toUpperCase()}${value.slice(1)}`;
+  const storedPath = swapDrive(cwd);
+  const spawnedCwds: string[] = [];
+  const dependencies = {
+    resolveProviderSessionId: () => 'provider-resume-id',
+    resolveSessionProjectPath: () => storedPath,
+    spawnPty: (_shell: string, _args: string | string[], options: { cwd?: string }) => {
+      spawnedCwds.push(String(options.cwd));
+      return createFakePty() as never;
+    },
+  };
+
+  const socket = createFakeSocket();
+  handleShellConnection(socket as never, dependencies as never);
+  socket.emit('message', JSON.stringify({
+    type: 'init',
+    projectPath: cwd,
+    sessionId: `resume-stored-path-${Date.now()}`,
+    hasSession: true,
+    provider: 'claude',
+  }));
+
+  assert.deepEqual(spawnedCwds, [path.resolve(storedPath)]);
+  assert.equal(spawnedCwds[0][0], storedPath[0]);
+});
+
+test('resuming a session keeps the requested path when the stored one is another directory', () => {
+  const spawnedCwds: string[] = [];
+  const dependencies = {
+    resolveProviderSessionId: () => 'provider-resume-id',
+    resolveSessionProjectPath: () => path.join(os.tmpdir(), 'somewhere-else-entirely'),
+    spawnPty: (_shell: string, _args: string | string[], options: { cwd?: string }) => {
+      spawnedCwds.push(String(options.cwd));
+      return createFakePty() as never;
+    },
+  };
+
+  const socket = createFakeSocket();
+  handleShellConnection(socket as never, dependencies as never);
+  socket.emit('message', JSON.stringify({
+    type: 'init',
+    projectPath: process.cwd(),
+    sessionId: `resume-other-path-${Date.now()}`,
+    hasSession: true,
+    provider: 'claude',
+  }));
+
+  assert.deepEqual(spawnedCwds, [path.resolve(process.cwd())]);
+});

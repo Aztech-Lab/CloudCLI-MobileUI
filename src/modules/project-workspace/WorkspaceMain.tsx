@@ -15,6 +15,8 @@ import { EditorSidebar, useEditorSidebar } from '@/modules/code-editor';
 import WorkspaceHeader from '@/modules/project-workspace/WorkspaceHeader';
 import WorkspaceStateView from '@/modules/project-workspace/WorkspaceStateView';
 import WorkspaceErrorBoundary from '@/modules/project-workspace/WorkspaceErrorBoundary';
+import { useWorkspaceTabs } from '@/modules/project-workspace/hooks/useWorkspaceTabs';
+import { useWorkspaceSwipeNavigation } from '@/modules/project-workspace/hooks/useWorkspaceSwipeNavigation';
 
 type WorkspaceMainProps = {
   selectedProject: Project | null;
@@ -133,12 +135,35 @@ function WorkspaceMain({
   // rewriting the whole palette registry on every render.
   usePaletteOpsRegister({ openFile, openFileInEditor, openDirectory });
 
+  // [local] Mobile: swipe left/right anywhere in the content to switch tabs; swiping
+  // back from the first tab opens the menu drawer. On the home screen (loading, or no
+  // project chosen yet) there are no tabs, so swiping back just opens the menu.
+  const { tabs } = useWorkspaceTabs(shouldShowTasksTab, shouldShowBrowserTab);
+  const [swipeContainer, setSwipeContainer] = useState<HTMLDivElement | null>(null);
+  const hasWorkspace = !isLoading && Boolean(selectedProject);
+  useWorkspaceSwipeNavigation({
+    enabled: isMobile,
+    container: swipeContainer,
+    tabIds: hasWorkspace ? tabs.map((tab) => tab.id) : [],
+    activeTab,
+    onSelectTab: setActiveTab,
+    onOpenMenu: onMenuClick,
+  });
+
   if (isLoading) {
-    return <WorkspaceStateView mode="loading" isMobile={isMobile} onMenuClick={onMenuClick} />;
+    return (
+      <div ref={setSwipeContainer} className="h-full">
+        <WorkspaceStateView mode="loading" isMobile={isMobile} onMenuClick={onMenuClick} />
+      </div>
+    );
   }
 
   if (!selectedProject) {
-    return <WorkspaceStateView mode="empty" isMobile={isMobile} onMenuClick={onMenuClick} />;
+    return (
+      <div ref={setSwipeContainer} className="h-full">
+        <WorkspaceStateView mode="empty" isMobile={isMobile} onMenuClick={onMenuClick} />
+      </div>
+    );
   }
 
   return (
@@ -155,7 +180,7 @@ function WorkspaceMain({
         onRenameSession={onRenameSession}
       />
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div ref={setSwipeContainer} className="flex min-h-0 flex-1 overflow-hidden">
         <div className={`flex min-h-0 min-w-[200px] flex-col overflow-hidden ${editorExpanded ? 'hidden' : ''} flex-1`}>
           <div className={`h-full ${activeTab === 'chat' ? 'block' : 'hidden'}`}>
             <WorkspaceErrorBoundary showDetails>

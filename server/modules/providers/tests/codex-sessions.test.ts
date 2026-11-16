@@ -5,6 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { closeConnection, initializeDatabase, sessionsDb } from '@/modules/database/index.js';
+import { getProjectsWithSessions } from '@/modules/projects/index.js';
 import { CodexSessionSynchronizer } from '@/modules/providers/list/codex/codex-session-synchronizer.provider.js';
 import { CodexSessionsProvider, parseCodexExecScript, readCodexMemoryCitations } from '@/modules/providers/list/codex/codex-sessions.provider.js';
 
@@ -604,6 +605,32 @@ test('Codex history restores user prompts from typed item_completed rows', { con
       assert.equal(users.length, 1, 'the wire user echo must not duplicate the typed prompt');
       assert.equal(users[0]?.content, prompt);
       assert.equal(images?.[0]?.path, '/tmp/prompt-picture.png');
+    });
+  } finally {
+    restoreHomeDir();
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+// [local] Both drive-letter spellings are stored as recorded and listed as one project.
+test('Codex rollouts with lower- and upper-case drive cwds keep their paths and list as one project', { concurrency: false }, async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'codex-session-sync-drive-'));
+  const restoreHomeDir = patchHomeDir(tempRoot);
+
+  try {
+    await writeCodexTranscript(tempRoot, 'codex-upper-1', 'Q:\\Projekt\\VLA', 'Started from Explorer');
+    await writeCodexTranscript(tempRoot, 'codex-lower-1', 'q:\\Projekt\\VLA', 'Started from Git Bash');
+    await withIsolatedDatabase(async () => {
+      await new CodexSessionSynchronizer().synchronize();
+
+      assert.equal(sessionsDb.getSessionById('codex-upper-1')?.project_path, 'Q:\\Projekt\\VLA');
+      assert.equal(sessionsDb.getSessionById('codex-lower-1')?.project_path, 'q:\\Projekt\\VLA');
+
+      const projects = await getProjectsWithSessions({ skipSynchronization: true });
+      const entries = projects.filter((project) => /projekt.vla$/i.test(project.fullPath));
+      assert.equal(entries.length, 1);
+      assert.equal(entries[0].fullPath, 'Q:\\Projekt\\VLA');
+      assert.deepEqual(entries[0].sessions.map((session) => session.id).sort(), ['codex-lower-1', 'codex-upper-1']);
     });
   } finally {
     restoreHomeDir();

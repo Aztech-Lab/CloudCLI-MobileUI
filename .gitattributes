@@ -1,0 +1,4 @@
+# [local] Keep this project's README and CONTRIBUTING when merging upstream (needs once per clone:
+#   git config merge.ours.driver true)
+README.md merge=ours
+CONTRIBUTING.md merge=ours

@@ -209,6 +209,43 @@
       "dark": "深色",
       "system": "跟隨系統外觀"
     },
+    "assistantBubble": {
+      "label": "Agent 回覆氣泡",
+      "description": "對話中 agent 文字回覆的外框樣式",
+      "off": "無氣泡",
+      "translucent": "半透明",
+      "solid": "實心"
+    },
+    "skin": {
+      "label": "外觀皮膚",
+      "description": "介面的視覺風格；淺色與深色對每種皮膚都適用",
+      "default": "預設",
+      "otsr": "OTSR — 實驗室白、銅色、直角"
+    },
+    "skinOptions": {
+      "otsr": {
+        "dotField": {
+          "label": "背景點陣",
+          "description": "對話區域背後的點狀紋理",
+          "off": "關閉",
+          "faint": "淡",
+          "normal": "正常",
+          "strong": "強"
+        },
+        "chamfers": {
+          "label": "切角邊緣",
+          "description": "標籤列、輸入框和你的訊息氣泡使用切角"
+        },
+        "monoLabels": {
+          "label": "等寬標籤文字",
+          "description": "工作區標籤使用大寫等寬的儀表風格文字"
+        },
+        "squareMarks": {
+          "label": "方形狀態標記",
+          "description": "狀態指示用方塊代替圓點"
+        }
+      }
+    },
     "projectSorting": {
       "label": "專案排序",
       "description": "專案在側邊欄中的排列方式",

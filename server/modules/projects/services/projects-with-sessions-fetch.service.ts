@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { projectsDb, sessionsDb } from '@/modules/database/index.js';
+import { projectGroupsDb, sessionsDb } from '@/modules/database/index.js';
+import type { ProjectGroup } from '@/modules/database/index.js';
 import { sessionSynchronizerService } from '@/modules/providers/index.js';
 import { WS_OPEN_STATE, connectedClients } from '@/modules/websocket/index.js';
 import type { RealtimeClientConnection, SessionForkAncestor } from '@/shared/types.js';
@@ -15,11 +16,17 @@ type SessionSummary = {
   lastActivity: string;
   forkedFromSessionId: string | null;
   forkAncestors: SessionForkAncestor[];
+  /**
+   * [local] The session's own stored project path. A project listed once may
+   * be stored under several spellings; each session keeps the one it has.
+   */
+  projectPath: string | null;
 };
 
 type SessionRepositoryRow = {
   provider: string;
   session_id: string;
+  project_path?: string | null;
   custom_name?: string | null;
   updated_at?: string | null;
   created_at?: string | null;
@@ -129,11 +136,13 @@ function mapSessionRowToSummary(row: SessionRepositoryRow): SessionSummary {
     lastActivity: row.updated_at ?? row.created_at ?? new Date().toISOString(),
     forkedFromSessionId: row.forked_from_session_id ?? null,
     forkAncestors: row.forked_from_session_id ? sessionsDb.getForkAncestors(row.session_id) : [],
+    projectPath: row.project_path ?? null,
   };
 }
 
-function readProjectSessionsIncludingArchived(projectPath: string): ProjectSessionsPageResult {
-  const rows = sessionsDb.getSessionsByProjectPathIncludingArchived(projectPath) as SessionRepositoryRow[];
+// [local] Session reads take every stored path of a merged project (see project-groups.db.ts).
+function readProjectSessionsIncludingArchived(projectPaths: string[]): ProjectSessionsPageResult {
+  const rows = sessionsDb.getSessionsByProjectPathsIncludingArchived(projectPaths) as SessionRepositoryRow[];
 
   return {
     sessions: rows.map(mapSessionRowToSummary),
@@ -145,23 +154,32 @@ function readProjectSessionsIncludingArchived(projectPath: string): ProjectSessi
 /**
  * Reads one paginated project session slice from the DB and groups rows by provider.
  */
-function readProjectSessionsPageByPath(
-  projectPath: string,
+function readProjectSessionsPageByPaths(
+  projectPaths: string[],
   options: SessionPaginationOptions = {},
 ): ProjectSessionsPageResult {
   const pagination = normalizeSessionPagination(options);
-  const rows = sessionsDb.getSessionsByProjectPathPage(
-    projectPath,
+  const rows = sessionsDb.getSessionsByProjectPathsPage(
+    projectPaths,
     pagination.limit,
     pagination.offset,
   ) as SessionRepositoryRow[];
-  const total = sessionsDb.countSessionsByProjectPath(projectPath);
+  const total = sessionsDb.countSessionsByProjectPaths(projectPaths);
 
   return {
     sessions: rows.map(mapSessionRowToSummary),
     total,
     hasMore: pagination.offset + rows.length < total,
   };
+}
+
+/** [local] A merged project's name: its custom name, else one derived from the representative's path. */
+async function resolveGroupDisplayName(group: ProjectGroup): Promise<string> {
+  if (group.customName?.trim()) {
+    return group.customName;
+  }
+  const projectPath = group.representative.project_path;
+  return generateDisplayName(path.basename(projectPath) || projectPath, projectPath);
 }
 
 // Broadcast progress to all connected WebSocket clients.
@@ -189,21 +207,17 @@ export async function getProjectsWithSessions(
     await sessionSynchronizerService.synchronizeSessions();
   }
 
-  const projectRows = projectsDb.getProjectPaths() as Array<{
-    project_id: string;
-    project_path: string;
-    custom_project_name?: string | null;
-    isStarred?: number;
-  }>;
-  const totalProjects = projectRows.length;
+  // [local] One entry per workspace, however many spellings it is stored under.
+  const projectGroups = projectGroupsDb.getActiveProjectGroups();
+  const totalProjects = projectGroups.length;
   const projects: ProjectListItem[] = [];
   let processedProjects = 0;
 
-  for (const row of projectRows) {
+  for (const group of projectGroups) {
     processedProjects += 1;
 
-    const projectId = row.project_id;
-    const projectPath = row.project_path;
+    const projectId = group.representative.project_id;
+    const projectPath = group.representative.project_path;
 
     broadcastProgress({
       phase: 'loading',
@@ -212,12 +226,9 @@ export async function getProjectsWithSessions(
       currentProject: projectPath,
     });
 
-    const displayName =
-      row.custom_project_name && row.custom_project_name.trim().length > 0
-        ? row.custom_project_name
-        : await generateDisplayName(path.basename(projectPath) || projectPath, projectPath);
+    const displayName = await resolveGroupDisplayName(group);
 
-    const sessionsPage = readProjectSessionsPageByPath(projectPath, {
+    const sessionsPage = readProjectSessionsPageByPaths(group.paths, {
       limit: options.sessionsLimit,
       offset: options.sessionsOffset,
     });
@@ -227,7 +238,7 @@ export async function getProjectsWithSessions(
       path: projectPath,
       displayName,
       fullPath: projectPath,
-      isStarred: Boolean(row.isStarred),
+      isStarred: group.isStarred,
       sessions: sessionsPage.sessions,
       sessionMeta: {
         hasMore: sessionsPage.hasMore,
@@ -257,29 +268,22 @@ export async function getArchivedProjectsWithSessions(
     await sessionSynchronizerService.synchronizeSessions();
   }
 
-  const projectRows = projectsDb.getArchivedProjectPaths() as Array<{
-    project_id: string;
-    project_path: string;
-    custom_project_name?: string | null;
-    isStarred?: number;
-  }>;
+  const projectGroups = projectGroupsDb.getArchivedProjectGroups();
 
   const archivedProjects: ArchivedProjectListItem[] = [];
 
-  for (const row of projectRows) {
-    const displayName =
-      row.custom_project_name && row.custom_project_name.trim().length > 0
-        ? row.custom_project_name
-        : await generateDisplayName(path.basename(row.project_path) || row.project_path, row.project_path);
+  for (const group of projectGroups) {
+    const row = group.representative;
+    const displayName = await resolveGroupDisplayName(group);
 
-    const sessionsPage = readProjectSessionsIncludingArchived(row.project_path);
+    const sessionsPage = readProjectSessionsIncludingArchived(group.paths);
 
     archivedProjects.push({
       projectId: row.project_id,
       path: row.project_path,
       displayName,
       fullPath: row.project_path,
-      isStarred: Boolean(row.isStarred),
+      isStarred: group.isStarred,
       isArchived: true,
       sessions: sessionsPage.sessions,
       sessionMeta: {
@@ -299,17 +303,18 @@ export async function getProjectSessionsPage(
   projectId: string,
   options: SessionPaginationOptions = {},
 ): Promise<ProjectSessionsPageApiView> {
-  const projectRow = projectsDb.getProjectById(projectId);
-  if (!projectRow) {
+  // [local] Any row of a merged project addresses the whole project.
+  const projectGroup = projectGroupsDb.getProjectGroupById(projectId);
+  if (!projectGroup) {
     throw new AppError(`Project "${projectId}" was not found.`, {
       code: 'PROJECT_NOT_FOUND',
       statusCode: 404,
     });
   }
 
-  const sessionsPage = readProjectSessionsPageByPath(projectRow.project_path, options);
+  const sessionsPage = readProjectSessionsPageByPaths(projectGroup.paths, options);
   return {
-    projectId: projectRow.project_id,
+    projectId: projectGroup.representative.project_id,
     sessions: sessionsPage.sessions,
     sessionMeta: {
       hasMore: sessionsPage.hasMore,

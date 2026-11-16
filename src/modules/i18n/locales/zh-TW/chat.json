@@ -104,6 +104,7 @@
     "modes": {
       "default": "預設模式",
       "auto": "自動模式",
+      "approveForMe": "替我核准",
       "acceptEdits": "編輯模式",
       "bypassPermissions": "無限制模式",
       "plan": "計畫模式"
@@ -111,6 +112,7 @@
     "descriptions": {
       "default": "只有受信任的指令（ls、cat、grep、git status 等）自動執行。其他指令將被略過。可以寫入工作區。",
       "auto": "由模型分類器針對每次工具呼叫決定核准或拒絕。免手動操作，但比 Bypass 安全——仍可能發生拒絕。",
+      "approveForMe": "Codex 在工作區沙箱內執行。需要更多權限時，由 Codex 的自動審查代為核准或拒絕，而不是詢問你。",
       "acceptEdits": "工作區內的所有指令自動執行。完全自動模式，具有沙箱執行功能。",
       "bypassPermissions": "完全的系統存取，無限制。所有指令自動執行，具有完整的磁碟和網路存取權限。請謹慎使用。",
       "plan": "計畫模式 - 不執行任何指令"
@@ -344,5 +346,8 @@
       "label": "傳送",
       "description": "立即傳送；背景工作將繼續執行"
     }
+  },
+  "errors": {
+    "codex_thread_active_writer": "此對話正在 Codex 應用程式中開啟，而同一對話同一時間只允許一個寫入方。請在那邊關閉它（或直接在那邊繼續），然後再傳送。"
   }
 }

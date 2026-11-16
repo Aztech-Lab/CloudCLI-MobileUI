@@ -1,4 +1,4 @@
-<!-- Hand-off to the integrator. One change per PR, against `main` of Aztech-Lab/CloudCLI-Mobile. Never open PRs against upstream. -->
+<!-- Hand-off to the integrator. One change per PR, against `main` of Aztech-Lab/CloudCLI-MobileUI. Never open PRs against upstream. -->
 
 ## What and why
 <!-- The problem the user saw, and what this changes. -->

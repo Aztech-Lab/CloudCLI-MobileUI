@@ -172,7 +172,7 @@ function chatMessageToNormalized(
     } as NormalizedMessage;
   }
   if (msg.type === 'error') {
-    return { ...base, kind: 'error', content: msg.content || '' } as NormalizedMessage;
+    return { ...base, kind: 'error', content: msg.content || '', errorCode: msg.errorCode } as NormalizedMessage;
   }
   return {
     ...base,
