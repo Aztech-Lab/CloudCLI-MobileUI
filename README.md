@@ -181,4 +181,7 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 
 CloudCLI-MobileUI is free software under the [GNU AGPL v3](LICENSE) or later. If you run a modified version for other people, the license asks you to share its source with them.
 
-It is based on CloudCLI by Siteboon AI B.V. and its contributors (see [NOTICE](NOTICE)). The changes in this repository and their ongoing maintenance are by [Aztech Labs](https://github.com/Aztech-Lab). Guides for contributors and maintainers: [CONTRIBUTING.md](CONTRIBUTING.md), [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md) and [docs/fork/MAINTAINING.md](docs/fork/MAINTAINING.md).
+It is based on CloudCLI by Siteboon AI B.V. and its contributors (see [NOTICE](NOTICE)). Guides for contributors and maintainers: [CONTRIBUTING.md](CONTRIBUTING.md), [docs/fork/SESSION-GUIDE.md](docs/fork/SESSION-GUIDE.md) and [docs/fork/MAINTAINING.md](docs/fork/MAINTAINING.md).
+
+## Acknowledgements
+The changes in this repository and their ongoing maintenance are by [Aztech Labs](https://github.com/Aztech-Lab). 
