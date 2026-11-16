@@ -54,8 +54,10 @@ test('over background work, a send that joins the process is a plain Send with t
   assert.doesNotMatch(send.textContent ?? '', /stops the background work/);
   assert.ok(!looksDestructive(send), 'nothing is stopped, so it is not drawn as destructive');
   assert.equal(hintOf(send), '↵');
-  // Queue still waits for the work, and has no key there.
-  assert.match(items(menu)[0].textContent ?? '', /Send when the background work ends/);
+  // [local] Stage 4: Queue joins the running process too, once Claude is
+  // free, and has no key there.
+  assert.match(items(menu)[0].textContent ?? '', /Send when Claude is free; the work keeps running/);
+  assert.doesNotMatch(items(menu)[0].textContent ?? '', /background work ends/);
   assert.equal(hintOf(items(menu)[0]), null);
 
   fireEvent.click(send);

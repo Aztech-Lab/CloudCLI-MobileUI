@@ -159,7 +159,11 @@
       "label": "已排队",
       "willSend": "将在当前完成后发送",
       "edit": "编辑排队消息",
-      "delete": "删除排队消息"
+      "delete": "删除排队消息",
+      "labelJoining": "发送中",
+      "willSendAfterReply": "本次回复结束后发送",
+      "willJoin": "加入正在运行的会话，后台任务继续",
+      "willSendAfterBackground": "后台任务结束后发送"
     },
     "steer": {
       "label": "插话",
@@ -348,7 +352,8 @@
     "queue": {
       "label": "排队",
       "descriptionResponding": "等这次回复结束后再发送",
-      "descriptionBackground": "等后台任务结束后再发送"
+      "descriptionBackground": "等后台任务结束后再发送",
+      "descriptionBackgroundKeepsWork": "Claude 空闲时发送；后台任务继续运行"
     },
     "steer": {
       "label": "发送",
