@@ -127,6 +127,19 @@ export const scheduledMessagesDb = {
     })();
   },
 
+  /**
+   * [local] Puts a claimed message back to pending: it was not sent because a
+   * turn started between the claim and the send, and it waits for that turn.
+   */
+  markPending(id: string): void {
+    getConnection()
+      .prepare(
+        `UPDATE scheduled_messages SET status = 'pending', updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND status = 'sent'`
+      )
+      .run(id);
+  },
+
   markFailed(id: string, reason: string): void {
     getConnection()
       .prepare(

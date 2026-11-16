@@ -195,7 +195,11 @@
       "label": "Queued",
       "willSend": "Will send when this finishes",
       "edit": "Edit queued message",
-      "delete": "Delete queued message"
+      "delete": "Delete queued message",
+      "labelJoining": "Sending",
+      "willSendAfterReply": "Sends after this reply",
+      "willJoin": "Joins the running session; background work keeps going",
+      "willSendAfterBackground": "Sends when the background work ends"
     },
     "steer": {
       "label": "Steering",
@@ -286,7 +290,8 @@
     "queue": {
       "label": "Queue",
       "descriptionResponding": "Send when this turn ends",
-      "descriptionBackground": "Send when the background work ends"
+      "descriptionBackground": "Send when the background work ends",
+      "descriptionBackgroundKeepsWork": "Send when Claude is free; the work keeps running"
     },
     "steer": {
       "label": "Send",

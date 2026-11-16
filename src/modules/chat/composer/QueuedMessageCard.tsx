@@ -1,9 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { PencilIcon, XIcon } from 'lucide-react';
 
+import type { QueuedDelivery } from '@/modules/chat/composer/queuedDelivery';
+
 type QueuedMessageCardProps = {
   content: string;
   attachmentCount?: number;
+  /** [local] Defaults to the plain "after this reply". */
+  delivery?: QueuedDelivery;
   onEdit: () => void;
   onDelete: () => void;
 };
@@ -16,10 +20,20 @@ type QueuedMessageCardProps = {
 export default function QueuedMessageCard({
   content,
   attachmentCount = 0,
+  delivery = 'afterReply',
   onEdit,
   onDelete,
 }: QueuedMessageCardProps) {
   const { t } = useTranslation('chat');
+  // [local] Says what will actually happen, so Queue, Send and Steer differ.
+  const label = delivery === 'joinsRunning'
+    ? t('input.queue.labelJoining', { defaultValue: 'Sending' })
+    : t('input.queue.label', { defaultValue: 'Queued' });
+  const status = delivery === 'joinsRunning'
+    ? t('input.queue.willJoin', { defaultValue: 'Joins the running session; background work keeps going' })
+    : delivery === 'afterBackground'
+      ? t('input.queue.willSendAfterBackground', { defaultValue: 'Sends when the background work ends' })
+      : t('input.queue.willSendAfterReply', { defaultValue: 'Sends after this reply' });
 
   return (
     <div className="settings-content-enter mx-auto mb-2 max-w-[54.25rem] rounded-xl rounded-t-none border border-dashed border-primary/25 bg-primary/[0.04] px-3 py-2">
@@ -27,10 +41,10 @@ export default function QueuedMessageCard({
         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" aria-hidden />
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary/70">
-            <span>{t('input.queue.label', { defaultValue: 'Queued' })}</span>
-            <span className="normal-case text-muted-foreground/60">
-              · {t('input.queue.willSend', { defaultValue: 'Will send when this finishes' })}
+          <div className="flex flex-wrap items-center gap-x-1.5 text-[11px] font-medium uppercase tracking-wide text-primary/70">
+            <span>{label}</span>
+            <span className="normal-case text-muted-foreground/60" role="status">
+              · {status}
             </span>
           </div>
           {/* Follow-ups queued while one waits are joined into this message, so

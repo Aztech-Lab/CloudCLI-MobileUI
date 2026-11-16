@@ -144,7 +144,16 @@
     "scrollToBottom": "捲動到底部",
     "queue": {
       "append": "加入排隊訊息",
-      "notCombinable": "無法將訊息加入排隊：斜線指令會單獨執行，因此無法與排隊訊息合併。請在排隊訊息送出後再傳送。"
+      "notCombinable": "無法將訊息加入排隊：斜線指令會單獨執行，因此無法與排隊訊息合併。請在排隊訊息送出後再傳送。",
+      "sendNext": "排隊傳送下一則訊息",
+      "label": "已排隊",
+      "willSend": "將在目前完成後傳送",
+      "edit": "編輯排隊訊息",
+      "delete": "刪除排隊訊息",
+      "labelJoining": "傳送中",
+      "willSendAfterReply": "本次回覆結束後傳送",
+      "willJoin": "加入正在執行的工作階段，背景工作繼續",
+      "willSendAfterBackground": "背景工作結束後傳送"
     },
     "steer": {
       "label": "插話",
@@ -367,7 +376,8 @@
     "queue": {
       "label": "排隊",
       "descriptionResponding": "等這次回覆結束後再傳送",
-      "descriptionBackground": "等背景工作結束後再傳送"
+      "descriptionBackground": "等背景工作結束後再傳送",
+      "descriptionBackgroundKeepsWork": "Claude 空閒時傳送；背景工作繼續執行"
     },
     "steer": {
       "label": "傳送",

@@ -320,3 +320,42 @@ test('[local] the level is per session', () => {
   assert.equal(tracker.has('s1', 't1'), false);
   assert.equal(tracker.has('s2', 't2'), true);
 });
+
+test('[local] a subagent task_started without a launching tool id is tracked (a resumed agent); housekeeping is not', () => {
+  const tracker = createBackgroundWorkTracker();
+  tracker.apply('s1', { type: 'system', subtype: 'task_started', task_id: 'a22c', description: 'Stage 3', task_type: 'local_agent', is_backgrounded: true });
+  tracker.apply('s1', { type: 'system', subtype: 'task_started', task_id: 'mem', description: 'x', task_type: 'local_agent', ambient: true });
+  tracker.apply('s1', { type: 'system', subtype: 'task_started', task_id: 'tidy', description: 'x', task_type: 'local_agent', skip_transcript: true });
+  tracker.apply('s1', { type: 'system', subtype: 'task_started', task_id: 'shell', description: 'x', task_type: 'local_bash' });
+
+  assert.deepEqual(
+    tracker.outstanding('s1').map((task) => [task.taskId, task.toolUseId, task.nested]),
+    [['a22c', '', true]],
+  );
+  assert.equal(tracker.isForeground('s1', 'a22c'), false, 'a resumed subagent runs in the background');
+  tracker.apply('s1', { type: 'system', subtype: 'task_notification', task_id: 'a22c', status: 'completed', summary: '', output_file: '' });
+  assert.equal(tracker.hasOutstanding('s1'), false);
+});
+
+test('[local] an end reported for an earlier run of a resumed task does not drop the run that is live now', () => {
+  const tracker = createBackgroundWorkTracker();
+  tracker.apply('s1', started('a22c', { run_id: 'run-2' }));
+  // The first run's orphan report, arriving late.
+  tracker.apply('s1', { ...notified('a22c', 'stopped'), run_id: 'run-1' });
+  tracker.apply('s1', { ...updated('a22c', { status: 'killed' }), run_id: 'run-1' });
+  assert.equal(tracker.has('s1', 'a22c'), true);
+
+  // The live run's own end, and an end without a run id, still settle it.
+  tracker.apply('s1', { ...notified('a22c', 'completed'), run_id: 'run-2' });
+  assert.equal(tracker.has('s1', 'a22c'), false);
+  tracker.apply('s1', started('b', { run_id: 'run-5' }));
+  tracker.apply('s1', notified('b', 'completed'));
+  assert.equal(tracker.has('s1', 'b'), false);
+});
+
+test('[local] the level records run ids too', () => {
+  const tracker = createBackgroundWorkTracker();
+  tracker.apply('s1', { type: 'system', subtype: 'background_tasks_changed', tasks: [{ task_id: 'a22c', run_id: 'run-3', task_type: 'local_agent', description: 'x' }] });
+  tracker.apply('s1', { ...notified('a22c', 'stopped'), run_id: 'run-2' });
+  assert.equal(tracker.has('s1', 'a22c'), true);
+});

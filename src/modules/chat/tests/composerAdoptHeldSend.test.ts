@@ -367,12 +367,39 @@ test('a steer refused because its turn had ended is queued marked to join the ru
   assert.equal(appendQueuedMessage.mock.calls[0]?.[1]?.options?.adoptHeld, true);
 });
 
-test('Queue over background work waits for the work, so it is not marked to join the process', async () => {
+test('[local] stage 4: Queue over background work is marked to join the running process', async () => {
   const { view, sends } = render();
   await act(async () => { view.result.current.setInput('after the work'); });
   await act(async () => { await view.result.current.handleSendMenuChoice('queue'); });
 
   assert.equal(sends().length, 0);
   assert.equal(appendQueuedMessage.mock.calls.length, 1);
+  assert.equal(appendQueuedMessage.mock.calls[0]?.[1]?.options?.adoptHeld, true);
+});
+
+test('[local] stage 4: Queue over background work without the capability is not marked', async () => {
+  const { view } = render({ supportsBackgroundAdoption: false });
+  await act(async () => { view.result.current.setInput('after the work'); });
+  await act(async () => { await view.result.current.handleSendMenuChoice('queue'); });
+  // Without the capability the menu choice still opens no dialog: it queues.
+  await waitFor(() => assert.equal(appendQueuedMessage.mock.calls.length, 1));
   assert.equal('adoptHeld' in (appendQueuedMessage.mock.calls[0]?.[1]?.options ?? {}), false);
+});
+
+test('[local] stage 4: Queue chosen after the running process refused a message says it waits for the work', async () => {
+  const { view, sends } = render();
+  await typeAndEnter(view, 'hello');
+  const messageId = String(sends()[0].options?.messageId);
+  view.rerender({ supportsBackgroundAdoption: true, isLoading: true, processingSessions: processingOverBackground });
+  act(() => { view.result.current.handleAdoptRefused('session-1', messageId); });
+  await waitFor(() => assert.notEqual(view.result.current.backgroundSendPrompt, null));
+
+  view.rerender({ supportsBackgroundAdoption: true, isLoading: false, processingSessions: backgroundOnly });
+  await act(async () => {
+    view.result.current.resolveBackgroundSendPrompt('queue');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  await waitFor(() => assert.equal(appendQueuedMessage.mock.calls.length, 1));
+  assert.equal(appendQueuedMessage.mock.calls[0]?.[1]?.options?.adoptHeld, false, 'it cannot join, so it waits');
+  assert.equal(sends().length, 1, 'nothing else was sent');
 });

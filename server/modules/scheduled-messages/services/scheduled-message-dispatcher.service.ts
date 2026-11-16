@@ -1,9 +1,15 @@
-import { scheduledMessagesDb, sessionDraftsDb } from '@/modules/database/index.js';
+import { scheduledMessagesDb, sessionDraftsDb, sessionsDb } from '@/modules/database/index.js';
 import type { QueuedSessionMessageRecord, ScheduledMessageRow } from '@/modules/database/index.js';
+import { providerCapabilitiesService } from '@/modules/providers/index.js';
 import { announceScheduledMessagesChanged } from '@/modules/scheduled-messages/services/scheduled-messages.service.js';
 import { chatRunRegistry, onRunSettled, runDetachedChatTurn } from '@/modules/websocket/index.js';
 import type { ProviderRuntimeGateway } from '@/modules/websocket/index.js';
+import type { LLMProvider } from '@/shared/types.js';
 import { ADOPT_UNAVAILABLE_ERROR_CODE, readQueuedChatMessage } from '@/shared/utils.js';
+
+/** [local] Recorded on a scheduled message the held process could not take. */
+const ADOPT_REFUSED_REASON = 'Not sent: Claude was running background work, and this message could not join that '
+  + 'session without stopping it. Send it again when the work has finished.';
 
 /**
  * How often due messages are looked for.
@@ -29,6 +35,65 @@ let unsubscribeRunSettled: (() => void) | null = null;
  */
 const sessionsSending = new Set<string>();
 
+/**
+ * [local] Whether a session's provider can take a new turn into the process
+ * its background work runs in (Claude). Such a session is never interrupted or
+ * restarted by the dispatcher: due and queued messages wait for the turn being
+ * written and then join the live process, whatever background work it holds.
+ */
+function adoptsHeldProcess(sessionId: string): boolean {
+  const provider = sessionsDb.getSessionById(sessionId)?.provider;
+  if (!provider) {
+    return false;
+  }
+  return providerCapabilitiesService.getProviderCapabilities(provider as LLMProvider)?.supportsBackgroundAdoption === true;
+}
+
+/**
+ * [local] Whether a queued message goes into the held process. The composer
+ * marks it (`adoptHeld`); a message it did not mark (queued over background
+ * work, or before the mark existed) joins too when the provider can adopt,
+ * as the official client answers a message while background work runs. A
+ * message marked `adoptHeld: false` was refused by the held process once and
+ * waits for the work instead; a slash command is a turn of its own.
+ */
+function queuedMessageAdopts(candidate: QueuedSessionMessageRecord): boolean {
+  const message = readQueuedChatMessage(candidate.queuedMessage);
+  const flag = message?.options?.adoptHeld;
+  if (flag === true) {
+    return true;
+  }
+  if (flag === false || !message || message.content.trimStart().startsWith('/')) {
+    return false;
+  }
+  return adoptsHeldProcess(candidate.sessionId);
+}
+
+/**
+ * [local] Waits for a send until the turn it started ends, not for the whole
+ * provider run: a Claude run that leaves background work running stays open
+ * for as long as that work (hours), and a session's next due or queued
+ * message would otherwise wait all that time instead of joining the process.
+ * The session was idle when the send started (see `adoptsHeldProcess`), so
+ * the first run that settles for it is this send's own turn.
+ */
+function untilTurnEnds(sessionId: string, send: Promise<void>): Promise<void> {
+  return new Promise((resolve) => {
+    let unsubscribe: (() => void) | null = null;
+    const finish = () => {
+      unsubscribe?.();
+      unsubscribe = null;
+      resolve();
+    };
+    unsubscribe = onRunSettled((settledSessionId) => {
+      if (settledSessionId === sessionId) {
+        finish();
+      }
+    });
+    send.then(finish, finish);
+  });
+}
+
 function readOptions(raw: string): Record<string, unknown> {
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -43,6 +108,7 @@ function readOptions(raw: string): Record<string, unknown> {
 async function sendClaimedQueuedMessage(
   candidate: QueuedSessionMessageRecord,
   runtime: ProviderRuntimeGateway,
+  adopts = false,
 ): Promise<void> {
   const message = readQueuedChatMessage(candidate.queuedMessage);
   if (!message) {
@@ -55,14 +121,16 @@ async function sendClaimedQueuedMessage(
       sessionId: candidate.sessionId,
       userId: candidate.userId,
       content: message.content,
-      options: { ...message.options, attachments: message.attachments },
+      // [local] See queuedMessageAdopts.
+      options: { ...message.options, ...(adopts ? { adoptHeld: true } : {}), attachments: message.attachments },
     },
     { runtime },
   );
 
   // The registry check and run reservation are separate operations. If a run
   // wins that tiny race, put the turn back so the next poll tries again.
-  if (!result.started && result.error === 'A run was already in progress for this session.') {
+  // [local] Either refusal of a busy session (see RUN_IN_PROGRESS).
+  if (!result.started && result.code === 'RUN_IN_PROGRESS') {
     sessionDraftsDb.restoreQueuedMessage(candidate);
     return;
   }
@@ -87,9 +155,10 @@ async function sendClaimedQueuedMessage(
  * work, which is why the composer asks before an interactive send. A queued
  * turn was promised to go "when this finishes", so it waits for that work too.
  *
- * [local] Except a turn queued with `adoptHeld` (the composer sets it when the
- * provider can adopt the held process): the runtime writes that turn into the
- * live process and the work keeps running, so it only waits for the turn.
+ * [local] Except a turn that joins the held process (see queuedMessageAdopts):
+ * the runtime writes that turn into the live process and the work keeps
+ * running, so it only waits for the turn. `sessionsSending` lasts only until a
+ * scheduled send's turn ends for such a session (see untilTurnEnds).
  */
 function isSessionBusy(sessionId: string, runtime: ProviderRuntimeGateway, adoptsHeldProcess = false): boolean {
   if (adoptsHeldProcess) {
@@ -115,15 +184,15 @@ export async function dispatchQueuedMessages(
 
   await Promise.all(candidates.map(async (candidate) => {
     // [local] A12: see isSessionBusy.
-    const adoptsHeldProcess = readQueuedChatMessage(candidate.queuedMessage)?.options?.adoptHeld === true;
-    if (isSessionBusy(candidate.sessionId, runtime, adoptsHeldProcess)) {
+    const adopts = queuedMessageAdopts(candidate);
+    if (isSessionBusy(candidate.sessionId, runtime, adopts)) {
       return;
     }
     if (!sessionDraftsDb.claimQueuedMessage(candidate)) {
       return;
     }
     claimed += 1;
-    await sendClaimedQueuedMessage(candidate, runtime);
+    await sendClaimedQueuedMessage(candidate, runtime, adopts);
   }));
 
   return claimed;
@@ -138,6 +207,7 @@ function recordFailure(row: ScheduledMessageRow, reason: string): void {
 async function sendClaimedMessage(
   row: ScheduledMessageRow,
   runtime: ProviderRuntimeGateway,
+  adopts = false,
 ): Promise<void> {
   try {
     const result = await runDetachedChatTurn(
@@ -145,14 +215,31 @@ async function sendClaimedMessage(
         sessionId: row.session_id,
         userId: row.user_id,
         content: row.content,
-        options: readOptions(row.options),
+        // [local] Into the held process when there is one: background work
+        // keeps running. A slash command is never written into it, and the
+        // runtime refuses it rather than stop that work (ADOPT_UNAVAILABLE).
+        options: adopts ? { ...readOptions(row.options), adoptHeld: true } : readOptions(row.options),
         // The user picked this time on purpose; a run that happens to be going
         // is aborted so the scheduled message lands when it was due, instead
         // of being recorded as "not sent — session was busy".
-        interruptActiveRun: true,
+        // [local] Not for a provider that adopts: the message waited for the
+        // turn (see claimDue's skip set) and never stops one.
+        interruptActiveRun: !adopts,
       },
       { runtime },
     );
+
+    // [local] A turn started in the moment between the claim and the send:
+    // nothing ran, so the message goes back to wait for that turn.
+    if (adopts && !result.started && result.code === 'RUN_IN_PROGRESS') {
+      scheduledMessagesDb.markPending(row.id);
+      announceScheduledMessagesChanged(row.session_id);
+      return;
+    }
+    if (result.code === ADOPT_UNAVAILABLE_ERROR_CODE) {
+      recordFailure(row, ADOPT_REFUSED_REASON);
+      return;
+    }
 
     // Recorded rather than retried, and recorded whether the run never started
     // (deleted session, unavailable provider) or started and then failed.
@@ -178,7 +265,17 @@ export async function dispatchDueScheduledMessages(
 ): Promise<number> {
   // Claimed before any of them runs, so a long turn cannot let the next poll
   // pick the same message up again.
-  const due = scheduledMessagesDb.claimDue(now, sessionsSending);
+  // [local] A session whose provider adopts and that is writing a turn is
+  // skipped too: its due message stays pending (banner up, cancellable) and
+  // goes as soon as the turn ends (see dispatchDueForSession), like a prompt
+  // the official client queues at priority `later`.
+  const skip = new Set(sessionsSending);
+  for (const run of chatRunRegistry.listRunningRuns()) {
+    if (adoptsHeldProcess(run.sessionId)) {
+      skip.add(run.sessionId);
+    }
+  }
+  const due = scheduledMessagesDb.claimDue(now, skip);
   if (due.length === 0) {
     return 0;
   }
@@ -196,32 +293,68 @@ export async function dispatchDueScheduledMessages(
   // between them. A turn the user starts meanwhile is still interrupted, as
   // any scheduled send interrupts the active run.
   // shortcut: a session's next row waits for the whole earlier send, background work included (the runtime ends that hold after 30 idle minutes); interrupt instead if timeliness matters more.
-  let sent = 0;
-  await Promise.all(due.map(async (first) => {
-    const sessionId = first.session_id;
-    sessionsSending.add(sessionId);
-    try {
-      let row: ScheduledMessageRow | null = first;
-      while (row) {
-        await sendClaimedMessage(row, runtime);
-        sent += 1;
-        row = scheduledMessagesDb.claimNextDue(sessionId, now);
-        if (row) announceScheduledMessagesChanged(sessionId);
-      }
-    } catch (error) {
-      logPassFailure(error);
-    } finally {
-      sessionsSending.delete(sessionId);
-      // A run that settled while this session's sends were going was skipped
-      // by the run-settled listener (isSessionBusy), so the queued turn it
-      // unblocked goes now instead of waiting for the next poll.
-      if (unsubscribeRunSettled) {
-        void dispatchQueuedMessages(runtime, sessionId).catch(logPassFailure);
-      }
-    }
-  }));
+  const sent = await Promise.all(due.map((first) => sendSessionRows(first, runtime, now)));
+  return sent.reduce((total, count) => total + count, 0);
+}
 
+/**
+ * Sends one session's claimed row and then each row still due behind it.
+ * `sessionsSending` is set before the first await, so a queued pass started
+ * right after this call already sees the session busy.
+ */
+async function sendSessionRows(first: ScheduledMessageRow, runtime: ProviderRuntimeGateway, now: Date): Promise<number> {
+  const sessionId = first.session_id;
+  sessionsSending.add(sessionId);
+  let sent = 0;
+  try {
+    // [local] Decided once per session: see adoptsHeldProcess.
+    const adopts = adoptsHeldProcess(sessionId);
+    let row: ScheduledMessageRow | null = first;
+    while (row) {
+      const send = sendClaimedMessage(row, runtime, adopts);
+      // [local] Only until its turn ends: see untilTurnEnds.
+      await (adopts ? untilTurnEnds(sessionId, send) : send);
+      sent += 1;
+      // [local] A next row waits for a turn that started meanwhile.
+      if (adopts && chatRunRegistry.isProcessing(sessionId)) {
+        break;
+      }
+      row = scheduledMessagesDb.claimNextDue(sessionId, now);
+      if (row) announceScheduledMessagesChanged(sessionId);
+    }
+  } catch (error) {
+    logPassFailure(error);
+  } finally {
+    sessionsSending.delete(sessionId);
+    // A run that settled while this session's sends were going was skipped
+    // by the run-settled listener (isSessionBusy), so the queued turn it
+    // unblocked goes now instead of waiting for the next poll.
+    if (unsubscribeRunSettled) {
+      void dispatchQueuedMessages(runtime, sessionId).catch(logPassFailure);
+    }
+  }
   return sent;
+}
+
+/**
+ * [local] Sends a session's due scheduled message the moment the turn it
+ * waited for ends, instead of on the next poll. Only for a provider that
+ * adopts: any other provider's due message never waits (it interrupts).
+ */
+export async function dispatchDueForSession(
+  runtime: ProviderRuntimeGateway,
+  sessionId: string,
+  now: Date = new Date(),
+): Promise<number> {
+  if (sessionsSending.has(sessionId) || chatRunRegistry.isProcessing(sessionId) || !adoptsHeldProcess(sessionId)) {
+    return 0;
+  }
+  const first = scheduledMessagesDb.claimNextDue(sessionId, now);
+  if (!first) {
+    return 0;
+  }
+  announceScheduledMessagesChanged(sessionId);
+  return sendSessionRows(first, runtime, now);
 }
 
 function logPassFailure(error: unknown): void {
@@ -276,6 +409,9 @@ export function initializeScheduledMessageDispatcher(runtime: ProviderRuntimeGat
   // the settled session, so several runs ending together do not each rescan
   // every queued turn.
   unsubscribeRunSettled = onRunSettled((appSessionId) => {
+    // [local] A scheduled message that waited for this turn goes first; it
+    // marks the session as sending before the queued pass below looks.
+    void dispatchDueForSession(runtime, appSessionId).catch(logPassFailure);
     void dispatchQueuedMessages(runtime, appSessionId).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       console.error('[ScheduledMessages] Run-settled dispatch failed', { error: message });

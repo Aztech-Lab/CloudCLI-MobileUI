@@ -247,7 +247,8 @@ function readVerifiedAttachments(clientOptions: AnyRecord): ChatAttachmentDescri
 /**
  * What a dispatched run came to. `code` is set only for a failure the caller
  * may act on: [local] `ADOPT_UNAVAILABLE` when the send asked to adopt a held
- * process the runtime could not adopt without stopping its background work.
+ * process the runtime could not adopt without stopping its background work,
+ * and `RUN_IN_PROGRESS` when another run held the session, so nothing ran.
  */
 type DispatchRunResult = { started: boolean; error: string | null; code?: string };
 
@@ -286,7 +287,8 @@ async function dispatchRun(
         sessionId
       );
     }
-    return { started: false, error: 'A run is already in progress for this session.' };
+    // [local] `code`: nothing ran, so a dispatcher may try again later.
+    return { started: false, error: 'A run is already in progress for this session.', code: 'RUN_IN_PROGRESS' };
   }
 
   const clientOptions = (data.options ?? {}) as AnyRecord;
@@ -1053,7 +1055,7 @@ export async function runDetachedChatTurn(
   const activeRun = chatRunRegistry.getRun(input.sessionId);
   if (activeRun && activeRun.status === 'running') {
     if (!input.interruptActiveRun) {
-      return { started: false, error: 'A run was already in progress for this session.' };
+      return { started: false, error: 'A run was already in progress for this session.', code: 'RUN_IN_PROGRESS' };
     }
     // Same shape as `chat.abort`: cancel the provider run and emit the
     // terminal `complete` on its behalf, so every watching client sees the

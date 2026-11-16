@@ -1326,6 +1326,35 @@ export function createBackgroundWorkTracker() {
    * the official client. A task moved to the background leaves the set.
    */
   const foregroundTasks = new Map<string, Set<string>>();
+  /**
+   * [local] The run id each tracked task was last seen running under. A
+   * subagent resumed with SendMessage keeps its task id and gets a new run
+   * id, and the SDK promises run ids of one task sort in the order the runs
+   * opened: an end reported for an earlier run (a late frame, or the orphan
+   * report of a previous process) must not drop the run that is live now.
+   */
+  const runIds = new Map<string, Map<string, string>>();
+
+  const noteRun = (sessionKey: string, taskId: string, runId: unknown) => {
+    if (typeof runId !== 'string' || !runId) {
+      return;
+    }
+    let runs = runIds.get(sessionKey);
+    if (!runs) {
+      runs = new Map<string, string>();
+      runIds.set(sessionKey, runs);
+    }
+    const known = runs.get(taskId);
+    if (!known || runId > known) {
+      runs.set(taskId, runId);
+    }
+  };
+
+  /** [local] Whether a frame names a run older than the one tracked (see `runIds`). */
+  const isLate = (sessionKey: string, taskId: string, runId: unknown) => {
+    const known = runIds.get(sessionKey)?.get(taskId);
+    return typeof runId === 'string' && runId !== '' && known !== undefined && runId < known;
+  };
 
   const addTo = (map: Map<string, Set<string>>, sessionKey: string, id: string) => {
     let ids = map.get(sessionKey);
@@ -1338,6 +1367,7 @@ export function createBackgroundWorkTracker() {
 
   const remove = (sessionKey: string, taskId: string) => {
     foregroundTasks.get(sessionKey)?.delete(taskId);
+    runIds.get(sessionKey)?.delete(taskId);
     const tasks = sessions.get(sessionKey);
     if (!tasks) {
       return;
@@ -1361,6 +1391,7 @@ export function createBackgroundWorkTracker() {
       const task = entry as AnyRecord | null;
       if (task && typeof task.task_id === 'string') {
         live.set(task.task_id, task);
+        noteRun(sessionKey, task.task_id, task.run_id);
       }
     }
     for (const taskId of Array.from(sessions.get(sessionKey)?.keys() ?? [])) {
@@ -1426,12 +1457,22 @@ export function createBackgroundWorkTracker() {
       }
       switch (message.subtype) {
         case 'task_started': {
-          if (typeof message.tool_use_id !== 'string') {
+          // [local] Housekeeping tasks have no launching call and stay
+          // untracked. A subagent task without one is a subagent resumed with
+          // SendMessage (the SDK registers it in the background) unless the
+          // CLI marks it as housekeeping: work the process is kept for.
+          const resumedAgent = typeof message.tool_use_id !== 'string'
+            && message.task_type === 'local_agent'
+            && message.ambient !== true
+            && message.skip_transcript !== true;
+          if (typeof message.tool_use_id !== 'string' && !resumedAgent) {
             return;
           }
+          noteRun(sessionKey, message.task_id, message.run_id);
+          const toolUseId: string = typeof message.tool_use_id === 'string' ? message.tool_use_id : '';
           const task: BackgroundTaskSummary = {
             taskId: message.task_id,
-            toolUseId: message.tool_use_id,
+            toolUseId,
             taskType: message.task_type,
             description: message.description,
             startedAt: Date.now()
@@ -1439,7 +1480,7 @@ export function createBackgroundWorkTracker() {
           if (typeof message.workflow_name === 'string') {
             task.workflowName = message.workflow_name;
           }
-          if (!ownToolUseIds.get(sessionKey)?.has(message.tool_use_id)) {
+          if (!ownToolUseIds.get(sessionKey)?.has(toolUseId)) {
             task.nested = true;
           }
           let tasks = sessions.get(sessionKey);
@@ -1451,7 +1492,7 @@ export function createBackgroundWorkTracker() {
           // [local] The CLI says where the task runs; an older one only
           // through the launching call's input.
           const foreground = message.is_backgrounded === false
-            || (message.is_backgrounded === undefined && Boolean(foregroundLaunches.get(sessionKey)?.has(message.tool_use_id)));
+            || (message.is_backgrounded === undefined && Boolean(foregroundLaunches.get(sessionKey)?.has(toolUseId)));
           if (foreground) {
             addTo(foregroundTasks, sessionKey, task.taskId);
           } else {
@@ -1460,9 +1501,16 @@ export function createBackgroundWorkTracker() {
           return;
         }
         case 'task_notification':
+          // [local] An end reported for an earlier run of a resumed task.
+          if (isLate(sessionKey, message.task_id, message.run_id)) {
+            return;
+          }
           remove(sessionKey, message.task_id);
           return;
         case 'task_updated':
+          if (isLate(sessionKey, message.task_id, message.run_id)) {
+            return;
+          }
           if (TERMINAL_TASK_STATUSES.has(message.patch?.status)) {
             remove(sessionKey, message.task_id);
           } else if (message.patch?.is_backgrounded === true) {
@@ -1493,6 +1541,7 @@ export function createBackgroundWorkTracker() {
 
     clear(sessionKey: string) {
       sessions.delete(sessionKey);
+      runIds.delete(sessionKey);
       ownToolUseIds.delete(sessionKey);
       foregroundLaunches.delete(sessionKey);
       foregroundTasks.delete(sessionKey);

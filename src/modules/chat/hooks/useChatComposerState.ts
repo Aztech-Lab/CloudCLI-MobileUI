@@ -1522,15 +1522,17 @@ export function useChatComposerState({
             return;
           }
           // Attachments were uploaded above; queue the same descriptors.
-          // [local] Never marked `adoptHeld`: this queue is the choice to wait
-          // for the background work to finish ("Send when the background work
-          // ends"), and the retry of a refused message cannot join the process.
-          // A mark would have the server send it at once instead.
+          // [local] Stage 4: with the capability it joins the running process
+          // as soon as Claude is free, and the background work keeps running.
+          // The retry of a refused message cannot join it, so it says so
+          // (`adoptHeld: false`) and waits for the work to finish.
           await queueMessage({
             content: currentInput,
             attachments: currentAttachments,
             uploadedAttachments,
-            options: buildSendOptions(currentInput),
+            options: adoptRetry
+              ? { ...buildSendOptions(currentInput), adoptHeld: false }
+              : withAdoptionWhenQueued(buildSendOptions(currentInput), currentInput, Boolean(editingAnchorId)),
           }, targetSessionId);
           return;
         }

@@ -33,6 +33,7 @@ import VoiceInputButton from '@/modules/chat/composer/VoiceInputButton';
 import PermissionRequestsBanner from '@/modules/chat/composer/PermissionRequestsBanner';
 import TokenUsageSummary from '@/modules/chat/composer/TokenUsageSummary';
 import QueuedMessageCard from '@/modules/chat/composer/QueuedMessageCard';
+import { queuedDeliveryOf } from '@/modules/chat/composer/queuedDelivery';
 import SteeredMessageCard from '@/modules/chat/composer/SteeredMessageCard';
 import BackgroundSendDialog from '@/modules/chat/composer/BackgroundSendDialog';
 import { ScheduleMessagePopover } from '@/modules/chat/composer/ScheduleMessagePopover';
@@ -364,6 +365,11 @@ export default function ChatComposer({
       {queuedDraft && (
         <QueuedMessageCard
           content={queuedDraft.content}
+          delivery={queuedDeliveryOf({
+            isLoading,
+            adoptHeld: queuedDraft.options?.adoptHeld,
+            background: Boolean(activity?.background),
+          })}
           attachmentCount={
             queuedDraft.uploadedAttachments?.length ?? queuedDraft.attachments.length
           }

@@ -315,6 +315,12 @@ export const sessionsService = {
           canInterrupt: false,
           tasks,
         });
+        // [local] Listed once. The Claude CLI marks a process that runs a
+        // background agent as busy, so without this the CLI pass below listed
+        // the session again as a turn being written, and the client (which
+        // keeps the later entry) showed it as responding instead of as
+        // background work: every send then went in as a refused steer.
+        runningById.set(sessionId, entries[entries.length - 1]);
       }
     }
 
