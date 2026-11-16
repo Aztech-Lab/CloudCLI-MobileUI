@@ -28,6 +28,58 @@ export const CLOUDCLI_WORDMARK_FONT_FAMILY =
 
 // ---------------------------
 
+//----------------- PROJECT LINKS ------------ [local]
+
+/*
+ * Every outbound link about the app itself lives here, so this build never sends
+ * its users to the original project for support. Links about third-party plugins
+ * or tools stay next to the code that uses them.
+ */
+
+/** GitHub owner and repository of this build (CloudCLI-MobileUI). */
+export const PROJECT_REPO_OWNER = 'Aztech-Lab';
+export const PROJECT_REPO_NAME = 'CloudCLI-MobileUI';
+export const PROJECT_REPO_URL = `https://github.com/${PROJECT_REPO_OWNER}/${PROJECT_REPO_NAME}`;
+export const PROJECT_ISSUES_URL = `${PROJECT_REPO_URL}/issues`;
+export const PROJECT_NEW_ISSUE_URL = `${PROJECT_ISSUES_URL}/new`;
+/** This build publishes no GitHub releases, so "what changed" is the main branch history. */
+export const PROJECT_CHANGES_URL = `${PROJECT_REPO_URL}/commits/main`;
+
+/**
+ * The original CloudCLI repository by Siteboon AI B.V. Use it only for the
+ * attribution (credit) link in Settings > About, never as a support link.
+ */
+export const UPSTREAM_REPO_URL = 'https://github.com/siteboon/claudecodeui';
+
+/*
+ * The original project's community and hosted service. This build has no
+ * equivalent, so they stay hidden while SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS
+ * is false.
+ */
+export const UPSTREAM_DISCORD_URL = 'https://discord.gg/buxwujPNRE';
+export const UPSTREAM_WEBSITE_URL = 'https://cloudcli.ai';
+export const UPSTREAM_PLUGIN_DOCS_URL = 'https://cloudcli.ai/docs/plugin-overview';
+/** Only reachable on the hosted platform build (IS_PLATFORM), which this fork does not ship. */
+export const UPSTREAM_PLATFORM_DASHBOARD_URL = 'https://cloudcli.ai/dashboard';
+
+/**
+ * [local] Shows the original project's Discord, website, docs and CloudCLI
+ * Hosted / Pro promotion cards. Off: users of this build would otherwise take
+ * our problems to the original authors or buy a service this build is not.
+ */
+export const SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS = false;
+
+/**
+ * [local] Checks GitHub for a newer release and offers the one-click "update now"
+ * flow. Off: this build has no releases of its own, and the update flow runs
+ * `npm install -g @cloudcli-ai/cloudcli@latest` (or `git pull` in the install
+ * directory), which would replace this build with the original package. Builds
+ * are deployed by their maintainer instead.
+ */
+export const SHOW_UPDATE_PROMPT = false;
+
+// ---------------------------
+
 //----------------- APPLICATION VERSION ------------
 
 /**

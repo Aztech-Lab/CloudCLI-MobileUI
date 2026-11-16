@@ -4,7 +4,12 @@ import { useTranslation } from 'react-i18next';
 import type { McpProject, McpProvider, McpScope, ProviderMcpServer } from '@/shared/types';
 import { IS_PLATFORM } from '@/shared/utils';
 import { ActionMenu, Badge, Button } from '@/shared/ui';
-import { MCP_GLOBAL_SUPPORTED_TRANSPORTS, MCP_PROVIDER_NAMES } from '@/shared/constants';
+import {
+  MCP_GLOBAL_SUPPORTED_TRANSPORTS,
+  MCP_PROVIDER_NAMES,
+  SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS,
+  UPSTREAM_WEBSITE_URL,
+} from '@/shared/constants';
 import { useMcpServers } from '@/modules/mcp/hooks/useMcpServers';
 import { maskSecret } from '@/modules/mcp/utils/mcpFormatting';
 import McpServerFormModal from '@/modules/mcp/McpServerFormModal';
@@ -90,7 +95,7 @@ function TeamMcpFeatureCard() {
             {t('mcpTeamCard.description')}
           </p>
           <a
-            href="https://cloudcli.ai"
+            href={UPSTREAM_WEBSITE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:underline"
@@ -289,7 +294,8 @@ export default function McpServers({ selectedProvider, currentProjects }: McpSer
         </div>
       )}
 
-      {selectedProvider === 'claude' && !IS_PLATFORM && <TeamMcpFeatureCard />}
+      {/* [local] CloudCLI Pro promotion hidden in this build */}
+      {selectedProvider === 'claude' && !IS_PLATFORM && SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS && <TeamMcpFeatureCard />}
 
       {/* Mounted only while open: each instance runs a full useMcpServerForm. */}
       {serverForm?.scope === 'provider' && (
