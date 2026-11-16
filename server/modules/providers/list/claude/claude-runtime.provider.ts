@@ -231,11 +231,12 @@ const supersededInstances = new WeakSet<ClaudeQuery>();
 
 const TOOL_APPROVAL_TIMEOUT_MS = parseInt(process.env.CLAUDE_TOOL_APPROVAL_TIMEOUT_MS ?? '', 10) || 55000;
 
-// How long background work is allowed to keep running after a turn ends. This drives
+// How long a held process may stay silent before it is let go. This drives
 // two halves of the same behaviour:
 //
-//  1. Passed to the spawned CLI as CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS, which is how
-//     long it waits for still-running background *agents* before killing them.
+//  1. ([local] now the hold bound below) Passed to the spawned CLI as
+//     CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS, which is how long it waits for
+//     still-running background *agents* before killing them.
 //  2. A backstop on how long we hold the SDK's stdin open after a turn's `result`.
 //     The SDK closes stdin as soon as a turn ends, and the CLI reads that EOF as
 //     "print wind-down" — killing background *shells* after a short grace period,
@@ -248,7 +249,39 @@ const TOOL_APPROVAL_TIMEOUT_MS = parseInt(process.env.CLAUDE_TOOL_APPROVAL_TIMEO
 // new turn supersedes the previous hold. This ceiling only catches background work
 // that never reports at all, so an abandoned session cannot leak a CLI process
 // forever. The timer resets on every message, so it measures silence, not total time.
+//
+// [local] This short ceiling now applies only while no tracked background task is
+// running (a hold for a ScheduleWakeup, a cron, a relay that never came). While one
+// is, a long build or test run may say nothing for hours, and the official client
+// puts no limit on it; the hold then lasts up to CLOUDCLI_BG_MAX_HOLD_MS instead.
 const BG_WAIT_CEILING_MS = 30 * 60 * 1000;
+
+// [local] Upper bound on how long a held process with background tasks still
+// running may go without a single stream message (CLOUDCLI_BG_MAX_HOLD_MS,
+// default 12 hours). When it passes, the tasks are stopped and the process is let
+// go, so an abandoned session cannot pin a CLI forever. Also what the CLI is told
+// to wait for its agents (CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS), so the CLI never
+// gives up on an agent before we do.
+const DEFAULT_BG_MAX_HOLD_MS = 12 * 60 * 60 * 1000;
+// setTimeout's largest delay; a larger one fires at once.
+const MAX_TIMER_DELAY_MS = 2 ** 31 - 1;
+
+/**
+ * [local] The hold bound for background tasks that are still running, read from
+ * CLOUDCLI_BG_MAX_HOLD_MS. Anything that is not a whole number of milliseconds of
+ * at least the idle ceiling falls back to the default (a shorter bound would make
+ * running work die sooner than idle holds do); the timer's own limit caps it.
+ * @param {NodeJS.ProcessEnv} [hostEnv] - Environment to read, `process.env` by default
+ * @returns {number} Milliseconds
+ */
+export function resolveBackgroundMaxHoldMs(hostEnv: NodeJS.ProcessEnv = process.env): number {
+  const raw = hostEnv.CLOUDCLI_BG_MAX_HOLD_MS?.trim();
+  const parsed = raw && /^\d+$/.test(raw) ? Number(raw) : NaN;
+  if (!Number.isSafeInteger(parsed) || parsed < BG_WAIT_CEILING_MS) {
+    return DEFAULT_BG_MAX_HOLD_MS;
+  }
+  return Math.min(parsed, MAX_TIMER_DELAY_MS);
+}
 
 // How long a turn that ended with steered messages still unread waits for the
 // follow-up turn the CLI runs them in, before giving up and ending the run.
@@ -587,7 +620,8 @@ export function buildClaudeSdkEnv(hostEnv: NodeJS.ProcessEnv = process.env): Nod
     CLAUDE_CODE_ARTIFACT: '1',
     CLAUDE_CODE_ENTRYPOINT: 'claudecodeui',
     ...hostEnv,
-    CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: String(BG_WAIT_CEILING_MS),
+    // [local] The long bound, not the idle ceiling: see resolveBackgroundMaxHoldMs.
+    CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: String(resolveBackgroundMaxHoldMs(hostEnv)),
   };
 }
 
@@ -771,7 +805,7 @@ function addSession(
  *
  * Closing stdin is not enough on its own: the CLI's wind-down waits for the
  * background agents the process still has going — for up to the ceiling it
- * was started with (BG_WAIT_CEILING_MS) — so an abandoned process with an
+ * was started with ([local] the hold bound, hours) — so an abandoned process with an
  * agent outstanding would run next to the process that replaced it for as
  * long as the agent does, both appending to the same session file. Stop the
  * tasks first, while stdin is still open: the SDK drops control requests
@@ -1181,6 +1215,14 @@ const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'killed']);
  * Exported so the folding can be driven with the four event shapes directly;
  * the runtime keeps one instance keyed like `activeSessions`.
  *
+ * [local] A CLI that emits `system/background_tasks_changed` (the full set of
+ * live background tasks after every change, REPLACE semantics) is followed by
+ * that level rather than by pairing edges alone, so a missed `task_started` or
+ * `task_notification` cannot leave a ghost task (or lose a live one). The edges
+ * still supply the launching call and description, and remain the only source
+ * for an older CLI that sends no level. The level lists background tasks only:
+ * a task the turn is blocking on (foreground) is left to its edges.
+ *
  */
 export function createBackgroundWorkTracker() {
   const sessions = new Map<string, Map<string, BackgroundTaskSummary>>();
@@ -1225,8 +1267,61 @@ export function createBackgroundWorkTracker() {
     }
   };
 
+  /**
+   * [local] Folds one `background_tasks_changed` level into the session's set:
+   * a background task missing from it has ended, and a task in it that no edge
+   * announced is running. `ambient` tasks (watchers, housekeeping) are not
+   * activity, so they are never added from the level; one the session itself
+   * started (a Monitor) stays tracked while the level lists it.
+   */
+  const applyLevel = (sessionKey: string, level: unknown[]) => {
+    const live = new Map<string, AnyRecord>();
+    for (const entry of level) {
+      const task = entry as AnyRecord | null;
+      if (task && typeof task.task_id === 'string') {
+        live.set(task.task_id, task);
+      }
+    }
+    for (const taskId of Array.from(sessions.get(sessionKey)?.keys() ?? [])) {
+      if (live.has(taskId)) {
+        // Listed, so it runs in the background now.
+        foregroundTasks.get(sessionKey)?.delete(taskId);
+      } else if (!foregroundTasks.get(sessionKey)?.has(taskId)) {
+        remove(sessionKey, taskId);
+      }
+    }
+    for (const [taskId, entry] of live) {
+      if (entry.ambient === true || sessions.get(sessionKey)?.has(taskId)) {
+        continue;
+      }
+      // No edge named its launching call (yet: a background task joins the
+      // level before its `task_started`, which then fills this in). Nothing
+      // in the parent transcript can show it, so it is kept as nested.
+      const task: BackgroundTaskSummary = {
+        taskId,
+        toolUseId: '',
+        taskType: typeof entry.task_type === 'string' ? entry.task_type : 'unknown',
+        description: typeof entry.description === 'string' ? entry.description : '',
+        startedAt: Date.now(),
+        nested: true,
+      };
+      let tasks = sessions.get(sessionKey);
+      if (!tasks) {
+        tasks = new Map<string, BackgroundTaskSummary>();
+        sessions.set(sessionKey, tasks);
+      }
+      tasks.set(taskId, task);
+    }
+  };
+
   return {
     apply(sessionKey: string, message: AnyRecord | null | undefined) {
+      if (message?.type === 'system' && message.subtype === 'background_tasks_changed') {
+        if (Array.isArray(message.tasks)) {
+          applyLevel(sessionKey, message.tasks);
+        }
+        return;
+      }
       if (message?.type === 'assistant' && !message.parent_tool_use_id) {
         const content = message.message?.content;
         if (Array.isArray(content)) {
@@ -1679,15 +1774,29 @@ async function queryClaudeSDK(
   };
 
   // Arms (or re-arms) the idle countdown that eventually closes stdin.
+  // [local] Short (BG_WAIT_CEILING_MS) while no tracked task is running, long
+  // (CLOUDCLI_BG_MAX_HOLD_MS) while one is. Every stream message re-arms it, so a task
+  // ending switches back to the short one.
   const scheduleRelease = () => {
     if (idleReleaseTimer) {
       clearTimeout(idleReleaseTimer);
       idleReleaseTimer = null;
     }
+    const holdKey = sessionKey();
+    const tasksRunning = Boolean(holdKey) && backgroundWork.hasOutstanding(holdKey!);
     idleReleaseTimer = setTimeout(() => {
       idleReleaseTimer = null;
+      // [local] Tasks still running at the long bound are stopped first, while
+      // stdin is open, as releaseHeldSession does: the CLI would otherwise wait
+      // for its agents as long again after the release.
+      const key = sessionKey();
+      const entry = key ? getSession(key) : undefined;
+      if (key && entry && entry.instance === queryInstance && backgroundWork.hasOutstanding(key)) {
+        console.warn(`[Claude SDK] Background work of session ${key} said nothing for the hold bound; stopping it.`);
+        sendTaskStops(queryInstance ?? undefined, backgroundWork.outstanding(key));
+      }
       maybeReleasePromptStream(true);
-    }, BG_WAIT_CEILING_MS);
+    }, tasksRunning ? resolveBackgroundMaxHoldMs() : BG_WAIT_CEILING_MS);
     // Never let the hold keep the server process alive on its own.
     idleReleaseTimer?.unref?.();
   };

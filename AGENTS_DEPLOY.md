@@ -66,6 +66,7 @@ All configuration is environment variables, set in the shell (or service definit
 | `CLOUDCLI_EXTRA_READ_ROOTS` | none | the user wants the in-chat file viewer to open files outside their home folder. Read-only. Separator `;`. Example: `D:\Data;E:\Projects` |
 | `CLOUDCLI_FILE_TREE_MAX_ENTRIES` | `10000` | very large projects; 30000 is a reasonable upper value for phones |
 | `CLAUDE_TOOL_APPROVAL_TIMEOUT_MS` | `55000` | the user approves tools from the phone with delay; e.g. `86400000` (1 day). An unanswered approval is denied when it expires |
+| `CLOUDCLI_BG_MAX_HOLD_MS` | `43200000` (12 hours) | background agents or commands (long builds, test runs) may stay silent longer than that. While a background task runs, the Claude process is kept for it until this much time passes without any output; then the tasks are stopped. Values under `1800000` (30 minutes) are ignored. A hold with nothing running still ends after 30 minutes of silence |
 
 Never set `VITE_IS_PLATFORM=true`: it disables authentication.
 

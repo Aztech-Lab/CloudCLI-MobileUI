@@ -1728,6 +1728,7 @@ test('review 5: the adopted turn\'s result landing while a Stop awaits a cancel 
 
 test('review 6: a Stop whose awaits outlive the process arms no timer afterwards', { concurrency: false }, async () => {
   const CEILING_MS = 30 * 60 * 1000;
+  const MAX_HOLD_MS = 12 * 60 * 60 * 1000;
   const realSetTimeout = globalThis.setTimeout;
   const realClearTimeout = globalThis.clearTimeout;
   const liveCeilings = new Set<unknown>();
@@ -1736,7 +1737,8 @@ test('review 6: a Stop whose awaits outlive the process arms no timer afterwards
       liveCeilings.delete(handle);
       callback(...args);
     }, ms);
-    if (ms === CEILING_MS) {
+    // [local] The hold timer is the long bound while a task is still running.
+    if (ms === CEILING_MS || ms === MAX_HOLD_MS) {
       liveCeilings.add(handle);
     }
     return handle;
@@ -1781,4 +1783,111 @@ test('review 6: a Stop whose awaits outlive the process arms no timer afterwards
       realClearTimeout(handle as Parameters<typeof clearTimeout>[0]);
     }
   }
+});
+
+// ============================================================================
+// [local] Long background work: the hold bound and the level signal
+// ============================================================================
+
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
+const backgroundTasksChanged = (tasks: AnyRecord[]) => ({
+  type: 'system', subtype: 'background_tasks_changed', session_id: NATIVE_ID, uuid: 'level', tasks,
+});
+
+test('[local] a running task silent past the idle ceiling keeps the process held, up to the hold bound', { concurrency: false }, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const previous = process.env.CLOUDCLI_BG_MAX_HOLD_MS;
+  delete process.env.CLOUDCLI_BG_MAX_HOLD_MS;
+  try {
+    await withCwd(async (cwd) => {
+      const { first, done } = await startHeld(cwd);
+      t.mock.timers.tick(31 * MINUTE);
+      await settle();
+      assert.equal(first.script.released(), false, 'a1 is still running: no release on 31 minutes of silence');
+      assert.deepEqual(first.script.stopped, []);
+
+      t.mock.timers.tick(12 * HOUR - 31 * MINUTE);
+      await waitFor(() => first.script.released(), 'released at the hold bound');
+      assert.deepEqual(first.script.stopped, ['a1'], 'the task is stopped before the release');
+      await endRuns([first.script], [done]);
+    });
+  } finally {
+    if (previous === undefined) delete process.env.CLOUDCLI_BG_MAX_HOLD_MS; else process.env.CLOUDCLI_BG_MAX_HOLD_MS = previous;
+  }
+});
+
+test('[local] CLOUDCLI_BG_MAX_HOLD_MS sets the hold bound', { concurrency: false }, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const previous = process.env.CLOUDCLI_BG_MAX_HOLD_MS;
+  process.env.CLOUDCLI_BG_MAX_HOLD_MS = String(2 * HOUR);
+  try {
+    await withCwd(async (cwd) => {
+      const { first, done } = await startHeld(cwd);
+      t.mock.timers.tick(2 * HOUR - 1);
+      await settle();
+      assert.equal(first.script.released(), false);
+      t.mock.timers.tick(1);
+      await waitFor(() => first.script.released(), 'released at the configured bound');
+      await endRuns([first.script], [done]);
+    });
+  } finally {
+    if (previous === undefined) delete process.env.CLOUDCLI_BG_MAX_HOLD_MS; else process.env.CLOUDCLI_BG_MAX_HOLD_MS = previous;
+  }
+});
+
+test('[local] a hold with no tracked task still ends at the idle ceiling', { concurrency: false }, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await withCwd(async (cwd) => {
+    const { first, done } = await startHeld(cwd, { kind: 'static' });
+    t.mock.timers.tick(30 * MINUTE - 1);
+    await settle();
+    assert.equal(first.script.released(), false);
+    t.mock.timers.tick(1);
+    await waitFor(() => first.script.released(), 'released at the idle ceiling');
+    await endRuns([first.script], [done]);
+  });
+});
+
+test('[local] once the last task has ended, the idle ceiling applies again', { concurrency: false }, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await withCwd(async (cwd) => {
+    const { first, done } = await startHeld(cwd);
+    // a1 reports in, but the CLI never runs the relay turn.
+    await emitAndFlush(first.script, taskNotification('a1', 'toolu_a1', 'completed'));
+    t.mock.timers.tick(30 * MINUTE);
+    await waitFor(() => first.script.released(), 'released at the idle ceiling');
+    assert.deepEqual(first.script.stopped, []);
+    await endRuns([first.script], [done]);
+  });
+});
+
+test('[local] a level that no longer lists a task drops it although its end event never came', { concurrency: false }, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await withCwd(async (cwd) => {
+    const { first, done } = await startHeld(cwd);
+    await emitAndFlush(first.script, backgroundTasksChanged([{ task_id: 'a1', task_type: 'local_agent', description: 'Task a1' }]));
+    assert.deepEqual(listClaudeSDKBackgroundWork().map((entry) => entry.tasks.map((task) => task.taskId)), [['a1']]);
+
+    // The task_notification for a1 is lost; the level still says it is gone.
+    await emitAndFlush(first.script, backgroundTasksChanged([]));
+    assert.deepEqual(listClaudeSDKBackgroundWork(), [], 'no ghost task');
+    t.mock.timers.tick(30 * MINUTE);
+    await waitFor(() => first.script.released(), 'no ghost hold either: released at the idle ceiling');
+    await endRuns([first.script], [done]);
+  });
+});
+
+test('[local] a task only the level reports keeps the process held', { concurrency: false }, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await withCwd(async (cwd) => {
+    const { first, done } = await startHeld(cwd, { kind: 'static' });
+    // Its task_started was missed.
+    await emitAndFlush(first.script, backgroundTasksChanged([{ task_id: 'x1', task_type: 'local_bash', description: 'npm test' }]));
+    t.mock.timers.tick(31 * MINUTE);
+    await settle();
+    assert.equal(first.script.released(), false, 'x1 is running');
+    assert.deepEqual(listClaudeSDKBackgroundWork().map((entry) => entry.tasks.map((task) => task.taskId)), [['x1']]);
+    await endRuns([first.script], [done]);
+  });
 });
