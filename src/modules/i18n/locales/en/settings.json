@@ -234,6 +234,13 @@
       "dark": "Dark",
       "system": "Follow the system appearance"
     },
+    "assistantBubble": {
+      "label": "Agent reply bubble",
+      "description": "How the agent’s written replies are framed in the conversation",
+      "off": "No bubble",
+      "translucent": "Translucent",
+      "solid": "Solid"
+    },
     "skin": {
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",

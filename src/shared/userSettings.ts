@@ -22,6 +22,8 @@ export type UserPreferences = {
   skin: string;
   /** [local] Per-skin option values, keyed by skin id; see src/shared/skinOptions.ts. */
   skinOptions: unknown;
+  /** [local] How the agent's spoken replies are framed; see src/shared/assistantBubble.ts. */
+  assistantBubble: string;
   userLanguage: string;
   tasksEnabled: boolean;
   projectSortOrder: 'name' | 'date';
@@ -62,6 +64,7 @@ const LEGACY_STORAGE_KEYS: Record<UserPreferenceKey, string> = {
   // [local] Never stored anywhere else; the keys only have to exist for PREFERENCE_KEYS.
   skin: 'skin',
   skinOptions: 'skinOptions',
+  assistantBubble: 'assistantBubble',
   userLanguage: 'userLanguage',
   tasksEnabled: 'tasks-enabled',
   projectSortOrder: 'claude-settings',
