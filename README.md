@@ -152,6 +152,7 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 ## What's new
 
 **16 November 2026**
+- When background work finishes and Claude comes back to report, that reply behaves like any other: you can stop it or talk to it. After reloading the page or reconnecting your phone, the background status and any missed output come back on their own, and a conversation whose background work was ended by a server restart says so.
 - Scheduled and queued messages no longer interrupt a reply or stop background work: they join the running session when it is free, and the queued-message card says how and when each message will be sent.
 - A message you send while the agent is working now reaches it at its next step instead of waiting for the reply to end. "Send now" has it read your message straight away, moving a running command or subagent to the background; running tool cards have a "Move to background" button; and a message the agent has not read yet can be withdrawn.
 - You can keep talking to the main conversation while background agents and long commands run: a new message no longer stops them, Stop ends only the current reply, a "Stop all background work" button ends the rest, and quiet long-running tasks are no longer cut off after 30 minutes ([#1](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/1)).
