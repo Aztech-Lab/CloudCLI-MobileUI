@@ -101,7 +101,9 @@ Handled by `server/modules/websocket/services/chat-websocket.service.ts`.
 | --- | --- |
 | `chat.send` | Start a run for a session. |
 | `chat.edit-send` | Replace an already-sent message and re-run from that anchor. |
-| `chat.steer` | Send a message into the running turn: the model reads it at its next tool call, without the turn stopping. |
+| `chat.steer` | Send a message into the running turn: the model reads it at its next tool call, without the turn stopping. [local] `urgent: true` reads it at once. |
+| `chat.cancel-steer` | [local] Withdraw a steered message the model has not read yet. |
+| `chat.background-task` | [local] Move a running foreground shell command or subagent to the background. |
 | `chat.abort` | Stop the running run. |
 | `chat.subscribe` | Watch one or more sessions, replaying from `lastSeq`. |
 | `chat.permission-response` | Answer a `permission_request`. |

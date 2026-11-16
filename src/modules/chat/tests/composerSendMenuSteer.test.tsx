@@ -36,7 +36,7 @@ const open = () => {
 };
 
 const labels = (menu: HTMLElement) => Array.from(menu.querySelectorAll<HTMLElement>('[role^="menuitem"]'))
-  .map((row) => (row.textContent ?? '').replace(/(Queue|Steer|Side question|Stop|Send anyway).*/s, '$1'));
+  .map((row) => (row.textContent ?? '').replace(/(Queue|Send now|Send anyway|Send|Side question|Stop).*/s, '$1'));
 
 const row = (menu: HTMLElement, label: string) => {
   const found = Array.from(menu.querySelectorAll<HTMLElement>('[role^="menuitem"]'))
@@ -49,15 +49,26 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test('while a turn is written, Steer sits right under Queue and reports its choice', () => {
+// [local] Steering is what a plain send does during a turn, so its row (named
+// Send, carrying the Enter hint) comes first, then Send now, then Queue.
+test('while a turn is written, Send (steer) and Send now come before Queue and report their choice', () => {
   const { onSelect } = renderMenu('responding');
   const menu = open();
 
-  assert.deepEqual(labels(menu), ['Queue', 'Steer', 'Side question', 'Stop']);
-  assert.match(row(menu, 'Steer').textContent ?? '', /Send into this turn; read at the next tool call/);
+  assert.deepEqual(labels(menu), ['Send', 'Send now', 'Queue', 'Side question', 'Stop']);
+  assert.match(row(menu, 'Send').textContent ?? '', /Read at the next tool call/);
+  assert.match(row(menu, 'Send').textContent ?? '', /↵/);
+  assert.doesNotMatch(row(menu, 'Queue').textContent ?? '', /↵/, 'Enter no longer queues');
+  assert.match(row(menu, 'Send now').textContent ?? '', /moves to the background/);
 
-  fireEvent.click(row(menu, 'Steer'));
+  fireEvent.click(row(menu, 'Send'));
   assert.deepEqual(onSelect.mock.calls, [['steer']]);
+});
+
+test('Send now reports its own choice', () => {
+  const { onSelect } = renderMenu('responding');
+  fireEvent.click(row(open(), 'Send now'));
+  assert.deepEqual(onSelect.mock.calls, [['sendNow']]);
 });
 
 test('a provider that cannot steer gets no Steer row', () => {
@@ -72,12 +83,14 @@ test('background-only work has no turn to steer, so the row is left out', () => 
   assert.deepEqual(labels(open()), ['Queue', 'Side question', 'Send anyway']);
 });
 
-test('without input, Steer is disabled like Queue', () => {
+test('without input, Send and Send now are disabled like Queue', () => {
   const { onSelect } = renderMenu('responding', { hasInput: false });
   const menu = open();
 
-  const steer = row(menu, 'Steer') as HTMLButtonElement;
-  assert.ok(steer.disabled || steer.getAttribute('aria-disabled') === 'true');
-  fireEvent.click(steer);
+  for (const label of ['Send', 'Send now']) {
+    const steer = row(menu, label) as HTMLButtonElement;
+    assert.ok(steer.disabled || steer.getAttribute('aria-disabled') === 'true');
+    fireEvent.click(steer);
+  }
   assert.equal(onSelect.mock.calls.length, 0);
 });

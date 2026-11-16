@@ -95,8 +95,10 @@ type ChatComposerProps = {
   onCancelScheduledMessage: (id: string) => void;
   onEditQueuedDraft: () => void;
   onDeleteQueuedDraft: () => void;
-  /** Handle send menu choices (queue, steer, side question, send). */
-  onSendMenuChoice?: (choice: 'queue' | 'steer' | 'sideQuestion' | 'send') => void;
+  /** Handle send menu choices (queue, steer, [local] send now, side question, send). */
+  onSendMenuChoice?: (choice: 'queue' | 'steer' | 'sendNow' | 'sideQuestion' | 'send') => void;
+  /** [local] Takes back a message sent into the running turn that the agent has not read yet. */
+  onWithdrawSteer?: (messageId: string) => void;
   /** False until the capability matrix has loaded, or for a provider it does not list; passed through to the send menu and the background-send dialog so neither offers a side question that would be refused. */
   supportsSideQuestions?: boolean;
   /** Whether the provider can take a message into a running turn; gates the send menu's Steer row the same way `supportsSideQuestions` gates its row. */
@@ -192,6 +194,7 @@ export default function ChatComposer({
   supportsSteering = false,
   adoptsBackground = false,
   pendingSteers = NO_PENDING_STEERS,
+  onWithdrawSteer,
   attachedFiles,
   onRemoveAttachment,
   fileErrors,
@@ -355,7 +358,7 @@ export default function ChatComposer({
       />
 
       {pendingSteers.map((steer) => (
-        <SteeredMessageCard key={steer.messageId} steer={steer} providerLabel={providerLabel} />
+        <SteeredMessageCard key={steer.messageId} steer={steer} providerLabel={providerLabel} onWithdraw={onWithdrawSteer} />
       ))}
 
       {queuedDraft && (
@@ -575,7 +578,8 @@ export default function ChatComposer({
                 hasText={Boolean(input.trim())}
                 canAbortSession={canAbortSession}
                 supportsSideQuestions={supportsSideQuestions}
-                supportsSteering={supportsSteering}
+                // [local] An edit replaces a turn, so it is never steered.
+                supportsSteering={supportsSteering && !isEditingSentMessage}
                 adoptsBackground={adoptsBackground}
                 sendByCtrlEnter={sendByCtrlEnter}
                 onSelect={(choice) => {

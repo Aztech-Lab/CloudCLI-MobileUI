@@ -17,6 +17,8 @@ import MessageSpeakControl from '@/modules/chat/transcript/MessageSpeakControl';
 import { useIsExportingTranscript } from '@/modules/chat/context/TranscriptRenderContext';
 import { MemoryCitations } from '@/modules/chat/transcript/MemoryCitations';
 import { useDismissSideQuestion } from '@/modules/chat/hooks/useSideQuestions';
+import { MoveToBackgroundButton } from '@/modules/chat/tools/MoveToBackgroundButton';
+import { parseToolPayload } from '@/modules/chat/utils/messageTransforms';
 
 type MessageComponentProps = {
   message: ChatMessage;
@@ -43,6 +45,22 @@ type MessageComponentProps = {
 };
 
 const COPY_HIDDEN_TOOL_NAMES = new Set(['Bash', 'Edit', 'Write', 'ApplyPatch']);
+
+// [local] Shell tools whose running foreground call can be moved to the background.
+const BACKGROUNDABLE_SHELL_TOOLS = new Set(['Bash', 'PowerShell']);
+
+/**
+ * [local] Whether a tool row is a foreground call still running, which "Move
+ * to background" can act on: no result yet, and not launched in the
+ * background already (its result would be the launch note anyway).
+ */
+function isRunningForegroundCall(message: ChatMessage): boolean {
+  if (!message.toolId || message.toolResult) {
+    return false;
+  }
+  const input = parseToolPayload(message.toolInput);
+  return !(input && typeof input === 'object' && (input as { run_in_background?: unknown }).run_in_background === true);
+}
 
 /** Used by MessageComponent's side-question header, to dismiss the whole question/answer pair. */
 function SideQuestionDismissButton({ label, onDismiss }: { label: string; onDismiss: () => void }) {
@@ -359,6 +377,8 @@ const MessageComponent = memo(({ message, prevMessage, createDiff, onFileOpen, s
                   createDiff={createDiff}
                   selectedProject={selectedProject}
                 />
+                {/* [local] A foreground agent the reply is waiting on. */}
+                {isRunningForegroundCall(message) && <MoveToBackgroundButton toolId={message.toolId!} />}
               </div>
             ) : message.isToolUse ? (
               <>
@@ -388,6 +408,10 @@ const MessageComponent = memo(({ message, prevMessage, createDiff, onFileOpen, s
                       rawToolInput={typeof message.toolInput === 'string' ? message.toolInput : undefined}
                       toolStatus={message.toolStatus}
                     />
+                    {/* [local] A foreground command the reply is waiting on. */}
+                    {BACKGROUNDABLE_SHELL_TOOLS.has(String(message.toolName)) && isRunningForegroundCall(message) && (
+                      <MoveToBackgroundButton toolId={message.toolId!} />
+                    )}
                   </div>
                 )}
 

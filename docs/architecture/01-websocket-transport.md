@@ -187,7 +187,9 @@ throws is answered with `INTERNAL_ERROR`.**
 | --- | --- | --- |
 | `chat.send` | `sessionId`, `content`, `options` | Resolves the session row, registers the run, dispatches to the provider runtime (`:146-158`). On a session whose previous turn left background work running, the new turn's CLI process supersedes the one that work runs under, so the work is stopped or finishes unheard; the composer asks the user before sending such a turn |
 | `chat.edit-send` | as above plus `anchorId` | Announces `history_truncated`, rewinds or resumes the provider transcript at the anchor, then dispatches (`:314-408`) |
-| `chat.steer` | `sessionId`, `messageId` (a UUID), `content`, `options?` | Delivers the message into the session's running turn instead of starting one: the provider writes it to the CLI's still-open stdin with priority `next`, the model reads it at its next tool-call boundary, and the provider echoes it on the run's stream at that moment (so every tab sees where it was read). The sender gets `chat_steer_accepted` once the provider has taken it. A turn that ends before reading it is held open for the follow-up turn the CLI runs it in |
+| `chat.steer` | `sessionId`, `messageId` (a UUID), `content`, `options?` | Delivers the message into the session's running turn instead of starting one: the provider writes it to the CLI's still-open stdin with priority `next`, the model reads it at its next tool-call boundary, and the provider echoes it on the run's stream at that moment (so every tab sees where it was read). The sender gets `chat_steer_accepted` once the provider has taken it. A turn that ends before reading it is held open for the follow-up turn the CLI runs it in. [local] With `urgent: true` ("Send now") it is read at once: while a main-thread shell command or subagent runs, that work is moved to the background (`backgroundTasks`) so the message is read in the same turn; otherwise it goes with priority `now`, which cuts the current step short |
+| `chat.cancel-steer` | `sessionId`, `messageId` | [local] Withdraws a steered message the model has not read yet (`cancel_async_message`). Answered with `chat_steer_cancelled` |
+| `chat.background-task` | `sessionId`, `toolUseId` | [local] Moves one running foreground tool call (shell command or subagent) to the background, as Ctrl+B does in the terminal. Nothing is echoed on success: the call's result and the task's events arrive on the run's stream |
 | `chat.abort` | `sessionId` | Aborts the runtime and emits the terminal `complete` on its behalf (`:415-438`) |
 | `chat.stop-task` | `sessionId`, `taskId` | Stops one background task (agent, workflow or backgrounded command) through the provider runtime; the runtime reports the stop on the session's stream |
 | `chat.subscribe` | `sessions: [{ sessionId, lastSeq }]` | Acks with `chat_subscribed`, attaches this socket to a running run — or to a completed one whose session still has background work — and replays what was missed for running runs (`:448-504`) |
@@ -245,6 +247,9 @@ Every code that exists, with the line that emits it:
 | `NO_ACTIVE_RUN` | `:428` | `chat.abort` for a session with nothing running |
 | `MESSAGE_REQUIRED` | | `chat.steer` with neither text nor an attachment |
 | `STEER_UNAVAILABLE` | | `chat.steer` when no turn can take the message: the run ended, its turn was already reported complete, or the provider cannot steer. Carries the `messageId`; the client queues the message as the next turn instead of showing an error |
+| `MESSAGE_ID_REQUIRED` | | [local] `chat.cancel-steer` without a UUID `messageId` |
+| `TOOL_USE_ID_REQUIRED` | | [local] `chat.background-task` without a `toolUseId` |
+| `BACKGROUND_UNAVAILABLE` | | [local] `chat.background-task` that moved nothing: no running turn, the call already returned, or the CLI cannot background tasks. Carries the `toolUseId`; the tool card says so and the session is not idled |
 | `TASK_ID_REQUIRED` | | `chat.stop-task` without a task id |
 | `NO_SUCH_TASK` | | `chat.stop-task` for a task the runtime is not tracking (already settled, or never this session's) |
 | `TASK_STOP_FAILED` | | `chat.stop-task` that the runtime could not carry out: the CLI acknowledged the stop but the task kept running, or the process could not be reached. Carries the `taskId` |
@@ -298,6 +303,7 @@ Two kinds in those unions never appear where you would look for them:
 | `chat_subscribed` | `chat-websocket.service.ts:485-492` | Authoritative processing state plus pending permissions (`:126-155`) |
 | `protocol_error` | `chat-websocket.service.ts:127` | Error row, spinner cleared — except `STEER_UNAVAILABLE`, which only hands the named message back to the composer to queue, and the stop-task codes (`NO_SUCH_TASK`, `TASK_ID_REQUIRED`, `TASK_STOP_FAILED`), which leave the spinner alone since they are not about the run |
 | `chat_steer_accepted` | `chat-websocket.service.ts` (`handleChatSteer`) | Sent to the asking socket only: the steered message is in the turn; its card waits for the echo |
+| `chat_steer_cancelled` | `chat-websocket.service.ts` (`handleChatCancelSteer`) | [local] Sent to the asking socket only: `cancelled: true` puts the message back into the composer; `false` means it was already being read, and its card waits for the echo |
 | `session_upserted` | `session-upsert-broadcast.service.ts:81-105` | `useProjectsState` — sidebar rows and alias folding |
 | `loading_progress` | `projects-with-sessions-fetch.service.ts:164-175` | `useProjectsState` — project scan progress (`:720-736`) |
 | `scheduled_messages_changed` | `scheduled-messages.service.ts` (`announceScheduledMessagesChanged`), on schedule, cancel, claim and failure | `useScheduledMessages` — reads the open session's scheduled list again |

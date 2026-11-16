@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowDownIcon } from 'lucide-react';
 
@@ -8,6 +8,7 @@ import { useWebSocket } from '@/shared/context/WebSocketContext';
 import PermissionContext from '@/modules/chat/context/PermissionContext';
 import { MarkdownWorkspaceContext } from '@/modules/chat/context/MarkdownWorkspaceContext';
 import { TranscriptSessionContext } from '@/modules/chat/context/TranscriptSessionContext';
+import { ToolCardActionsContext } from '@/modules/chat/context/ToolCardActionsContext';
 import { api } from '@/shared/api';
 import type {
   ChatMessage,
@@ -270,6 +271,7 @@ function ChatInterface({
     deleteQueuedDraft,
     pendingSteers,
     handleSteerOutcome,
+    withdrawSteer,
     adoptsBackground,
     handleAdoptRefused,
     handleVoiceTranscript,
@@ -342,6 +344,13 @@ function ChatInterface({
     });
   }, [isActive, requestLatestMessages, selectedProject, selectedSession, sendMessage]);
 
+  // [local] When the server last said a "Move to background" moved nothing,
+  // per tool_use id, for the tool card to say so.
+  const [backgroundRefusals, setBackgroundRefusals] = useState<ReadonlyMap<string, number>>(() => new Map());
+  const handleBackgroundTaskRefused = useCallback((_sessionId: string, toolUseId: string) => {
+    setBackgroundRefusals((current) => new Map(current).set(toolUseId, Date.now()));
+  }, []);
+
   useChatRealtimeHandlers({
     isActive,
     subscribe,
@@ -364,6 +373,7 @@ function ChatInterface({
     sessionStore,
     onSteerOutcome: handleSteerOutcome,
     onAdoptRefused: handleAdoptRefused,
+    onBackgroundTaskRefused: handleBackgroundTaskRefused,
   });
 
   // Lets other modules (the quick settings Commands tab) hand text to the
@@ -455,6 +465,17 @@ function ChatInterface({
   // Lets a workflow card fetch its agents' timelines for this session.
   const transcriptSessionValue = useMemo(() => ({ sessionId: currentSessionId }), [currentSessionId]);
 
+  // [local] "Move to background" on a running foreground tool card: only while
+  // this session's turn runs and its provider can move work aside (the same
+  // capability as steering, since both write into the running turn).
+  const toolCardSessionId = selectedSession?.id || currentSessionId;
+  const toolCardActionsValue = useMemo(() => ({
+    moveToBackground: supportsSteering && isProcessing && toolCardSessionId
+      ? (toolUseId: string) => sendMessage({ type: 'chat.background-task', sessionId: toolCardSessionId, toolUseId })
+      : null,
+    refusedAt: backgroundRefusals,
+  }), [backgroundRefusals, isProcessing, sendMessage, supportsSteering, toolCardSessionId]);
+
   // A composer pick becomes the default for new chats and, when a session is
   // open, is recorded against that session so reopening it restores this model.
   const handleSelectComposerModel = useCallback(async (model: string) => {
@@ -508,6 +529,7 @@ function ChatInterface({
       <div className="flex h-full min-h-0 flex-col">
         <MarkdownWorkspaceContext.Provider value={markdownWorkspaceValue}>
           <TranscriptSessionContext.Provider value={transcriptSessionValue}>
+            <ToolCardActionsContext.Provider value={toolCardActionsValue}>
             <ChatMessagesPane
               scrollContainerRef={scrollContainerRef}
               // Not redundant with the `scroll` listener. A first page is 20 rows,
@@ -564,6 +586,7 @@ function ChatInterface({
               onForkFromMessage={supportsSessionForking ? handleForkFromMessage : undefined}
               onLoadFullTranscript={loadFullTranscript}
             />
+            </ToolCardActionsContext.Provider>
           </TranscriptSessionContext.Provider>
         </MarkdownWorkspaceContext.Provider>
 
@@ -624,6 +647,7 @@ function ChatInterface({
           supportsSteering={supportsSteering}
           adoptsBackground={adoptsBackground}
           pendingSteers={pendingSteers}
+          onWithdrawSteer={withdrawSteer}
           attachedFiles={attachedFiles}
           onRemoveAttachment={(index) =>
             setAttachedFiles((previous) =>

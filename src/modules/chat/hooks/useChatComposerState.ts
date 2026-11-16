@@ -125,8 +125,12 @@ type SubmitOptions = {
    * The send menu's Steer row: while a turn runs, send the message into it
    * (read at the agent's next tool call) instead of queueing it for after.
    * Falls through to the ordinary send when no turn is running any more.
+   * [local] Also what a plain send does during a turn, unless the send menu's
+   * Queue was chosen (`presetBackgroundChoice: 'queue'`).
    */
   steerIntoTurn?: boolean;
+  /** [local] "Send now": the steered message is read at once, not at the next tool call. */
+  urgent?: boolean;
   /**
    * [local] Asks the background-work question again for a message the server
    * could not add to the session's running process (`ADOPT_UNAVAILABLE`). The
@@ -1087,7 +1091,11 @@ export function useChatComposerState({
   // composer at once, as a sent message does, and waits as a card until the
   // agent reads it. Attachments must already be uploaded.
   const steerIntoRunningTurn = useCallback(
-    (message: { content: string; attachments: File[]; uploadedAttachments: unknown[] }, steerSessionKey: string) => {
+    (
+      message: { content: string; attachments: File[]; uploadedAttachments: unknown[] },
+      steerSessionKey: string,
+      urgent = false,
+    ) => {
       const messageId = createSteerMessageId();
       updatePendingSteers((current) => [...current, {
         messageId,
@@ -1096,6 +1104,8 @@ export function useChatComposerState({
         attachments: message.attachments,
         uploadedAttachments: message.uploadedAttachments,
         status: 'sending',
+        // [local] "Send now".
+        ...(urgent && { urgent: true }),
       }]);
       sendMessage({
         type: 'chat.steer',
@@ -1103,6 +1113,7 @@ export function useChatComposerState({
         messageId,
         content: message.content,
         options: { attachments: message.uploadedAttachments },
+        ...(urgent && { urgent: true }),
       });
       recordSentMessage(message.content, steerSessionKey);
       // Attachments are not kept per chat: the steered ones leave even when another chat is open now.
@@ -1135,6 +1146,35 @@ export function useChatComposerState({
    */
   const handleSteerOutcome = useCallback(
     (_sessionId: string, messageId: string, outcome: SteerOutcome) => {
+      // [local] The answer to a withdraw. Withdrawn: the message never reaches
+      // the agent, so it goes back into the composer like an unread one after
+      // a Stop. Too late: the card stays until its echo, saying so.
+      if (outcome === 'withdrawn' || outcome === 'notWithdrawn') {
+        const target = pendingSteersRef.current.find((candidate) => candidate.messageId === messageId);
+        if (!target) {
+          return;
+        }
+        if (outcome === 'notWithdrawn') {
+          updatePendingSteers((current) => current.map((candidate) => (
+            candidate.messageId === messageId ? { ...candidate, status: 'accepted', withdrawFailed: true } : candidate
+          )));
+          return;
+        }
+        updatePendingSteers((current) => current.filter((candidate) => candidate.messageId !== messageId));
+        const withTypedSince = (typedSince: string) => (
+          [target.content, typedSince].filter((part) => part.trim()).join('\n\n')
+        );
+        if (sessionKeyRef.current !== target.sessionKey) {
+          writeDraftText(target.sessionKey, withTypedSince(readDraftText(target.sessionKey)));
+          return;
+        }
+        const restored = withTypedSince(inputValueRef.current);
+        setInput(restored);
+        inputValueRef.current = restored;
+        setAttachedFiles((current) => [...target.attachments, ...current.filter((file) => !target.attachments.includes(file))]);
+        writeDraftText(target.sessionKey, restored);
+        return;
+      }
       if (outcome === 'delivered') {
         if (pendingSteersRef.current.some((steer) => isEchoOfSteer(messageId, steer.messageId))) {
           updatePendingSteers((current) => current.filter((steer) => !isEchoOfSteer(messageId, steer.messageId)));
@@ -1165,8 +1205,25 @@ export function useChatComposerState({
         options: withAdoptionWhenQueued(buildSendOptions(steer.content), steer.content, false),
       }, steer.sessionKey, { fromComposer: false });
     },
-    [buildSendOptions, queueMessage, updatePendingSteers, withAdoptionWhenQueued],
+    [buildSendOptions, queueMessage, setInput, updatePendingSteers, withAdoptionWhenQueued],
   );
+
+  /**
+   * [local] Takes back a message sent into the running turn that the agent has
+   * not read yet (`chat.cancel-steer`). The card shows it is being withdrawn;
+   * the answer, through `handleSteerOutcome`, either puts the message back into
+   * the composer or says it was too late.
+   */
+  const withdrawSteer = useCallback((messageId: string) => {
+    const steer = pendingSteersRef.current.find((candidate) => candidate.messageId === messageId);
+    if (!steer || steer.status !== 'accepted') {
+      return;
+    }
+    updatePendingSteers((current) => current.map((candidate) => (
+      candidate.messageId === messageId ? { ...candidate, status: 'withdrawing', withdrawFailed: false } : candidate
+    )));
+    sendMessage({ type: 'chat.cancel-steer', sessionId: steer.sessionKey, messageId });
+  }, [sendMessage, updatePendingSteers]);
 
   // The run ended with a steered message the server took but the agent never
   // read — the user stopped the run, or it failed. Nothing will send it now,
@@ -1179,8 +1236,9 @@ export function useChatComposerState({
     if (!wasLoading || isLoading || !sessionKey) {
       return;
     }
+    // [local] One being withdrawn is as unread.
     const unread = pendingSteersRef.current.filter(
-      (steer) => steer.sessionKey === sessionKey && steer.status === 'accepted',
+      (steer) => steer.sessionKey === sessionKey && (steer.status === 'accepted' || steer.status === 'withdrawing'),
     );
     if (unread.length === 0) {
       return;
@@ -1271,9 +1329,15 @@ export function useChatComposerState({
         // Steering sends the message into the running turn instead of after
         // it, when the send menu asked for that and the provider can take it.
         // A slash command is a turn of its own, so it always waits in the queue.
-        const steersIntoTurn = submitOptions?.steerIntoTurn === true
+        // [local] A plain send steers too, as Enter does while the official
+        // client is working; only the send menu's Queue waits for the turn to
+        // end. An edit replaces a turn, so it is never steered.
+        const wantsSteer = submitOptions?.steerIntoTurn
+          ?? submitOptions?.presetBackgroundChoice !== 'queue';
+        const steersIntoTurn = wantsSteer
           && supportsSteering
           && Boolean(sessionKey)
+          && !editingAnchorId
           && !currentInput.trimStart().startsWith('/');
         const queuedOptions = buildSendOptions(currentInput);
         const queuedSessionKey = sessionKey;
@@ -1296,7 +1360,7 @@ export function useChatComposerState({
             content: currentInput,
             attachments: currentAttachments,
             uploadedAttachments,
-          }, queuedSessionKey);
+          }, queuedSessionKey, submitOptions?.urgent === true);
           return;
         }
 
@@ -1642,13 +1706,18 @@ export function useChatComposerState({
   // goes through the submit like Queue does (same upload and validation) and
   // only diverges once the message is ready to leave the composer.
   const handleSendMenuChoice = useCallback(
-    async (choice: 'queue' | 'steer' | 'sideQuestion' | 'send'): Promise<void> => {
+    async (choice: 'queue' | 'steer' | 'sendNow' | 'sideQuestion' | 'send'): Promise<void> => {
       if (choice === 'sideQuestion') {
         askSideQuestionAndClear(sessionKey, inputValueRef.current);
         return;
       }
       if (choice === 'steer') {
         await handleSubmit(createFakeSubmitEvent(), undefined, { steerIntoTurn: true });
+        return;
+      }
+      // [local] Read at once: the current step is cut short or moved to the background.
+      if (choice === 'sendNow') {
+        await handleSubmit(createFakeSubmitEvent(), undefined, { steerIntoTurn: true, urgent: true });
         return;
       }
       await handleSubmit(createFakeSubmitEvent(), undefined, { presetBackgroundChoice: choice });
@@ -2105,6 +2174,8 @@ export function useChatComposerState({
     deleteQueuedDraft,
     pendingSteers: visiblePendingSteers,
     handleSteerOutcome,
+    // [local] Takes back an unread steered message.
+    withdrawSteer,
     adoptsBackground,
     handleAdoptRefused,
     handleVoiceTranscript,
