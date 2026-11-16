@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { ExternalLink, Lock } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-const CLOUDCLI_URL = 'https://cloudcli.ai';
+import { UPSTREAM_WEBSITE_URL } from '@/shared/constants';
 
 type PremiumFeatureCardProps = {
   icon: ReactNode;
@@ -35,7 +35,7 @@ export default function PremiumFeatureCard({
             {description}
           </p>
           <a
-            href={CLOUDCLI_URL}
+            href={UPSTREAM_WEBSITE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:underline"

@@ -651,5 +651,14 @@
     "installAriaLabel": "外掛 git 儲存庫 URL",
     "tab": "分頁",
     "runningStatus": "執行中"
+  },
+  "about": {
+    "tagline": "開源的 AI 程式設計助理介面",
+    "starOnGitHub": "在 GitHub 上加星",
+    "licensed": "依 AGPL-3.0 授權條款發布",
+    "reportIssue": "回報問題",
+    "creditsTitle": "致謝",
+    "basedOn": "CloudCLI-MobileUI 以 Siteboon AI B.V. 的 CloudCLI（AGPL-3.0 授權）為基礎。本版本的問題請在這裡回報，不要提交給原專案。",
+    "upstreamCredit": "原版 CloudCLI 專案（致謝）"
   }
 }

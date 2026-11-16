@@ -2,7 +2,7 @@ import { FolderPlus, Plus, RefreshCw, Search, X, PanelLeftClose } from 'lucide-r
 import type { TFunction } from 'i18next';
 
 import { Button, Input } from '@/shared/ui';
-import { CLOUDCLI_WORDMARK_FONT_FAMILY } from '@/shared/constants';
+import { CLOUDCLI_WORDMARK_FONT_FAMILY, UPSTREAM_PLATFORM_DASHBOARD_URL } from '@/shared/constants';
 import { IS_PLATFORM } from '@/shared/utils';
 import type { SidebarSearchMode } from '@/shared/types';
 import GitHubStarBadge from '@/modules/sidebar/GitHubStarBadge';
@@ -89,7 +89,7 @@ export default function SidebarHeader({
         <div className="flex items-center justify-between gap-2">
           {IS_PLATFORM ? (
             <a
-              href="https://cloudcli.ai/dashboard"
+              href={UPSTREAM_PLATFORM_DASHBOARD_URL}
               className="flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-80"
               title={t('tooltips.viewEnvironments')}
             >
@@ -190,7 +190,7 @@ export default function SidebarHeader({
         <div className="flex items-center justify-between">
           {IS_PLATFORM ? (
             <a
-              href="https://cloudcli.ai/dashboard"
+              href={UPSTREAM_PLATFORM_DASHBOARD_URL}
               className="flex min-w-0 items-center gap-2.5 transition-opacity active:opacity-70"
               title={t('tooltips.viewEnvironments')}
             >

@@ -1,15 +1,23 @@
-import { Cloud, ExternalLink, MessageSquare, Star, Users } from 'lucide-react';
+import { Bug, Cloud, ExternalLink, MessageSquare, Star, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { CLOUDCLI_WORDMARK_FONT_FAMILY } from '@/shared/constants';
+// [local] Links point to this build; the original project is linked only as credit.
+import {
+  CLOUDCLI_WORDMARK_FONT_FAMILY,
+  PROJECT_CHANGES_URL,
+  PROJECT_NEW_ISSUE_URL,
+  PROJECT_REPO_NAME,
+  PROJECT_REPO_OWNER,
+  PROJECT_REPO_URL,
+  SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS,
+  UPSTREAM_DISCORD_URL,
+  UPSTREAM_PLUGIN_DOCS_URL,
+  UPSTREAM_REPO_URL,
+  UPSTREAM_WEBSITE_URL,
+} from '@/shared/constants';
 import { IS_PLATFORM } from '@/shared/utils';
 import { useVersionCheck } from '@/shared/hooks/useVersionCheck';
 import PremiumFeatureCard from '@/modules/settings/PremiumFeatureCard';
-
-const GITHUB_REPO_URL = 'https://github.com/siteboon/claudecodeui';
-const DISCORD_URL = 'https://discord.gg/buxwujPNRE';
-const DOCS_URL = 'https://cloudcli.ai/docs/plugin-overview';
-const CLOUDCLI_URL = 'https://cloudcli.ai';
 
 function GitHubIcon({ className }: { className?: string }) {
   return (
@@ -30,8 +38,8 @@ function DiscordIcon({ className }: { className?: string }) {
 /** Rendered by Settings for the "about" tab, showing version, links and premium upsell cards. */
 export default function AboutTab() {
   const { t } = useTranslation('settings');
-  const { updateAvailable, latestVersion, currentVersion, releaseInfo } = useVersionCheck('siteboon', 'claudecodeui');
-  const releasesUrl = releaseInfo?.htmlUrl || `${GITHUB_REPO_URL}/releases`;
+  const { updateAvailable, latestVersion, currentVersion, releaseInfo } = useVersionCheck(PROJECT_REPO_OWNER, PROJECT_REPO_NAME);
+  const releasesUrl = releaseInfo?.htmlUrl || PROJECT_CHANGES_URL;
 
   return (
     <div className="space-y-6">
@@ -76,7 +84,7 @@ export default function AboutTab() {
 
       {/* Star on GitHub button */}
       <a
-        href={GITHUB_REPO_URL}
+        href={PROJECT_REPO_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
@@ -89,7 +97,7 @@ export default function AboutTab() {
       {/* Links */}
       <div className="flex flex-wrap gap-4 text-sm">
         <a
-          href={GITHUB_REPO_URL}
+          href={PROJECT_REPO_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
@@ -98,7 +106,19 @@ export default function AboutTab() {
           GitHub
         </a>
         <a
-          href={DISCORD_URL}
+          href={PROJECT_NEW_ISSUE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Bug className="h-3.5 w-3.5" />
+          {t('about.reportIssue')}
+        </a>
+        {/* [local] The original project's community, docs and website stay hidden in this build */}
+        {SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS && (
+        <>
+        <a
+          href={UPSTREAM_DISCORD_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
@@ -107,7 +127,7 @@ export default function AboutTab() {
           Discord
         </a>
         <a
-          href={DOCS_URL}
+          href={UPSTREAM_PLUGIN_DOCS_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
@@ -116,7 +136,7 @@ export default function AboutTab() {
           Docs
         </a>
         <a
-          href={CLOUDCLI_URL}
+          href={UPSTREAM_WEBSITE_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
@@ -124,17 +144,19 @@ export default function AboutTab() {
           <ExternalLink className="h-3.5 w-3.5" />
           cloudcli.ai
         </a>
+        </>
+        )}
       </div>
 
-      {/* Hosted CTA (OSS mode only) */}
-      {!IS_PLATFORM && (
+      {/* Hosted CTA (OSS mode only; [local] hidden in this build) */}
+      {!IS_PLATFORM && SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS && (
         <div className="rounded-xl border border-primary/10 bg-primary/5 p-4">
           <h4 className="text-sm font-medium text-foreground">{t('about.hostedTitle')}</h4>
           <p className="mt-1 text-xs text-muted-foreground">
             {t('about.hostedDescription')}
           </p>
           <a
-            href={CLOUDCLI_URL}
+            href={UPSTREAM_WEBSITE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:underline"
@@ -145,8 +167,8 @@ export default function AboutTab() {
         </div>
       )}
 
-      {/* Premium feature placeholders (OSS mode only) */}
-      {!IS_PLATFORM && (
+      {/* Premium feature placeholders (OSS mode only; [local] hidden in this build) */}
+      {!IS_PLATFORM && SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS && (
         <div className="space-y-4 border-t border-border/50 pt-6">
           <h3 className="text-sm font-medium text-foreground">{t('about.proFeaturesTitle')}</h3>
           <PremiumFeatureCard
@@ -162,8 +184,23 @@ export default function AboutTab() {
         </div>
       )}
 
-      {/* License */}
-      <div className="border-t border-border/50 pt-4">
+      {/* [local] Attribution: the link to the original project is credit, not a support channel */}
+      <div className="space-y-2 border-t border-border/50 pt-4">
+        <h3 className="text-sm font-medium text-foreground">{t('about.creditsTitle')}</h3>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {t('about.basedOn')}
+        </p>
+        <a
+          href={UPSTREAM_REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-link-role="attribution"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <GitHubIcon className="h-3.5 w-3.5" />
+          {t('about.upstreamCredit')}
+          <ExternalLink className="h-3 w-3" />
+        </a>
         <p className="text-xs text-muted-foreground/60">
           {t('about.licensed')}
         </p>

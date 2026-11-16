@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-import { APP_VERSION } from '@/shared/constants';
+import { APP_VERSION, SHOW_UPDATE_PROMPT } from '@/shared/constants';
 import type { InstallMode, ReleaseInfo } from '@/shared/types';
 
 /**
@@ -56,6 +56,10 @@ export const useVersionCheck = (owner: string, repo: string) => {
   }, []);
 
   useEffect(() => {
+    // [local] No release check while the update prompt is off: the prompt's
+    // one-click update would install the original package over this build.
+    if (!SHOW_UPDATE_PROMPT) return undefined;
+
     const checkVersion = async () => {
       try {
         const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`);

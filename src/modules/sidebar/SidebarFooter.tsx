@@ -3,11 +3,13 @@ import type { TFunction } from 'i18next';
 
 import { IS_PLATFORM } from '@/shared/utils';
 import type { ReleaseInfo } from '@/shared/types';
-
-const GITHUB_ISSUES_URL = 'https://github.com/siteboon/claudecodeui/issues/new';
-const GITHUB_REPO_URL = 'https://github.com/siteboon/claudecodeui';
-
-const DISCORD_INVITE_URL = 'https://discord.gg/buxwujPNRE';
+// [local] This build's repository and issues; the original project's Discord stays hidden.
+import {
+  PROJECT_NEW_ISSUE_URL,
+  PROJECT_REPO_URL,
+  SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS,
+  UPSTREAM_DISCORD_URL,
+} from '@/shared/constants';
 
 function DiscordIcon({ className }: { className?: string }) {
   return (
@@ -111,7 +113,7 @@ export default function SidebarFooter({
       {/* Desktop Report Issue */}
       <div className="hidden px-2 pt-1.5 md:block">
         <a
-          href={GITHUB_ISSUES_URL}
+          href={PROJECT_NEW_ISSUE_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
@@ -121,10 +123,11 @@ export default function SidebarFooter({
         </a>
       </div>
 
-      {/* Desktop Discord */}
+      {/* Desktop Discord ([local] hidden: no community channel for this build) */}
+      {SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS && (
       <div className="hidden px-2 md:block">
         <a
-          href={DISCORD_INVITE_URL}
+          href={UPSTREAM_DISCORD_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
@@ -133,6 +136,7 @@ export default function SidebarFooter({
           <span className="text-sm">{t('actions.joinCommunity')}</span>
         </a>
       </div>
+      )}
 
       {/* Desktop settings */}
       <div className="hidden px-2 py-1.5 md:block">
@@ -149,7 +153,7 @@ export default function SidebarFooter({
       {!IS_PLATFORM && (
         <div className="hidden px-3 py-2 text-center md:block">
           <a
-            href={GITHUB_REPO_URL}
+            href={PROJECT_REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[10px] text-muted-foreground/40 transition-colors hover:text-muted-foreground"
@@ -162,7 +166,7 @@ export default function SidebarFooter({
       {/* Mobile Report Issue */}
       <div className="px-3 pt-3 md:hidden">
         <a
-          href={GITHUB_ISSUES_URL}
+          href={PROJECT_NEW_ISSUE_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex h-10 w-full items-center gap-3 rounded-xl bg-muted/40 px-3.5 transition-all hover:bg-muted/60 active:scale-[0.98]"
@@ -174,10 +178,11 @@ export default function SidebarFooter({
         </a>
       </div>
 
-      {/* Mobile Discord */}
+      {/* Mobile Discord ([local] hidden: no community channel for this build) */}
+      {SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS && (
       <div className="px-3 pt-2 md:hidden">
         <a
-          href={DISCORD_INVITE_URL}
+          href={UPSTREAM_DISCORD_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex h-10 w-full items-center gap-3 rounded-xl bg-muted/40 px-3.5 transition-all hover:bg-muted/60 active:scale-[0.98]"
@@ -188,6 +193,7 @@ export default function SidebarFooter({
           <span className="text-sm font-normal text-foreground">{t('actions.joinCommunity')}</span>
         </a>
       </div>
+      )}
 
       {/* Mobile settings */}
       <div className="px-3 pb-3 pt-2 md:hidden">

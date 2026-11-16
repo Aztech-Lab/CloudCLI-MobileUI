@@ -1,8 +1,12 @@
 import { Settings, Sparkles, PanelLeftOpen, Bug, AlertTriangle } from 'lucide-react';
 import type { TFunction } from 'i18next';
 
-const DISCORD_INVITE_URL = 'https://discord.gg/buxwujPNRE';
-const GITHUB_ISSUES_URL = 'https://github.com/siteboon/claudecodeui/issues/new';
+// [local] This build's issues; the original project's Discord stays hidden.
+import {
+  PROJECT_NEW_ISSUE_URL,
+  SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS,
+  UPSTREAM_DISCORD_URL,
+} from '@/shared/constants';
 
 function DiscordIcon({ className }: { className?: string }) {
   return (
@@ -56,7 +60,7 @@ export default function SidebarCollapsed({
 
       {/* Report Issue */}
       <a
-        href={GITHUB_ISSUES_URL}
+        href={PROJECT_NEW_ISSUE_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="group flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-accent/80"
@@ -66,9 +70,10 @@ export default function SidebarCollapsed({
         <Bug className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
       </a>
 
-      {/* Discord */}
+      {/* Discord ([local] hidden: no community channel for this build) */}
+      {SHOW_UPSTREAM_COMMUNITY_AND_HOSTED_LINKS && (
       <a
-        href={DISCORD_INVITE_URL}
+        href={UPSTREAM_DISCORD_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="group flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-accent/80"
@@ -77,6 +82,7 @@ export default function SidebarCollapsed({
       >
         <DiscordIcon className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
       </a>
+      )}
 
       {/* Restart-required indicator */}
       {restartRequired && (
