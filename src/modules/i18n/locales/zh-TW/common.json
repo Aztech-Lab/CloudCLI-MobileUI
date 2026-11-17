@@ -287,6 +287,8 @@
   "workflow": {
     "stopAllBackground": "停止全部背景工作",
     "stopAllBackgroundConfirm": "再點一次全部停止",
-    "stopAllBackgroundHint": "停止此對話的所有背景代理和命令。「停止」按鈕只結束目前的回覆。"
+    "stopAllBackgroundHint": "停止此對話的所有背景代理和命令。「停止」按鈕只結束目前的回覆。",
+    "stopAllBackgroundCommands": "停止全部背景命令",
+    "stopAllBackgroundCommandsHint": "停止此對話的所有背景命令。代理會繼續執行：這裡無法停止它們。「停止」按鈕只結束目前的回覆。"
   }
 }

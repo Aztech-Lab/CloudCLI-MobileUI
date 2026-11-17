@@ -292,7 +292,7 @@
       "label": "Queue",
       "descriptionResponding": "Send when this turn ends",
       "descriptionBackground": "Send when the background work ends",
-      "descriptionBackgroundKeepsWork": "Send when Claude is free; the work keeps running"
+      "descriptionBackgroundKeepsWork": "Send when no reply is being written; the work keeps running"
     },
     "steer": {
       "label": "Send",

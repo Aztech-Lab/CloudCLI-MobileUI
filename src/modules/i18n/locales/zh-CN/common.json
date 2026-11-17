@@ -287,6 +287,8 @@
   "workflow": {
     "stopAllBackground": "停止全部后台任务",
     "stopAllBackgroundConfirm": "再点一次全部停止",
-    "stopAllBackgroundHint": "停止此会话的所有后台代理和命令。“停止”按钮只结束当前回复。"
+    "stopAllBackgroundHint": "停止此会话的所有后台代理和命令。“停止”按钮只结束当前回复。",
+    "stopAllBackgroundCommands": "停止全部后台命令",
+    "stopAllBackgroundCommandsHint": "停止此会话的所有后台命令。代理会继续运行：这里无法停止它们。“停止”按钮只结束当前回复。"
   }
 }

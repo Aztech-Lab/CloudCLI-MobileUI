@@ -253,6 +253,13 @@ export function normalizedToChatMessages(messages: NormalizedMessage[]): ChatMes
   const toolUseIdByTaskId = new Map<string, string>();
   /** Newest event folded per launch, so its cached projection knows to rebuild. */
   const lastTaskSourceByToolUseId = new Map<string, NormalizedMessage>();
+  /**
+   * [local] The newest row of each tool call. A provider that reports a call
+   * again under the same id as it progresses (Codex: a command's start and
+   * end, a subagent's card as its status changes) means one card, not one
+   * per report.
+   */
+  const latestToolUseById = new Map<string, NormalizedMessage>();
   for (const msg of messages) {
     if (msg.kind === 'task_status') {
       foldTaskStatus(msg, liveTasksByToolUseId, toolUseIdByTaskId, lastTaskSourceByToolUseId);
@@ -317,6 +324,7 @@ export function normalizedToChatMessages(messages: NormalizedMessage[]): ChatMes
 
     if (msg.kind === 'tool_use' && msg.toolId) {
       toolUseIds.add(msg.toolId);
+      latestToolUseById.set(msg.toolId, msg);
     }
 
     if (msg.kind === 'tool_result' && msg.toolId) {
@@ -340,10 +348,23 @@ export function normalizedToChatMessages(messages: NormalizedMessage[]): ChatMes
   // and once into the live stream, and only one copy is flagged.
   const foldedSummaries = new Set<string>();
 
-  for (const msg of messages) {
+  /** [local] Tool calls already drawn: a repeated report of one is not drawn again. */
+  const drawnToolUseIds = new Set<string>();
+
+  for (const listedMsg of messages) {
     // Subagent rows were folded into their container's timeline above.
-    if (msg.parentToolUseId) {
+    if (listedMsg.parentToolUseId) {
       continue;
+    }
+    // [local] One card per tool call: where it first appeared, with what was
+    // last reported about it.
+    let msg = listedMsg;
+    if (msg.kind === 'tool_use' && msg.toolId) {
+      if (drawnToolUseIds.has(msg.toolId)) {
+        continue;
+      }
+      drawnToolUseIds.add(msg.toolId);
+      msg = latestToolUseById.get(msg.toolId) ?? msg;
     }
 
     const toolResultSource: ToolResultSource = msg.kind === 'tool_use'

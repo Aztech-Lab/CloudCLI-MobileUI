@@ -191,6 +191,11 @@ export type BackgroundTaskSummary = {
    * it can still be stopped; not counted as the session's own work.
    */
   nested?: boolean;
+  /**
+   * [local] False for a task the provider cannot stop (a Codex subagent): it
+   * is listed as running work, with no stop button.
+   */
+  stoppable?: boolean;
 };
 
 /** What a busy session is doing, as shown by the activity indicator: producing a response, or only running background tasks. */

@@ -354,7 +354,7 @@
       "label": "排队",
       "descriptionResponding": "等这次回复结束后再发送",
       "descriptionBackground": "等后台任务结束后再发送",
-      "descriptionBackgroundKeepsWork": "Claude 空闲时发送；后台任务继续运行"
+      "descriptionBackgroundKeepsWork": "没有回复在进行时发送；后台任务继续运行"
     },
     "steer": {
       "label": "发送",

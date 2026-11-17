@@ -100,7 +100,7 @@ export default function ComposerSendMenu({ state, hasInput, hasText = hasInput, 
     ? t('sendMenu.queue.descriptionResponding', { defaultValue: 'Send when this turn ends' })
     : sendKeepsBackgroundWork
       // [local] Stage 4: a queued message joins the running process too.
-      ? t('sendMenu.queue.descriptionBackgroundKeepsWork', { defaultValue: 'Send when Claude is free; the work keeps running' })
+      ? t('sendMenu.queue.descriptionBackgroundKeepsWork', { defaultValue: 'Send when no reply is being written; the work keeps running' })
       : t('sendMenu.queue.descriptionBackground', { defaultValue: 'Send when the background work ends' });
   // Enter only queues while a turn is written; during background work it
   // opens the "send anyway?" confirm dialog instead, so Queue gets no hint

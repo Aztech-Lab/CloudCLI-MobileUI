@@ -378,7 +378,7 @@
       "label": "排隊",
       "descriptionResponding": "等這次回覆結束後再傳送",
       "descriptionBackground": "等背景工作結束後再傳送",
-      "descriptionBackgroundKeepsWork": "Claude 空閒時傳送；背景工作繼續執行"
+      "descriptionBackgroundKeepsWork": "沒有回覆在進行時傳送；背景工作繼續執行"
     },
     "steer": {
       "label": "傳送",
