@@ -141,3 +141,13 @@ export function sendMessage(ws: ProviderRuntimeWriter, data: unknown) {
     console.error('[Codex] Error sending message:', error);
   }
 }
+
+/**
+ * Which runtime `CLOUDCLI_CODEX_RUNTIME` selects. Anything but `appserver` is
+ * exec. Here rather than in the app-server runtime so the capability matrix
+ * can read it without loading that runtime.
+ */
+export function resolveCodexRuntimeMode(value = process.env.CLOUDCLI_CODEX_RUNTIME): 'appserver' | 'exec' {
+  const normalized = (value ?? '').trim().toLowerCase();
+  return normalized === 'appserver' || normalized === 'app-server' ? 'appserver' : 'exec';
+}

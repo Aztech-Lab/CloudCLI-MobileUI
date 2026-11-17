@@ -36,6 +36,11 @@ import type { ProviderRuntimeContext } from '@/shared/index.js';
 type Step =
   | 'complete'
   | 'wait'
+  // Codex reads the messages steered into this turn: a userMessage item each.
+  | 'deliver'
+  // Codex considers the turn over (a steer is refused from here) before it says so.
+  | 'detach'
+  | ['sleep', number]
   | ['notify', string, Record<string, unknown>]
   | ['fail', string]
   | ['exit', number]
@@ -51,6 +56,8 @@ type FakeConfig = {
   interruptDelayMs?: number;
   newThreadId?: string;
   reviewer?: string;
+  /** A turn waiting at 'wait' goes on with its remaining steps once a message is steered into it. */
+  resumeOnSteer?: boolean;
 };
 
 function fakeAppServerSource(config: FakeConfig, files: { log: string; pids: string; counter: string }): string {
@@ -64,9 +71,18 @@ setTimeout(() => process.exit(0), 30000);
 const send = (m) => process.stdout.write(JSON.stringify(m) + '\\n');
 const notify = (method, params) => send({ jsonrpc: '2.0', method, params });
 let waiting = null;
+// The turn Codex would steer into (as with the real app-server, one per thread here).
+let activeTurn = null;
+const steered = new Map();
+const endTurn = (turnId) => { if (activeTurn && activeTurn.turnId === turnId) activeTurn = null; };
 // Interrupts that arrived before the scripted turn reached its 'wait' step.
 const interrupted = new Set();
-const completeInterrupted = (threadId, turnId) => setTimeout(() => notify('turn/completed', { threadId, turn: { id: turnId, status: 'interrupted', error: null, items: [] } }), CFG.interruptDelayMs || 0);
+const completeInterrupted = (threadId, turnId) => setTimeout(() => { endTurn(turnId); notify('turn/completed', { threadId, turn: { id: turnId, status: 'interrupted', error: null, items: [] } }); }, CFG.interruptDelayMs || 0);
+const userMessage = (threadId, turnId, clientId, content) => {
+  const item = { type: 'userMessage', id: 'um-' + Math.random().toString(36).slice(2), clientId, content };
+  notify('item/started', { threadId, turnId, item });
+  notify('item/completed', { threadId, turnId, item });
+};
 const answers = new Map();
 function nextTurn() {
   let n = 0;
@@ -77,14 +93,20 @@ function nextTurn() {
 async function play(steps, threadId, turnId) {
   for (const step of steps) {
     await new Promise((r) => setTimeout(r, 5));
-    if (step === 'complete') { notify('turn/completed', { threadId, turn: { id: turnId, status: 'completed', error: null, items: [] } }); continue; }
+    if (step === 'complete') { endTurn(turnId); notify('turn/completed', { threadId, turn: { id: turnId, status: 'completed', error: null, items: [] } }); continue; }
     if (step === 'wait') {
       if (interrupted.has(turnId)) { completeInterrupted(threadId, turnId); return; }
-      waiting = { threadId, turnId };
+      // A steer that arrived before the turn got here resumes it at once.
+      if (CFG.resumeOnSteer && (steered.get(turnId) || []).length > 0) continue;
+      waiting = { threadId, turnId, rest: steps.slice(steps.indexOf(step) + 1) };
       return;
     }
+    if (step === 'deliver') { for (const s of steered.get(turnId) || []) userMessage(threadId, turnId, s.clientId, s.input); steered.delete(turnId); continue; }
+    if (step === 'detach') { endTurn(turnId); continue; }
     const [kind, a, b] = step;
+    if (kind === 'sleep') { await new Promise((r) => setTimeout(r, a)); continue; }
     if (kind === 'notify') notify(a, { threadId, turnId, ...b });
+    if (kind === 'fail') endTurn(turnId);
     if (kind === 'fail') notify('turn/completed', { threadId, turn: { id: turnId, status: 'failed', items: [], error: { message: a, codexErrorInfo: null, additionalDetails: null } } });
     if (kind === 'exit') process.exit(a);
     if (kind === 'request') {
@@ -112,10 +134,29 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
       if (CFG.lockedThreads.includes(m.params.threadId)) return fail(-32600, 'thread ' + m.params.threadId + ' already has an active writer');
       return reply({ thread: { id: m.params.threadId }, approvalsReviewer: CFG.reviewer });
     case 'turn/start': {
+      // As Codex 0.169 does: on a running turn the input joins that turn.
+      if (activeTurn && activeTurn.threadId === m.params.threadId) return reply({ turn: { id: activeTurn.turnId, status: 'inProgress', items: [], error: null } });
       const n = nextTurn();
       const turnId = 'turn-' + (n + 1);
+      activeTurn = { threadId: m.params.threadId, turnId };
       reply({ turn: { id: turnId, status: 'inProgress', items: [], error: null } });
+      // The turn's own prompt, as Codex reports it (with the client's id, if any).
+      userMessage(m.params.threadId, turnId, m.params.clientUserMessageId || null, m.params.input);
       play(CFG.turns[n] || ['complete'], m.params.threadId, turnId);
+      return;
+    }
+    case 'turn/steer': {
+      if (!activeTurn || activeTurn.threadId !== m.params.threadId) return fail(-32600, 'no active turn to steer');
+      if (activeTurn.turnId !== m.params.expectedTurnId) return fail(-32600, 'expected active turn id \`' + m.params.expectedTurnId + '\` but found \`' + activeTurn.turnId + '\`');
+      const list = steered.get(activeTurn.turnId) || [];
+      list.push({ clientId: m.params.clientUserMessageId, input: m.params.input });
+      steered.set(activeTurn.turnId, list);
+      reply({ turnId: activeTurn.turnId });
+      if (CFG.resumeOnSteer && waiting && waiting.turnId === activeTurn.turnId) {
+        const resumed = waiting;
+        waiting = null;
+        play(resumed.rest, resumed.threadId, resumed.turnId);
+      }
       return;
     }
     case 'turn/interrupt':
@@ -663,4 +704,145 @@ test('items exec never shows (the user\'s own message, compaction) are not forwa
   assert.deepEqual(mapCodexAppServerItem({ type: 'commandExecution', id: 'c', command: 'x', status: 'declined', aggregatedOutput: null, exitCode: null }, 'completed'), {
     type: 'item', itemType: 'command_execution', itemId: 'c', command: 'x', output: '', exitCode: undefined, status: 'failed',
   });
+});
+
+// ---------------------------------------------------------------------------
+// Stage 2: steering and "Send now"
+
+const STEER_ID = '7d0c1a52-3f4e-4b8a-9c1d-2e3f4a5b6c7d';
+const NOW_ID = '0f9e8d7c-6b5a-4948-8a7b-6c5d4e3f2a1b';
+const userRows = (sent: Sent[]) => sent.filter((message) => message.kind === 'text' && message.role === 'user');
+
+test('a message sent while a turn runs is steered into it and shown when Codex reads it', async () => {
+  await withFake({ resumeOnSteer: true, turns: [['wait', 'deliver', agentMessage('m1', 'Noted, adding that'), 'complete']] }, async (fake) => {
+    const { sent, writer } = makeWriter();
+    const run = codexRuntime.run('long task', { sessionId: 'app-s1', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-s1' }));
+    await waitFor(() => codexAppServerRuntime.isRunning('app-s1'), 'the turn to start');
+
+    // Sent at once, before turn/start has even answered: it waits for the turn.
+    assert.equal(await codexRuntime.steer('app-s1', 'also check the logs', { messageId: STEER_ID, images: [], files: [] }), true);
+    await run;
+
+    const steers = byMethod(await fake.requests(), 'turn/steer');
+    assert.deepEqual(steers.map((request) => request.params), [{
+      threadId: 'thread-s1',
+      input: [{ type: 'text', text: 'also check the logs', text_elements: [] }],
+      expectedTurnId: 'turn-1',
+      clientUserMessageId: STEER_ID,
+    }]);
+    // Only the steered message is echoed (under its own id), not the turn's
+    // own prompt, and it comes before the reply that read it.
+    const users = userRows(sent);
+    assert.equal(users.length, 1);
+    assert.equal(users[0].id, STEER_ID);
+    assert.equal(users[0].content, 'also check the logs');
+    assert.equal(users[0].transcriptAnchorId, undefined, 'read mid-turn: no edit anchor');
+    const order = sent.map((message) => message.id === STEER_ID ? 'steer' : message.kind);
+    assert.deepEqual(order, ['steer', 'text', 'complete']);
+    assert.equal(sent.at(-1)?.exitCode, 0);
+    assert.equal(byMethod(await fake.requests(), 'turn/start').length, 1, 'no new turn');
+  });
+});
+
+test('a steer is refused once the turn is over, so the client sends it as the next turn', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  await withFake({ turns: [['detach', ['sleep', 150], 'complete'], ['complete']] }, async (fake) => {
+    const context = makeContext({ providerSessionId: 'thread-s2' });
+    const { sent, writer } = makeWriter();
+    const run = codexRuntime.run('task', { sessionId: 'app-s2', cwd: process.cwd() }, writer, context);
+    await waitFor(async () => byMethod(await fake.requests(), 'turn/start').length === 1, 'turn/start');
+    await waitFor(() => codexAppServerRuntime.isRunning('app-s2'), 'the run');
+
+    // CloudCLI still runs the turn, but Codex has just finished it.
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    assert.equal(await codexRuntime.steer('app-s2', 'one more thing', { messageId: STEER_ID }), false);
+    await run;
+    assert.equal(userRows(sent).length, 0);
+    assert.equal(sent.filter((message) => message.kind === 'complete').length, 1);
+
+    // After the run: refused without asking Codex.
+    assert.equal(await codexRuntime.steer('app-s2', 'one more thing', { messageId: STEER_ID }), false);
+    assert.equal(byMethod(await fake.requests(), 'turn/steer').length, 1);
+
+    // The client's fallback, a normal send, starts the next turn with it.
+    await codexRuntime.run('one more thing', { sessionId: 'app-s2', cwd: process.cwd() }, makeWriter().writer, context);
+    const turns = byMethod(await fake.requests(), 'turn/start');
+    assert.equal(turns.length, 2);
+    assert.equal(turns[1].params?.input?.[0]?.text, 'one more thing');
+  });
+});
+
+test('Send now stops the current step and starts a new turn with the message, in the same run', async () => {
+  await withFake({ turns: [['wait'], [agentMessage('m2', 'Switching to that'), 'complete']], interruptDelayMs: 100 }, async (fake) => {
+    const { sent, writer } = makeWriter();
+    const run = codexRuntime.run('long task', { sessionId: 'app-s3', cwd: process.cwd(), model: 'gpt-test', effort: 'high' }, writer, makeContext({ providerSessionId: 'thread-s3' }));
+    await waitFor(async () => byMethod(await fake.requests(), 'turn/start').length === 1, 'turn/start');
+    await waitFor(() => codexAppServerRuntime.isRunning('app-s3'), 'the run');
+
+    assert.equal(await codexRuntime.steer('app-s3', 'stop, do this instead', { messageId: NOW_ID, urgent: true }), true);
+    await run;
+
+    const requests = await fake.requests();
+    const interrupt = byMethod(requests, 'turn/interrupt');
+    assert.deepEqual(interrupt.map((request) => request.params), [{ threadId: 'thread-s3', turnId: 'turn-1' }]);
+    const turns = byMethod(requests, 'turn/start');
+    assert.equal(turns.length, 2);
+    assert.ok(turns[1].at - interrupt[0].at >= 80, 'the new turn waited for the stopped one to end (it would join it otherwise)');
+    assert.equal(turns[1].params?.clientUserMessageId, NOW_ID);
+    assert.deepEqual(turns[1].params?.input, [{ type: 'text', text: 'stop, do this instead', text_elements: [] }]);
+    // Same settings as the turn it replaces.
+    assert.equal(turns[1].params?.model, 'gpt-test');
+    assert.equal(turns[1].params?.effort, 'high');
+    assert.equal(byMethod(requests, 'turn/steer').length, 0);
+
+    // One run: the message where Codex read it, the reply, one completion.
+    const order = sent.map((message) => message.id === NOW_ID ? 'now' : message.kind);
+    assert.deepEqual(order, ['now', 'text', 'complete']);
+    assert.equal(sent.at(-1)?.exitCode, 0);
+    assert.equal(codexAppServerRuntime.isRunning('app-s3'), false);
+  });
+});
+
+test('a message steered while Send now is stopping the step goes into the new turn', async () => {
+  await withFake({ resumeOnSteer: true, turns: [['wait'], ['wait', 'deliver', agentMessage('m2', 'Both noted'), 'complete']], interruptDelayMs: 100 }, async (fake) => {
+    const { sent, writer } = makeWriter();
+    const run = codexRuntime.run('long task', { sessionId: 'app-s5', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-s5' }));
+    await waitFor(async () => byMethod(await fake.requests(), 'turn/start').length === 1, 'turn/start');
+    await waitFor(() => codexAppServerRuntime.isRunning('app-s5'), 'the run');
+
+    assert.equal(await codexRuntime.steer('app-s5', 'do this instead', { messageId: NOW_ID, urgent: true }), true);
+    assert.equal(await codexRuntime.steer('app-s5', 'and this', { messageId: STEER_ID }), true);
+    await run;
+
+    const requests = await fake.requests();
+    assert.equal(byMethod(requests, 'turn/start').length, 2);
+    const steers = byMethod(requests, 'turn/steer');
+    assert.deepEqual(steers.map((request) => [request.params?.expectedTurnId, request.params?.clientUserMessageId]), [['turn-2', STEER_ID]]);
+    assert.deepEqual(userRows(sent).map((message) => message.id), [NOW_ID, STEER_ID]);
+    assert.equal(sent.filter((message) => message.kind === 'complete').length, 1);
+  });
+});
+
+test('Stop right after Send now ends the run without starting the new turn', async () => {
+  await withFake({ turns: [['wait'], ['complete']], interruptDelayMs: 150 }, async (fake) => {
+    const { sent, writer } = makeWriter();
+    const run = codexRuntime.run('long task', { sessionId: 'app-s4', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-s4' }));
+    await waitFor(async () => byMethod(await fake.requests(), 'turn/start').length === 1, 'turn/start');
+    await waitFor(() => codexAppServerRuntime.isRunning('app-s4'), 'the run');
+
+    assert.equal(await codexRuntime.steer('app-s4', 'now', { messageId: NOW_ID, urgent: true }), true);
+    assert.equal(await codexRuntime.abort('app-s4'), true);
+    await run;
+
+    assert.equal(byMethod(await fake.requests(), 'turn/start').length, 1);
+    assert.equal(sent.some((message) => message.kind === 'complete'), false, 'chat.abort sends the completion');
+    assert.equal(userRows(sent).length, 0, 'never read: the composer gets it back');
+  });
+});
+
+test('under exec a steer is refused without starting the app-server', async () => {
+  await withFake({}, async (fake) => {
+    assert.equal(await codexRuntime.steer('app-exec', 'hi', { messageId: STEER_ID }), false);
+    assert.deepEqual(await fake.pids(), []);
+  }, null);
 });

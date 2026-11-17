@@ -16,6 +16,10 @@
  * app-server cannot be used for a message before anything was shown, the
  * message runs through `codex exec` instead (CodexAppServerFallbackError).
  *
+ * Stage 2: a message sent while a turn runs goes into it (`turn/steer`), and
+ * "Send now" stops the current step and starts a new turn with the message
+ * (`turn/interrupt`, then `turn/start`), both inside the same chat run.
+ *
  * Threads are released after a short idle period (`thread/unsubscribe`) so the
  * Codex desktop app can take them over; when no thread is left the child
  * itself is stopped, which frees the writer lock at once (measured against
@@ -33,6 +37,7 @@ import {
   createNormalizedMessage,
   normalizeImageDescriptors,
 } from '@/shared/index.js';
+import { toImageAttachments } from '@/shared/image-attachments.js';
 import type { AnyRecord, ProviderRuntimeContext, ProviderRuntimeWriter } from '@/shared/index.js';
 
 import { codexAppServer } from './codex-app-server.client.js';
@@ -47,6 +52,7 @@ import {
   extractCodexTokenBudget,
   isCodexThreadActiveWriterError,
   mapPermissionModeToCodexOptions,
+  resolveCodexRuntimeMode,
   sendMessage,
 } from './codex-runtime.shared.js';
 import { resolveRunnableWorkspaceRoots } from './codex-workspace-roots.js';
@@ -58,7 +64,16 @@ import { resolveRunnableWorkspaceRoots } from './codex-workspace-roots.js';
  */
 export const CODEX_APP_SERVER_PROTOCOL_USAGE = {
   /** Client → server requests. */
-  requests: ['initialize', 'thread/start', 'thread/resume', 'turn/start', 'turn/interrupt', 'thread/unsubscribe'],
+  requests: ['initialize', 'thread/start', 'thread/resume', 'turn/start', 'turn/steer', 'turn/interrupt', 'thread/unsubscribe'],
+  /**
+   * Request parameters the runtime relies on beyond the method itself, checked
+   * against the installed CLI's schema (`v2/<Name>Params.json`).
+   */
+  requestParams: {
+    TurnStartParams: ['threadId', 'input', 'clientUserMessageId'],
+    TurnSteerParams: ['threadId', 'input', 'expectedTurnId', 'clientUserMessageId'],
+    TurnInterruptParams: ['threadId', 'turnId'],
+  },
   /** Client → server notifications. */
   clientNotifications: ['initialized'],
   /** Server → client notifications this runtime reads. */
@@ -92,11 +107,8 @@ export class CodexAppServerFallbackError extends Error {
   }
 }
 
-/** Which runtime `CLOUDCLI_CODEX_RUNTIME` selects. Anything but `appserver` is exec. */
-export function resolveCodexRuntimeMode(value = process.env.CLOUDCLI_CODEX_RUNTIME): 'appserver' | 'exec' {
-  const normalized = (value ?? '').trim().toLowerCase();
-  return normalized === 'appserver' || normalized === 'app-server' ? 'appserver' : 'exec';
-}
+/** Which runtime `CLOUDCLI_CODEX_RUNTIME` selects (defined with the shared helpers). */
+export { resolveCodexRuntimeMode };
 
 const settings = {
   /** Idle time after a turn before its thread is released. */
@@ -165,6 +177,9 @@ type TurnOutcome =
   | { kind: 'interrupted' }
   | { kind: 'lost'; reason: string };
 
+/** A message waiting for its own turn after "Send now" stopped the current step. */
+type PendingRestart = { input: UserInputItem[]; messageId: string };
+
 type ActiveRun = {
   sessionKey: string;
   threadId: string;
@@ -173,6 +188,20 @@ type ActiveRun = {
   settle: (outcome: TurnOutcome) => void;
   /** Resolves once the run has fully ended (listeners removed). */
   finished: Promise<void>;
+  /** Working directory of the run, for the input of messages sent into it. */
+  cwd: string;
+  /** True from the moment the current turn ended until the next one starts. */
+  turnEnded: boolean;
+  /** Resolves true once the current turn is confirmed, false if it never will be. */
+  turnReady: Promise<boolean>;
+  /**
+   * Messages sent into the run (steered, or sent with "Send now") that Codex
+   * has not read yet, by the id they were sent with. Codex reports reading one
+   * with a `userMessage` item carrying that id as its `clientId`.
+   */
+  unread: Set<string>;
+  /** "Send now" messages waiting for the interrupted step to end. */
+  restarts: PendingRestart[];
 };
 
 const loadedThreads = new Map<string, LoadedThread>();
@@ -349,6 +378,37 @@ function toUserInput(prompt: string, images: unknown, cwd: string): UserInputIte
     : { type: 'text', text: (item as { text: string }).text, text_elements: [] });
 }
 
+/** A message's text, attached files and images as one turn's `UserInput`, as exec would send it. */
+function buildTurnInput(command: string, images: unknown, files: unknown, cwd: string): UserInputItem[] {
+  const promptWithFiles = appendFilesInputTag(command, files as never);
+  const prompt = !promptWithFiles.trim() && normalizeImageDescriptors(images).length > 0
+    ? CODEX_IMAGE_ONLY_PROMPT
+    : promptWithFiles;
+  return toUserInput(prompt, images, cwd);
+}
+
+/**
+ * The transcript row for a message sent into a running turn, built from the
+ * `userMessage` item Codex reports when it reads it, under the id the message
+ * was sent with (which is how the composer knows its card was delivered).
+ */
+export function codexSteeredMessageEcho(item: AnyRecord, messageId: string): AnyRecord {
+  const parts: AnyRecord[] = Array.isArray(item?.content) ? item.content : [];
+  const text = parts
+    .filter((part) => part?.type === 'text' && typeof part.text === 'string')
+    .map((part) => part.text as string)
+    .join('\n');
+  const imagePaths = parts
+    .filter((part) => part?.type === 'localImage' && typeof part.path === 'string')
+    .map((part) => part.path as string);
+  return {
+    uuid: messageId,
+    timestamp: new Date().toISOString(),
+    message: { role: 'user', content: text },
+    ...(imagePaths.length > 0 ? { images: toImageAttachments(imagePaths) } : {}),
+  };
+}
+
 function sandboxPolicyFor(mode: SandboxMode): AnyRecord {
   switch (mode) {
     case 'danger-full-access':
@@ -490,11 +550,7 @@ async function runAppServerTurnInner(
     : undefined;
   const runtimeWorkspaceRoots = additionalDirectories.length > 0 ? [workingDirectory, ...additionalDirectories] : null;
 
-  const promptWithFiles = appendFilesInputTag(command, files);
-  const promptForTurn = !promptWithFiles.trim() && normalizeImageDescriptors(images).length > 0
-    ? CODEX_IMAGE_ONLY_PROMPT
-    : promptWithFiles;
-  const input = toUserInput(promptForTurn, images, workingDirectory);
+  const input = buildTurnInput(command, images, files, workingDirectory);
 
   // Until the first message reaches the client, any app-server failure that
   // means "unusable" hands the message to exec instead.
@@ -604,21 +660,44 @@ async function runAppServerTurnInner(
   const commandOutput = new Map<string, { text: string; lastSentAt: number; timer: ReturnType<typeof setTimeout> | null; item: AnyRecord | null }>();
 
   let settleTurn!: (outcome: TurnOutcome) => void;
-  const turnDone = new Promise<TurnOutcome>((resolve) => {
-    let settled = false;
-    settleTurn = (outcome) => {
-      if (!settled) {
-        settled = true;
-        resolve(outcome);
-      }
-    };
-  });
+  let markTurnReady!: (ready: boolean) => void;
 
   let markFinished!: () => void;
   const finished = new Promise<void>((resolve) => {
     markFinished = resolve;
   });
-  const run: ActiveRun = { sessionKey, threadId: loadedThreadId, turnId: null, aborted: false, settle: settleTurn, finished };
+  const run: ActiveRun = {
+    sessionKey,
+    threadId: loadedThreadId,
+    turnId: null,
+    aborted: false,
+    settle: (outcome) => settleTurn(outcome),
+    finished,
+    cwd: workingDirectory,
+    turnEnded: false,
+    turnReady: Promise.resolve(false),
+    unread: new Set(),
+    restarts: [],
+  };
+
+  // One per turn: "Send now" starts another turn inside the same run.
+  const nextTurn = () => {
+    run.turnEnded = false;
+    run.turnReady = new Promise<boolean>((resolve) => {
+      markTurnReady = resolve;
+    });
+    return new Promise<TurnOutcome>((resolve) => {
+      let settled = false;
+      settleTurn = (outcome) => {
+        if (!settled) {
+          settled = true;
+          run.turnEnded = true;
+          resolve(outcome);
+        }
+      };
+    });
+  };
+  let turnDone = nextTurn();
 
   const forward = (event: AnyRecord) => {
     for (const message of context.normalizeMessage(event, rowSessionId)) {
@@ -639,6 +718,20 @@ async function runAppServerTurnInner(
     forward({ ...entry.item, output: entry.text, status: 'in_progress' });
   };
 
+  // Codex read a message sent into the turn: show it where it was read. The
+  // turn's own prompt is never echoed; the client already shows it.
+  const echoIfSteered = (item: AnyRecord) => {
+    const messageId = typeof item?.clientId === 'string' ? item.clientId : null;
+    if (!messageId || !run.unread.delete(messageId)) {
+      return;
+    }
+    for (const message of context.normalizeMessage(codexSteeredMessageEcho(item, messageId), rowSessionId)) {
+      // Read mid-turn, so it is no anchor for editing (as with Claude).
+      delete (message as AnyRecord).transcriptAnchorId;
+      send(message);
+    }
+  };
+
   const handle = (method: string, params: AnyRecord) => {
     switch (method) {
       case 'turn/started': {
@@ -650,6 +743,10 @@ async function runAppServerTurnInner(
       case 'item/started':
       case 'item/completed': {
         const item = params.item as AnyRecord;
+        if (item?.type === 'userMessage') {
+          echoIfSteered(item);
+          return;
+        }
         const phase = method === 'item/started' ? 'started' : 'completed';
         const event = mapCodexAppServerItem(item, phase);
         if (!event) {
@@ -754,6 +851,7 @@ async function runAppServerTurnInner(
 
   const cleanup = () => {
     markFinished();
+    markTurnReady(false);
     removeNotificationListener();
     removeExitListener();
     for (const entry of commandOutput.values()) {
@@ -792,6 +890,7 @@ async function runAppServerTurnInner(
     thread.sandboxMode = sandboxMode;
   } catch (error) {
     cleanup();
+    run.turnEnded = true;
     if (shouldFallBack(error) && !wroteToClient) {
       if (isNewThread) {
         // Nothing ran on it; let it go rather than leave it loaded.
@@ -818,12 +917,46 @@ async function runAppServerTurnInner(
   for (const [method, params] of held.splice(0)) {
     handle(method, params);
   }
+  markTurnReady(true);
   if (run.aborted && run.turnId) {
     // Stop was pressed while turn/start was in flight.
     requestInterrupt(run);
   }
 
-  const outcome = await turnDone;
+  let outcome = await turnDone;
+
+  // "Send now" stopped the step (or the turn ended on its own meanwhile): the
+  // waiting message starts the next turn, inside the same chat run, so the
+  // client sees one run with no `complete` in between.
+  while (run.restarts.length > 0 && !run.aborted && (outcome.kind === 'interrupted' || outcome.kind === 'completed')) {
+    run.turnId = null;
+    turnDone = nextTurn();
+    const [first, ...rest] = run.restarts.splice(0);
+    try {
+      const result = await connection.request('turn/start', {
+        ...turnParams,
+        input: first.input,
+        clientUserMessageId: first.messageId,
+      }) as AnyRecord | undefined;
+      if (!run.turnId && typeof result?.turn?.id === 'string') {
+        run.turnId = result.turn.id;
+      }
+    } catch (error) {
+      // Never read: the composer gets it back when the run ends.
+      settleTurn({ kind: 'failed', message: error instanceof Error ? error.message : String(error) });
+      outcome = await turnDone;
+      break;
+    }
+    markTurnReady(true);
+    // Sent while that turn was being started: into it, in order.
+    for (const extra of rest) {
+      await steerInto(run, extra.input, extra.messageId);
+    }
+    if (run.aborted && run.turnId) {
+      requestInterrupt(run);
+    }
+    outcome = await turnDone;
+  }
   cleanup();
 
   // 5. Finish the way the exec path finishes.
@@ -875,17 +1008,19 @@ async function runAppServerTurnInner(
 }
 
 function requestInterrupt(run: ActiveRun) {
-  if (!run.turnId) {
+  const turnId = run.turnId;
+  if (!turnId) {
     return;
   }
-  connection.request('turn/interrupt', { threadId: run.threadId, turnId: run.turnId }).catch((error) => {
+  connection.request('turn/interrupt', { threadId: run.threadId, turnId }).catch((error) => {
     console.warn(`[Codex] turn/interrupt failed for thread ${run.threadId}:`, error instanceof Error ? error.message : error);
   });
   // A turn that ignores the interrupt is given up on: the run ends here, and
   // when no other conversation uses the child it is stopped, which ends the
   // turn for certain. Another conversation's turn is never taken down.
   const timer = setTimeout(() => {
-    if (runsByThread.get(run.threadId) !== run) {
+    // Only this turn: after "Send now" the run goes on with a new one.
+    if (runsByThread.get(run.threadId) !== run || run.turnId !== turnId || run.turnEnded) {
       return;
     }
     console.warn(`[Codex] Turn on thread ${run.threadId} did not stop within ${settings.interruptTimeoutMs}ms.`);
@@ -895,6 +1030,71 @@ function requestInterrupt(run: ActiveRun) {
     run.settle({ kind: 'interrupted' });
   }, settings.interruptTimeoutMs);
   timer.unref?.();
+}
+
+/**
+ * Sends a message into the run's current turn (`turn/steer`, pinned to that
+ * turn with `expectedTurnId`). Codex reads it at its next step and reports
+ * that with a `userMessage` item whose `clientId` is the message id. False
+ * when Codex refuses it (the turn ended, or cannot be steered); the caller
+ * then sends it as a new turn.
+ */
+async function steerInto(run: ActiveRun, input: UserInputItem[], messageId: string): Promise<boolean> {
+  if (!run.turnId || run.turnEnded) {
+    return false;
+  }
+  // Before the request: Codex can read the message before it replies.
+  run.unread.add(messageId);
+  try {
+    await connection.request('turn/steer', {
+      threadId: run.threadId,
+      input,
+      expectedTurnId: run.turnId,
+      clientUserMessageId: messageId,
+    });
+    return true;
+  } catch (error) {
+    run.unread.delete(messageId);
+    console.warn(`[Codex] turn/steer refused on thread ${run.threadId}:`, error instanceof Error ? error.message : error);
+    return false;
+  }
+}
+
+/**
+ * `chat.steer` for a Codex conversation on the app-server. A plain steer goes
+ * into the running turn. `urgent` ("Send now") stops the current step
+ * (`turn/interrupt`) and starts a new turn with the message once it has
+ * ended: Codex has no way to read a message at once inside a turn, and
+ * `turn/start` on a turn still running would only steer it. False when the
+ * session has no turn here that can take the message (exec runtime, ended,
+ * stopped); the client then sends it as the next turn.
+ */
+async function steerAppServerRun(sessionId: string, command: string, options: AnyRecord = {}): Promise<boolean> {
+  const run = activeRuns.get(sessionId);
+  const messageId = typeof options.messageId === 'string' ? options.messageId : '';
+  if (!run || !messageId || run.aborted) {
+    return false;
+  }
+  const input = buildTurnInput(command, options.images, options.files, run.cwd);
+  if (run.restarts.length > 0) {
+    // A step is being stopped for "Send now": this goes into the turn that follows.
+    run.unread.add(messageId);
+    run.restarts.push({ input, messageId });
+    return true;
+  }
+  if (!run.turnId && !(await run.turnReady)) {
+    return false;
+  }
+  if (activeRuns.get(sessionId) !== run || run.aborted || run.turnEnded) {
+    return false;
+  }
+  if (options.urgent !== true) {
+    return steerInto(run, input, messageId);
+  }
+  run.unread.add(messageId);
+  run.restarts.push({ input, messageId });
+  requestInterrupt(run);
+  return true;
 }
 
 /** Stop: interrupts the turn only (`turn/interrupt`); the thread stays loaded. */
@@ -942,6 +1142,7 @@ export const codexAppServerRuntime = {
   settings,
   run: runAppServerTurn,
   abort: abortAppServerRun,
+  steer: steerAppServerRun,
   releaseSession: releaseAppServerSession,
   shutdown: shutdownAppServerRuntime,
   /** Whether the session has a turn running in this runtime. */

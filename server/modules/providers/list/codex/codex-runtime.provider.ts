@@ -603,6 +603,10 @@ export const codexRuntime = {
   run: runCodex,
   // A turn lives in exactly one of the two runtimes.
   abort: (sessionId: string) => codexAppServerRuntime.abort(sessionId) || abortCodexSession(sessionId),
+  // [local] Only a turn on the app-server can take a message while it runs;
+  // under exec (or after a fallback to it) this is false and the client
+  // sends the message as the next turn.
+  steer: (sessionId: string, command: string, options: AnyRecord) => codexAppServerRuntime.steer(sessionId, command, options),
   // [local] Archived or deleted: let go of the thread so the Codex app can take it.
   releaseSession: (sessionId: string) => codexAppServerRuntime.releaseSession(sessionId),
   askSideQuestion: askCodexSideQuestion,

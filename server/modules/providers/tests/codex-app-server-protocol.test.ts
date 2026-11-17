@@ -64,6 +64,19 @@ async function readSchemaMethods(dir: string, name: string): Promise<string[]> {
   return [...new Set(methods)].sort();
 }
 
+test('the methods the runtime uses are the reviewed set', () => {
+  // A snapshot: a new method here is a deliberate change, reviewed with the
+  // runtime code that uses it (stage 2 added turn/steer).
+  assert.deepEqual([...CODEX_APP_SERVER_PROTOCOL_USAGE.requests], [
+    'initialize', 'thread/start', 'thread/resume', 'turn/start', 'turn/steer', 'turn/interrupt', 'thread/unsubscribe',
+  ]);
+  assert.deepEqual(CODEX_APP_SERVER_PROTOCOL_USAGE.requestParams, {
+    TurnStartParams: ['threadId', 'input', 'clientUserMessageId'],
+    TurnSteerParams: ['threadId', 'input', 'expectedTurnId', 'clientUserMessageId'],
+    TurnInterruptParams: ['threadId', 'turnId'],
+  });
+});
+
 test('the pinned protocol fixture is for the installed Codex CLI', async () => {
   const fixture = await readFixture();
   const installed = (require_('@openai/codex/package.json') as { version: string }).version;
@@ -109,6 +122,15 @@ test('every app-server method the runtime uses is in the installed CLI\'s schema
       serverRequests: await readSchemaMethods(out, 'ServerRequest'),
     };
     assertUsageCovered(lists, 'The installed Codex CLI');
+    // The parameters the runtime sends and reads back (for steering: the
+    // message id Codex echoes as the `userMessage` item's `clientId`).
+    for (const [name, fields] of Object.entries(CODEX_APP_SERVER_PROTOCOL_USAGE.requestParams)) {
+      const schema = JSON.parse(await readFile(path.join(out, 'v2', `${name}.json`), 'utf8')) as { properties?: Record<string, unknown> };
+      const missing = fields.filter((field) => !(field in (schema.properties ?? {})));
+      assert.deepEqual(missing, [], `The installed Codex CLI's ${name} no longer has ${missing.join(', ')}`);
+    }
+    const threadItem = await readFile(path.join(out, 'v2', 'ItemStartedNotification.json'), 'utf8');
+    assert.match(threadItem, /"clientId"/, 'userMessage items no longer carry the clientId steering confirms delivery with');
     // The fixture is what the installed CLI generates, not a hand-edited list.
     const { codexVersion: _version, ...fixtureLists } = await readFixture();
     const { source: _source, ...pinned } = fixtureLists as MethodLists & { source?: string };
