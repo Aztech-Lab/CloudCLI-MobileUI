@@ -405,5 +405,50 @@
   "errors": {
     "codex_thread_active_writer": "此對話正在 Codex 應用程式中開啟，而同一對話同一時間只允許一個寫入方。請在那邊關閉它（或直接在那邊繼續），然後再傳送。",
     "background_work_lost_on_restart": "背景任務已因伺服器重新啟動而停止。當時仍在執行的代理、工作流程和命令沒有完成。"
+  },
+  "codexApprovals": {
+    "title": {
+      "command": "Codex 想執行一條命令",
+      "stdin": "Codex 想向執行中的命令輸入內容",
+      "network": "Codex 想存取網路",
+      "fileChange": "Codex 想修改檔案",
+      "permissions": "Codex 請求更多權限",
+      "reviewDenial": "自動審查攔下了一個操作"
+    },
+    "label": {
+      "reason": "原因",
+      "cwd": "目錄",
+      "host": "主機",
+      "network": "網路",
+      "networkOn": "開啟",
+      "read": "讀取",
+      "write": "寫入",
+      "files": "檔案",
+      "grantRoot": "寫入權限範圍",
+      "showChanges": "查看變更",
+      "reviewReason": "審查意見",
+      "risk": "風險"
+    },
+    "risk": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "critical": "嚴重"
+    },
+    "actions": {
+      "allowOnce": "允許一次",
+      "allowSession": "本工作階段內允許",
+      "deny": "拒絕",
+      "allowAnyway": "仍然允許",
+      "keepDenied": "保持拒絕"
+    },
+    "reviewDenialHint": "「仍然允許」會告訴 Codex 你批准這個具體操作。它會在下一步看到；如果它已經結束，請再傳一則訊息（例如「再試一次」）。重試仍會經過審查。",
+    "review": {
+      "approved": "自動審查已批准：{{action}}",
+      "denied": "自動審查已拒絕：{{action}}",
+      "timedOut": "自動審查逾時：{{action}}",
+      "aborted": "自動審查已中止：{{action}}",
+      "other": "自動審查：{{action}}"
+    }
   }
 }

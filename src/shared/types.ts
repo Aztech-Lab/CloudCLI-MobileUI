@@ -1001,7 +1001,8 @@ export type PermissionPanelProps = {
   agentLabel?: string;
   onDecision: (
     requestIds: string | string[],
-    decision: { allow?: boolean; message?: string; updatedInput?: unknown },
+    // [local] `rememberEntry: 'session'` is Codex's "Allow for this session".
+    decision: { allow?: boolean; message?: string; updatedInput?: unknown; rememberEntry?: string | null },
   ) => void;
 };
 

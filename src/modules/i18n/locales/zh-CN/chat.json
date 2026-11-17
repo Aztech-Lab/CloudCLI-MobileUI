@@ -381,5 +381,50 @@
   "errors": {
     "codex_thread_active_writer": "此对话正在 Codex 应用中打开，而同一对话同一时间只允许一个写入方。请在那边关闭它（或直接在那边继续），然后再发送。",
     "background_work_lost_on_restart": "后台任务已因服务器重启而停止。当时仍在运行的代理、工作流和命令没有完成。"
+  },
+  "codexApprovals": {
+    "title": {
+      "command": "Codex 想运行一条命令",
+      "stdin": "Codex 想向运行中的命令输入内容",
+      "network": "Codex 想访问网络",
+      "fileChange": "Codex 想修改文件",
+      "permissions": "Codex 请求更多权限",
+      "reviewDenial": "自动审查拦下了一个操作"
+    },
+    "label": {
+      "reason": "原因",
+      "cwd": "目录",
+      "host": "主机",
+      "network": "网络",
+      "networkOn": "开启",
+      "read": "读取",
+      "write": "写入",
+      "files": "文件",
+      "grantRoot": "写入权限范围",
+      "showChanges": "查看改动",
+      "reviewReason": "审查意见",
+      "risk": "风险"
+    },
+    "risk": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "critical": "严重"
+    },
+    "actions": {
+      "allowOnce": "允许一次",
+      "allowSession": "本会话内允许",
+      "deny": "拒绝",
+      "allowAnyway": "仍然允许",
+      "keepDenied": "保持拒绝"
+    },
+    "reviewDenialHint": "“仍然允许”会告诉 Codex 你批准这个具体操作。它会在下一步看到；如果它已经结束，请再发一条消息（例如“再试一次”）。重试仍会经过审查。",
+    "review": {
+      "approved": "自动审查已批准：{{action}}",
+      "denied": "自动审查已拒绝：{{action}}",
+      "timedOut": "自动审查超时：{{action}}",
+      "aborted": "自动审查已中止：{{action}}",
+      "other": "自动审查：{{action}}"
+    }
   }
 }
