@@ -818,6 +818,12 @@ export type ProviderRuntimeContext = {
   normalizeMessage(raw: unknown, sessionId: string | null): NormalizedMessage[];
   isProviderInstalled(): Promise<boolean>;
   /**
+   * [local] Extra workspace roots recorded for an app session (Codex projects
+   * with several root folders). Optional so tests and other callers can leave
+   * it out, which means none.
+   */
+  getSessionWorkspaceRoots?(sessionId: string | null | undefined): string[];
+  /**
    * Builds the SDK query for a run. Production leaves this unset and the
    * runtime uses the SDK's own; tests supply a scripted stream so the hold
    * and background-work paths can be driven without a CLI process.

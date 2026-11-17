@@ -138,6 +138,8 @@ export interface IProviderFork {
     jsonlPath: string;
     /** The session's working directory — how providers scope a session lookup. */
     projectPath: string;
+    /** [local] Extra workspace roots recorded for the source session, if any. */
+    workspaceRoots?: string[];
     upToAnchorId?: string;
     title?: string;
   }): Promise<{ providerSessionId: string; jsonlPath: string }>;

@@ -260,6 +260,17 @@ async function withAppServer<T>(
   }
 }
 
+/**
+ * [local] `thread/fork`'s `runtimeWorkspaceRoots` replaces the thread's roots,
+ * so it lists `cwd` first and then the extra roots. Sent only when there are
+ * extra roots; otherwise the request is exactly what it was before.
+ */
+function runtimeWorkspaceRootsParam(cwd: string, workspaceRoots: string[] | undefined): { runtimeWorkspaceRoots?: string[] } {
+  return cwd && workspaceRoots && workspaceRoots.length > 0
+    ? { runtimeWorkspaceRoots: [cwd, ...workspaceRoots] }
+    : {};
+}
+
 export const codexAppServer = {
   /**
    * Resolves the `codex` launcher shipped in node_modules.
@@ -298,12 +309,15 @@ export const codexAppServer = {
     threadId: string;
     lastTurnId?: string;
     cwd: string;
+    /** [local] Extra workspace roots to keep; see runtimeWorkspaceRootsParam. */
+    workspaceRoots?: string[];
   }): Promise<CodexThreadFork> {
     return withAppServer(async ({ call }) => {
       const result = await call('thread/fork', {
         threadId: input.threadId,
         ...(input.lastTurnId ? { lastTurnId: input.lastTurnId } : {}),
         ...(input.cwd ? { cwd: input.cwd } : {}),
+        ...runtimeWorkspaceRootsParam(input.cwd, input.workspaceRoots),
       }) as { thread?: { id?: unknown; path?: unknown } } | undefined;
 
       const threadId = typeof result?.thread?.id === 'string' ? result.thread.id : '';
@@ -412,7 +426,15 @@ export const codexAppServer = {
    *   codex-rs/config/src/types.rs at rust-v0.166.0).
    */
   async askSideQuestion(
-    input: { threadId: string; cwd: string; model: string; question: string; signal: AbortSignal },
+    input: {
+      threadId: string;
+      cwd: string;
+      model: string;
+      question: string;
+      signal: AbortSignal;
+      /** [local] Extra workspace roots; see runtimeWorkspaceRootsParam. */
+      workspaceRoots?: string[];
+    },
     onDelta: (text: string) => void,
   ): Promise<string> {
     const abortedError = () => new AppError('The side question was aborted.', {
@@ -539,6 +561,7 @@ export const codexAppServer = {
           return call('thread/fork', {
             threadId: input.threadId,
             ...(input.cwd ? { cwd: input.cwd } : {}),
+            ...runtimeWorkspaceRootsParam(input.cwd, input.workspaceRoots),
             ...(input.model ? { model: input.model } : {}),
             ephemeral: true,
             sandbox: 'read-only',

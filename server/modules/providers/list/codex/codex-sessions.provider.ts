@@ -5,6 +5,7 @@ import readline from 'node:readline';
 
 import { sessionsDb } from '@/modules/database/index.js';
 import { codexAppServer } from '@/modules/providers/list/codex/codex-app-server.client.js';
+import { resolveRunnableWorkspaceRoots } from '@/modules/providers/list/codex/codex-workspace-roots.js';
 import { parseFilesInputTag, toImageAttachments } from '@/shared/image-attachments.js';
 import type { IProviderSessions } from '@/shared/interfaces.js';
 import { prepareTranscriptMessages } from '@/shared/message-unification.js';
@@ -2023,10 +2024,16 @@ export class CodexSessionsProvider implements IProviderSessions {
       return;
     }
 
+    // [local] The edited conversation keeps its other workspace roots.
+    const workspaceRoots = await resolveRunnableWorkspaceRoots(
+      sessionsDb.getSessionWorkspaceRoots(sessionId),
+      session.project_path ?? '',
+    );
     const fork = await codexAppServer.forkThread({
       threadId: supersededThreadId,
       lastTurnId: keepThroughId,
       cwd: session.project_path ?? '',
+      ...(workspaceRoots.length > 0 ? { workspaceRoots } : {}),
     });
 
     sessionsDb.markProviderSessionSuperseded({

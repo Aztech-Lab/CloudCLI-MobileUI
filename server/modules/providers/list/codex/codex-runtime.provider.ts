@@ -28,6 +28,7 @@ import type { AnyRecord, ProviderRuntimeContext, ProviderRuntimeWriter } from '@
 import type { SideQuestionOutcome, SideQuestionRequest, SideQuestionSink } from '@/shared/types.js';
 
 import { codexAppServer } from './codex-app-server.client.js';
+import { resolveRunnableWorkspaceRoots } from './codex-workspace-roots.js';
 
 type ActiveCodexSession = {
   thread: Thread;
@@ -328,6 +329,12 @@ async function queryCodex(
   const resolvedModel = await context.resolveResumeModel(sessionId, model);
 
   const workingDirectory = cwd || projectPath || process.cwd();
+  // [local] A conversation from a multi-root Codex project keeps write access
+  // to its other roots (`--add-dir`), as it has in the user's own Codex app.
+  const additionalDirectories = await resolveRunnableWorkspaceRoots(
+    context.getSessionWorkspaceRoots?.(sessionId) ?? [],
+    workingDirectory,
+  );
   const { sandboxMode, approvalPolicy, config: codexConfig } = mapPermissionModeToCodexOptions(permissionMode);
   const catalog = await context.getProviderModels();
   const selectedModel = catalog.OPTIONS.find((option) => option.value === resolvedModel) || null;
@@ -375,6 +382,7 @@ async function queryCodex(
       approvalPolicy,
       model: resolvedModel,
       modelReasoningEffort: resolvedEffort,
+      ...(additionalDirectories.length > 0 ? { additionalDirectories } : {}),
     };
 
     if (providerSessionId) {
@@ -613,7 +621,7 @@ function abortCodexSession(sessionId: string) {
 async function askCodexSideQuestion(
   request: SideQuestionRequest,
   sink: SideQuestionSink,
-  _context: ProviderRuntimeContext,
+  context: ProviderRuntimeContext,
 ): Promise<SideQuestionOutcome> {
   if (!request.providerSessionId) {
     return { status: 'error', error: 'This Codex session has no provider thread to ask a side question on yet.', answer: '' };
@@ -621,9 +629,15 @@ async function askCodexSideQuestion(
 
   let answer = '';
   try {
+    const cwd = request.projectPath || '';
+    // [local] Same roots the conversation runs with (see queryCodex).
+    const workspaceRoots = cwd
+      ? await resolveRunnableWorkspaceRoots(context.getSessionWorkspaceRoots?.(request.appSessionId) ?? [], cwd)
+      : [];
     const text = await codexAppServer.askSideQuestion({
       threadId: request.providerSessionId,
-      cwd: request.projectPath || '',
+      cwd,
+      workspaceRoots,
       model: request.model || '',
       question: request.question,
       signal: request.signal,

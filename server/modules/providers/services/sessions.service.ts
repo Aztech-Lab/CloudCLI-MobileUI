@@ -411,6 +411,14 @@ export const sessionsService = {
   },
 
   /**
+   * [local] Extra workspace roots recorded for a session (Codex multi-root
+   * projects); empty for sessions without any.
+   */
+  getSessionWorkspaceRoots(sessionId: string | null | undefined): string[] {
+    return sessionId ? sessionsDb.getSessionWorkspaceRoots(sessionId) : [];
+  },
+
+  /**
    * Normalizes one provider-native event into frontend session message events.
    */
   normalizeMessage(
@@ -501,6 +509,7 @@ export const sessionsService = {
       providerSessionId: source.provider_session_id,
       jsonlPath: source.jsonl_path,
       projectPath: source.project_path ?? '',
+      workspaceRoots: sessionsDb.getSessionWorkspaceRoots(sessionId),
       upToAnchorId: options.upToAnchorId,
       title: sessionName,
     });
@@ -518,6 +527,8 @@ export const sessionsService = {
       // differently from the conversation it was branched from.
       model: source.model,
       effort: source.effort,
+      // [local] The copy keeps the workspace roots of the conversation it was branched from.
+      workspaceRoots: sessionsDb.getSessionWorkspaceRoots(sessionId),
     });
 
     await broadcastSessionUpserted(forkSessionId);
