@@ -41,6 +41,12 @@ export interface IProviderRuntime {
     context: ProviderRuntimeContext,
   ): Promise<unknown>;
   abort(sessionId: string): boolean | Promise<boolean>;
+  /**
+   * [local] Lets go of whatever the runtime still holds for a session that was
+   * archived or deleted (the Codex app-server runtime releases the thread).
+   * Optional; a runtime that holds nothing leaves it out.
+   */
+  releaseSession?(sessionId: string): void;
   permissions?: ProviderRuntimePermissionGateway;
   /**
    * Sessions with background tasks still outstanding, whether or not their

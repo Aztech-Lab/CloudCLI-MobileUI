@@ -29,6 +29,11 @@ import type { SideQuestionOutcome, SideQuestionRequest, SideQuestionSink } from 
 
 import { codexAppServer } from './codex-app-server.client.js';
 import {
+  CodexAppServerFallbackError,
+  codexAppServerRuntime,
+  resolveCodexRuntimeMode,
+} from './codex-app-server.runtime.js';
+import {
   CODEX_IMAGE_ONLY_PROMPT,
   createCodexActiveWriterErrorMessage,
   extractCodexTokenBudget,
@@ -568,10 +573,38 @@ async function askCodexSideQuestion(
   }
 }
 
-/** Used by the providers module's CodexProvider to run and abort SDK turns. */
+/**
+ * [local] Runs one message on the runtime `CLOUDCLI_CODEX_RUNTIME` selects:
+ * `codex exec` through the SDK (default), or the shared app-server
+ * (`appserver`). When the app-server cannot take the message before anything
+ * was shown, the message runs through exec instead and the reason is logged.
+ */
+async function runCodex(
+  command: string,
+  options: AnyRecord,
+  ws: ProviderRuntimeWriter,
+  context: ProviderRuntimeContext,
+) {
+  if (resolveCodexRuntimeMode() === 'appserver') {
+    try {
+      return await codexAppServerRuntime.run(command, options, ws, context);
+    } catch (error) {
+      if (!(error instanceof CodexAppServerFallbackError)) {
+        throw error;
+      }
+      console.warn(`[Codex] app-server runtime unavailable, running this message with codex exec: ${error.message}`);
+    }
+  }
+  return queryCodex(command, options, ws, context);
+}
+
+/** Used by the providers module's CodexProvider to run and abort turns. */
 export const codexRuntime = {
-  run: queryCodex,
-  abort: abortCodexSession,
+  run: runCodex,
+  // A turn lives in exactly one of the two runtimes.
+  abort: (sessionId: string) => codexAppServerRuntime.abort(sessionId) || abortCodexSession(sessionId),
+  // [local] Archived or deleted: let go of the thread so the Codex app can take it.
+  releaseSession: (sessionId: string) => codexAppServerRuntime.releaseSession(sessionId),
   askSideQuestion: askCodexSideQuestion,
 };
 

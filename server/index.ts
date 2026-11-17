@@ -44,6 +44,7 @@ import {
     stopAllPlugins,
 } from './modules/plugins/index.js';
 import providerRoutes from './modules/providers/provider.routes.js';
+import { codexAppServerRuntime } from './modules/providers/list/codex/codex-app-server.runtime.js';
 import { voiceRoutes } from './modules/voice/index.js';
 import {
     closeScheduledMessageDispatcher,
@@ -418,6 +419,12 @@ async function startServer() {
                 backgroundWorkLedger.record(providerRuntimeService.listBackgroundWork());
             } catch (err) {
                 console.error('[BackgroundWork] Error recording background work during shutdown:', getErrorMessage(err));
+            }
+            // [local] The shared codex app-server child, if one is running.
+            try {
+                codexAppServerRuntime.shutdown();
+            } catch (err) {
+                console.error('[Codex] Error stopping the app-server during shutdown:', getErrorMessage(err));
             }
             try {
                 await browserUseService.stopAllSessions();

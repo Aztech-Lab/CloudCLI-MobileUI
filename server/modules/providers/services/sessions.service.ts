@@ -142,6 +142,19 @@ function resolveProjectDisplayName(
 }
 
 /**
+ * [local] Tells the session's provider runtime to let go of anything it still
+ * holds for it (the Codex app-server runtime releases the thread). Never
+ * throws: archiving or deleting must not fail over it.
+ */
+function releaseSessionInRuntime(provider: string, sessionId: string): void {
+  try {
+    providerRegistry.resolveProvider(provider).runtime.releaseSession?.(sessionId);
+  } catch (error) {
+    console.warn(`[Sessions] Could not release session ${sessionId} in its runtime:`, error instanceof Error ? error.message : error);
+  }
+}
+
+/**
  * Application service for provider-backed session message operations.
  *
  * Callers pass a provider id and this service resolves the concrete provider
@@ -881,6 +894,9 @@ export const sessionsService = {
         statusCode: 404,
       });
     }
+
+    // [local] A closed session keeps nothing open in a provider runtime.
+    releaseSessionInRuntime(session.provider, sessionId);
 
     if (!options.force) {
       sessionsDb.updateSessionIsArchived(sessionId, true);
