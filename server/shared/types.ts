@@ -1644,10 +1644,35 @@ export type FileTreeLogger = {
  * and logging are all explicit so service construction has no hidden process,
  * repository, or machine-wide defaults.
  */
+/**
+ * [local] Session lookups for the Files tab's workspace-root switcher.
+ *
+ * A Codex conversation from a multi-root Codex project records its extra
+ * roots on its session row; these are the only folders besides the project
+ * root that the tree lists or changes.
+ */
+export type FileTreeSessionGateway = {
+  /** The session's project path and recorded extra roots, or null when there is no such session. */
+  getSessionWorkspaceRoots(sessionId: string): { projectPath: string | null; roots: string[] } | null;
+  /** Extra roots recorded for any session of the project at `projectRoot`. */
+  listProjectWorkspaceRoots(projectRoot: string): string[];
+};
+
+/**
+ * [local] Which workspace root a File Tree request works in: root 0 is the
+ * project folder (the default), root N the session's N-th extra root.
+ */
+export type FileTreeRootScope = { sessionId: string; root: number };
+
+/** [local] One entry of the Files tab's root switcher. */
+export type FileTreeWorkspaceRoot = { index: number; name: string; path: string; exists: boolean };
+
 export type FileTreeServiceDependencies = {
   fileSystem: FileTreeFileSystem;
   projects: FileTreeProjectGateway;
   workspace: FileTreeWorkspaceGateway;
+  /** [local] Optional so a service without session lookups keeps the project root only. */
+  sessions?: FileTreeSessionGateway;
   resolveMimeType(filePath: string): string;
   fileSystemConcurrency: number;
   logger: FileTreeLogger;
@@ -1675,10 +1700,13 @@ export type FileTreeServices = {
   }>;
   listProjectFiles(
     projectId: string,
-    options?: { respectGitignore: boolean; subPath?: string | null },
+    options?: { respectGitignore: boolean; subPath?: string | null; scope?: FileTreeRootScope | null },
   ): Promise<FileTreeNode[]>;
+  /** [local] The roots the Files tab can switch between for one session. */
+  listWorkspaceRoots(projectId: string, sessionId: string | null): Promise<{ roots: FileTreeWorkspaceRoot[] }>;
   createEntry(input: {
     projectId: string;
+    scope?: FileTreeRootScope | null;
     parentPath: string;
     type: 'file' | 'directory';
     name: string;
@@ -1698,6 +1726,7 @@ export type FileTreeServices = {
   }>;
   storeUploadedFiles(input: {
     projectId: string;
+    scope?: FileTreeRootScope | null;
     targetPath: string;
     relativePaths: string[];
     requestedFileCount: number;

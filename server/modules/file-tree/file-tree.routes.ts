@@ -3,6 +3,7 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express';
 
 import type {
   FileTreeLogger,
+  FileTreeRootScope,
   FileTreeServices,
   FileTreeUploadedFile,
 } from '@/shared/types.js';
@@ -39,6 +40,36 @@ function readOptionalString(value: unknown): string | null {
 
 function readProjectId(request: Request): string {
   return readRequiredString(request.params.projectId, 'projectId');
+}
+
+/**
+ * [local] Reads the optional workspace-root scope (`sessionId` + `root`
+ * index). The client names a root only by index; the service resolves it from
+ * the session row. Root 0, or no scope, is the project folder.
+ */
+function readRootScope(source: Record<string, unknown>): FileTreeRootScope | null {
+  const rawRoot = source.root;
+  if (rawRoot === undefined || rawRoot === null || rawRoot === '') {
+    return null;
+  }
+  const root = typeof rawRoot === 'number' ? rawRoot : Number(String(rawRoot));
+  if (!Number.isInteger(root) || root < 0) {
+    throw new AppError('Unknown workspace root', {
+      code: 'INVALID_WORKSPACE_ROOT',
+      statusCode: 400,
+    });
+  }
+  if (root === 0) {
+    return null;
+  }
+  const sessionId = readRequiredString(source.sessionId, 'sessionId');
+  return { sessionId, root };
+}
+
+/** [local] Spreads `{ scope }` into a service input only when a root other than the project folder was named. */
+function withRootScope(source: Record<string, unknown>): { scope?: FileTreeRootScope } {
+  const scope = readRootScope(source);
+  return scope ? { scope } : {};
 }
 
 function readEntryType(value: unknown): 'file' | 'directory' {
@@ -91,7 +122,13 @@ function createRouteHandler(
       await operation(request, response);
     } catch (error) {
       if (error instanceof AppError) {
-        response.status(error.statusCode).json({ error: error.message });
+        // [local] `code` (and a missing folder's `path`) let the client word the error itself.
+        const details = error.details as { path?: unknown } | undefined;
+        response.status(error.statusCode).json({
+          error: error.message,
+          code: error.code,
+          ...(typeof details?.path === 'string' ? { path: details.path } : {}),
+        });
         return;
       }
 
@@ -166,7 +203,14 @@ export function createFileTreeRouter(
     response.json(await services.listProjectFiles(readProjectId(request), {
       respectGitignore: request.query.respectGitignore === 'true',
       ...(subPath ? { subPath } : {}),
+      ...withRootScope(request.query as Record<string, unknown>),
     }));
+  }, logger));
+
+  // [local] The workspace roots the Files tab can switch between for a session.
+  router.get('/projects/:projectId/roots', createRouteHandler(async (request, response) => {
+    const sessionId = readOptionalString(request.query.sessionId);
+    response.json(await services.listWorkspaceRoots(readProjectId(request), sessionId || null));
   }, logger));
 
   router.post('/projects/:projectId/files/create', createRouteHandler(async (request, response) => {
@@ -182,6 +226,7 @@ export function createFileTreeRouter(
     const parentPath = readOptionalString(body.path) ?? '';
     response.json(await services.createEntry({
       projectId: readProjectId(request),
+      ...withRootScope(body),
       parentPath,
       type,
       name,
@@ -218,6 +263,7 @@ export function createFileTreeRouter(
     const files = normalizeUploadedFiles(uploadedRequest);
     response.json(await services.storeUploadedFiles({
       projectId: readProjectId(request),
+      ...withRootScope(body),
       targetPath: readOptionalString(body.targetPath) ?? '',
       relativePaths: readRelativePaths(body.relativePaths),
       requestedFileCount: readRequestedFileCount(body.requestedFileCount, files.length),

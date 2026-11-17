@@ -315,17 +315,36 @@ export const api = {
     get(fileContentPath(projectId, filePath), options),
   saveFile: (projectId: string, filePath: string, content: string) =>
     put(`/api/file-tree/projects/${projectId}/file`, { filePath, content }),
-  getFiles: (projectId: string, options: ApiRequestOptions = {}, subPath?: string) =>
+  // [local] `scope` picks another workspace root of the session by index (never a path).
+  getFiles: (
+    projectId: string,
+    options: ApiRequestOptions = {},
+    subPath?: string,
+    scope?: { sessionId: string; root: number } | null,
+  ) =>
     get(
-      `/api/file-tree/projects/${projectId}/files${query({ respectGitignore: true, path: subPath })}`,
+      `/api/file-tree/projects/${projectId}/files${query({
+        respectGitignore: true,
+        path: subPath,
+        ...(scope ? { sessionId: scope.sessionId, root: scope.root } : {}),
+      })}`,
       options,
     ),
+  // [local] The workspace roots the Files tab can switch between for a session.
+  getWorkspaceRoots: (projectId: string, sessionId: string) =>
+    get(`/api/file-tree/projects/${encodeURIComponent(projectId)}/roots${query({ sessionId })}`),
 
   // File operations
   createFile: (
     projectId: string,
     { path, type, name }: { path: string; type: string; name: string },
-  ) => post(`/api/file-tree/projects/${projectId}/files/create`, { path, type, name }),
+    scope?: { sessionId: string; root: number } | null,
+  ) => post(`/api/file-tree/projects/${projectId}/files/create`, {
+    path,
+    type,
+    name,
+    ...(scope ? { sessionId: scope.sessionId, root: scope.root } : {}),
+  }),
 
   renameFile: (projectId: string, { oldPath, newName }: { oldPath: string; newName: string }) =>
     put(`/api/file-tree/projects/${projectId}/files/rename`, { oldPath, newName }),

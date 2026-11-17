@@ -5,6 +5,7 @@ import JSZip from 'jszip';
 import { api } from '@/shared/api';
 import type { FileTreeNode,Project } from '@/shared/types';
 import { copyTextToClipboard, downloadBlob } from '@/shared/utils';
+import type { WorkspaceRootScope } from '@/modules/file-tree/hooks/useWorkspaceRoots';
 
 // Invalid filename characters
 const INVALID_FILENAME_CHARS = /[<>:"/\\|?*\x00-\x1f]/;
@@ -22,6 +23,8 @@ export type DeleteConfirmation = {
 
 export type UseFileTreeOperationsOptions = {
   selectedProject: Project | null;
+  /** [local] Workspace root a new top-level entry goes into; null is the project folder. */
+  rootScope?: WorkspaceRootScope | null;
   onRefresh: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 };
@@ -63,6 +66,7 @@ export type UseFileTreeOperationsResult = {
 
 export function useFileTreeOperations({
   selectedProject,
+  rootScope = null,
   onRefresh,
   showToast,
 }: UseFileTreeOperationsOptions): UseFileTreeOperationsResult {
@@ -216,7 +220,7 @@ export function useFileTreeOperations({
         path: newItemParent,
         type: newItemType,
         name: newItemName,
-      });
+      }, rootScope);
 
       if (!response.ok) {
         const data = await response.json();
@@ -236,7 +240,7 @@ export function useFileTreeOperations({
     } finally {
       setOperationLoading(false);
     }
-  }, [selectedProject, newItemParent, newItemType, newItemName, validateFilename, showToast, t, onRefresh, handleCancelCreate]);
+  }, [selectedProject, rootScope, newItemParent, newItemType, newItemName, validateFilename, showToast, t, onRefresh, handleCancelCreate]);
 
   // Copy path to clipboard. The shared helper falls back to `execCommand('copy')` when the
   // Clipboard API is missing (plain-HTTP access) or rejects the write (some mobile browsers);

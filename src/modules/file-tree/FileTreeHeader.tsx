@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
 import { ChevronDown, Eye, FileText, FolderPlus, List, Loader2, RefreshCw, Search, TableProperties, Upload, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +24,8 @@ type FileTreeHeaderProps = {
   operationLoading?: boolean;
   isUploading?: boolean;
   uploadProgress?: number | null;
+  /** [local] Workspace-root switcher; renders nothing for sessions with one root. */
+  rootSwitcher?: ReactNode;
 };
 
 /** Rendered by FileTree to host the search box, view-mode switch and the create/upload/refresh/collapse actions. */
@@ -41,6 +43,7 @@ export default function FileTreeHeader({
   operationLoading,
   isUploading,
   uploadProgress,
+  rootSwitcher,
 }: FileTreeHeaderProps) {
   const { t } = useTranslation();
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -190,6 +193,8 @@ export default function FileTreeHeader({
           </Button>
         </div>
       </div>
+
+      {rootSwitcher}
 
       {/* Search Bar */}
       <div className="relative">

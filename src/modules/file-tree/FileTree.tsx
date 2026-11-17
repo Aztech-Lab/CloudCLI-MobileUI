@@ -11,7 +11,8 @@ import { useFileTreeOperations } from '@/modules/file-tree/hooks/useFileTreeOper
 import { useFileTreeSearch } from '@/modules/file-tree/hooks/useFileTreeSearch';
 import { useFileTreeViewMode } from '@/modules/file-tree/hooks/useFileTreeViewMode';
 import { useFileTreeUpload } from '@/modules/file-tree/hooks/useFileTreeUpload';
-import type { DirectoryRevealRequest, FileTreeImageSelection, FileTreeNode,Project } from '@/shared/types';
+import { useWorkspaceRoots } from '@/modules/file-tree/hooks/useWorkspaceRoots';
+import type { DirectoryRevealRequest, FileTreeImageSelection, FileTreeNode, Project, ProjectSession } from '@/shared/types';
 import { formatFileSize, formatRelativeTime, isImageFile } from '@/modules/file-tree/utils/fileTreeUtils';
 import { directoryRevealPaths } from '@/modules/file-tree/utils/revealDirectory';
 import { ScrollArea, Input } from '@/shared/ui';
@@ -19,12 +20,15 @@ import FileTreeBody from '@/modules/file-tree/FileTreeBody';
 import FileTreeDetailedColumns from '@/modules/file-tree/FileTreeDetailedColumns';
 import FileTreeHeader from '@/modules/file-tree/FileTreeHeader';
 import FileTreeLoadingState from '@/modules/file-tree/FileTreeLoadingState';
+import FileTreeRootSwitcher from '@/modules/file-tree/FileTreeRootSwitcher';
 import FileTreeUploadProgress from '@/modules/file-tree/FileTreeUploadProgress';
 import ImageViewer from '@/modules/file-tree/ImageViewer';
 
 
 type FileTreeProps = {
   selectedProject: Project | null;
+  /** [local] The open conversation; a Codex one may add its other workspace roots. */
+  selectedSession?: ProjectSession | null;
   onFileOpen?: (filePath: string) => void;
   // Directory to reveal (from an in-chat `path/` reference): its ancestors are
   // expanded so the folder is visible without hunting through the tree.
@@ -32,7 +36,7 @@ type FileTreeProps = {
 };
 
 /** Exported through the file-tree barrel; the project-workspace module renders it as the Files sidebar tab. */
-export default function FileTree({ selectedProject, onFileOpen, revealDirectory }: FileTreeProps) {
+export default function FileTree({ selectedProject, selectedSession = null, onFileOpen, revealDirectory }: FileTreeProps) {
   const { t } = useTranslation();
   const [selectedImage, setSelectedImage] = useState<FileTreeImageSelection | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -52,7 +56,22 @@ export default function FileTree({ selectedProject, onFileOpen, revealDirectory 
     }
   }, [toast]);
 
-  const { files, loading, error, refreshFiles, loadingDirs, loadDirectory } = useFileTreeData(selectedProject);
+  // [local] Only Codex conversations can have several workspace roots.
+  const sessionProvider = selectedSession?.provider ?? selectedSession?.__provider;
+  const workspaceRoots = useWorkspaceRoots(
+    selectedProject?.projectId,
+    selectedSession?.id,
+    sessionProvider === 'codex',
+  );
+  const rootScope = workspaceRoots.scope;
+
+  const { files, loading, error, missingFolder, refreshFiles, loadingDirs, loadDirectory } = useFileTreeData(
+    selectedProject,
+    rootScope,
+  );
+  const displayedError = missingFolder
+    ? t('fileTree.folderNotFound', 'Folder not found: {{path}}', { path: missingFolder })
+    : error;
   const { viewMode, changeViewMode } = useFileTreeViewMode();
   const { expandedDirs, toggleDirectory, expandDirectories, collapseAll } = useExpandedDirectories();
 
@@ -101,6 +120,7 @@ export default function FileTree({ selectedProject, onFileOpen, revealDirectory 
   // File operations
   const operations = useFileTreeOperations({
     selectedProject,
+    rootScope,
     onRefresh: refreshFiles,
     showToast,
   });
@@ -109,6 +129,7 @@ export default function FileTree({ selectedProject, onFileOpen, revealDirectory 
   // so the remaining plain values are not treated as render-time ref reads.
   const { treeRef, ...upload } = useFileTreeUpload({
     selectedProject,
+    rootScope,
     onRefresh: refreshFiles,
     showToast,
   });
@@ -241,6 +262,13 @@ export default function FileTree({ selectedProject, onFileOpen, revealDirectory 
         operationLoading={operationLoading}
         isUploading={upload.uploadProgress?.status === 'uploading'}
         uploadProgress={upload.uploadProgress?.progress ?? null}
+        rootSwitcher={(
+          <FileTreeRootSwitcher
+            roots={workspaceRoots.roots}
+            selectedRoot={workspaceRoots.selectedRoot}
+            onSelectRoot={workspaceRoots.selectRoot}
+          />
+        )}
       />
 
       <FileTreeUploadProgress upload={upload.uploadProgress} />
@@ -283,7 +311,7 @@ export default function FileTree({ selectedProject, onFileOpen, revealDirectory 
         <FileTreeBody
           files={files}
           filteredFiles={filteredFiles}
-          error={error}
+          error={displayedError}
           searchQuery={searchQuery}
           viewMode={viewMode}
           expandedDirs={expandedDirs}

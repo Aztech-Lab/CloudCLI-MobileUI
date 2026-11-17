@@ -103,6 +103,14 @@
     "recentProjects": "最近的專案"
   },
   "fileTree": {
+    "folderNotFound": "資料夾不存在：{{path}}",
+    "roots": {
+      "switch": "工作區資料夾：{{name}}",
+      "position": "{{current}}/{{total}}",
+      "title": "工作區資料夾",
+      "primary": "工作目錄",
+      "missing": "不存在"
+    },
     "loading": "正在載入檔案...",
     "files": "檔案",
     "simpleView": "簡易檢視",

@@ -6,9 +6,12 @@ import type { FileTreeUploadProgressState, Project } from '@/shared/types';
 import { api } from '@/shared/api';
 import { expireAuthSession, getStoredAuthToken, storeAuthToken } from '@/shared/authToken';
 import { MAX_FILE_UPLOAD_SIZE_BYTES, MAX_FILE_UPLOAD_SIZE_LABEL } from '@/shared/constants';
+import type { WorkspaceRootScope } from '@/modules/file-tree/hooks/useWorkspaceRoots';
 
 type UseFileTreeUploadOptions = {
   selectedProject: Project | null;
+  /** [local] Workspace root a top-level upload goes into; null is the project folder. */
+  rootScope?: WorkspaceRootScope | null;
   onRefresh: () => void;
   showToast: (message: string, type: 'success' | 'error') => void;
 };
@@ -72,11 +75,16 @@ const formatUploadSuccessMessage = (uploadedCount: number, requestedFileCount: n
   return `Uploaded ${uploadedCount} ${pluralizeFiles(uploadedCount)} successfully`;
 };
 
-const buildUploadFormData = (files: File[], targetPath: string) => {
+const buildUploadFormData = (files: File[], targetPath: string, rootScope: WorkspaceRootScope | null = null) => {
   const formData = new FormData();
   const relativePaths: string[] = [];
 
   formData.append('targetPath', targetPath);
+  // [local] The root is named by index; the server resolves it from the session.
+  if (rootScope) {
+    formData.append('sessionId', rootScope.sessionId);
+    formData.append('root', String(rootScope.root));
+  }
   formData.append('requestedFileCount', String(files.length));
 
   files.forEach((file) => {
@@ -237,6 +245,7 @@ const collectDroppedFiles = async (dataTransfer: DataTransfer) => {
 
 export const useFileTreeUpload = ({
   selectedProject,
+  rootScope = null,
   onRefresh,
   showToast,
 }: UseFileTreeUploadOptions) => {
@@ -320,7 +329,7 @@ export const useFileTreeUpload = ({
       try {
         const response = await uploadFormDataWithProgress(
           selectedProject.projectId,
-          buildUploadFormData(files, targetPath),
+          buildUploadFormData(files, targetPath, rootScope),
           (progress) => {
             latestProgress = progress;
             setUploadProgress((current) =>
@@ -363,6 +372,7 @@ export const useFileTreeUpload = ({
       onRefresh,
       scheduleProgressClear,
       selectedProject,
+      rootScope,
       setUploadError,
       showToast,
     ],

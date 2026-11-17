@@ -24,6 +24,7 @@ function createFakeServices(overrides: Partial<FileTreeServices> = {}): FileTree
     renameEntry: unexpectedOperation,
     deleteEntry: unexpectedOperation,
     storeUploadedFiles: unexpectedOperation,
+    listWorkspaceRoots: unexpectedOperation,
     ...overrides,
   };
 }

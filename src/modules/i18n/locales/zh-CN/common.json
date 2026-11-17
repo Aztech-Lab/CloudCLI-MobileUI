@@ -103,6 +103,14 @@
     "recentProjects": "最近的项目"
   },
   "fileTree": {
+    "folderNotFound": "文件夹不存在：{{path}}",
+    "roots": {
+      "switch": "工作区文件夹：{{name}}",
+      "position": "{{current}}/{{total}}",
+      "title": "工作区文件夹",
+      "primary": "工作目录",
+      "missing": "不存在"
+    },
     "loading": "正在加载文件...",
     "files": "文件",
     "simpleView": "简单视图",

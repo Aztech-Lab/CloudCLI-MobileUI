@@ -105,6 +105,14 @@
     "recentProjects": "Recent projects"
   },
   "fileTree": {
+    "folderNotFound": "Folder not found: {{path}}",
+    "roots": {
+      "switch": "Workspace folder: {{name}}",
+      "position": "{{current}}/{{total}}",
+      "title": "Workspace folders",
+      "primary": "working folder",
+      "missing": "not found"
+    },
     "loading": "Loading files...",
     "files": "Files",
     "simpleView": "Simple view",
