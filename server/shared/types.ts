@@ -1532,6 +1532,8 @@ export type FileTreeNode = {
   children?: FileTreeNode[];
   /** [local] Children were not (fully) listed; the browser loads them on expand. */
   incomplete?: boolean;
+  /** [local] Matched by the root's `.gitignore`; only present when `includeIgnored` was requested. */
+  ignored?: boolean;
 };
 
 /**
@@ -1700,7 +1702,13 @@ export type FileTreeServices = {
   }>;
   listProjectFiles(
     projectId: string,
-    options?: { respectGitignore: boolean; subPath?: string | null; scope?: FileTreeRootScope | null },
+    options?: {
+      respectGitignore: boolean;
+      /** [local] Return gitignored entries flagged `ignored` instead of dropping them. */
+      includeIgnored?: boolean;
+      subPath?: string | null;
+      scope?: FileTreeRootScope | null;
+    },
   ): Promise<FileTreeNode[]>;
   /** [local] The roots the Files tab can switch between for one session. */
   listWorkspaceRoots(projectId: string, sessionId: string | null): Promise<{ roots: FileTreeWorkspaceRoot[] }>;

@@ -59,6 +59,20 @@ function readExtraReadRoots(): string[] {
 
 type FileTreeEntryFilter = (entryPath: string, isDirectory: boolean) => boolean;
 
+// [local] How the tree treats one entry: shown, shown but marked as gitignored
+// (directories are then listed lazily, never walked), or left out.
+type FileTreeEntryVisibility = 'visible' | 'ignored' | 'hidden';
+type FileTreeEntryClassifier = (entryPath: string, isDirectory: boolean) => FileTreeEntryVisibility;
+
+// [local] Never listed, even when the caller asks for gitignored entries.
+const VERSION_CONTROL_DIRECTORY_NAMES = new Set(['.git', '.svn', '.hg']);
+
+type VisibleDirectoryEntry = { entry: FileTreeDirectoryEntry; ignored: boolean };
+
+function classifyByFilter(includeEntry: FileTreeEntryFilter): FileTreeEntryClassifier {
+  return (entryPath, isDirectory) => (includeEntry(entryPath, isDirectory) ? 'visible' : 'hidden');
+}
+
 function includeEntryByHardExclusions(entryPath: string, isDirectory: boolean): boolean {
   return !isDirectory || !HARD_EXCLUDED_DIRECTORY_NAMES.has(path.basename(entryPath));
 }
@@ -203,18 +217,28 @@ function mapFileSystemError(
   throw error;
 }
 
-function createGitignoreEntryFilter(
+/**
+ * [local] Classifies entries against the root's `.gitignore`. With
+ * `markIgnored` a matched entry is kept and flagged instead of dropped (the
+ * Files tab dims it); version-control folders stay hidden either way, and
+ * `node_modules` is only shown when the `.gitignore` covers it.
+ */
+function createGitignoreEntryClassifier(
   projectRoot: string,
   gitignoreContent: string,
-): FileTreeEntryFilter {
+  markIgnored: boolean,
+): FileTreeEntryClassifier {
   const gitignore = ignore().add(gitignoreContent);
 
   return (entryPath, isDirectory) => {
-    if (!includeEntryByHardExclusions(entryPath, isDirectory)) return false;
+    if (isDirectory && VERSION_CONTROL_DIRECTORY_NAMES.has(path.basename(entryPath))) return 'hidden';
 
     const relativePath = path.relative(projectRoot, entryPath).split(path.sep).join('/');
     const matchPath = isDirectory ? `${relativePath}/` : relativePath;
-    return !gitignore.ignores(matchPath);
+    if (!gitignore.ignores(matchPath)) {
+      return includeEntryByHardExclusions(entryPath, isDirectory) ? 'visible' : 'hidden';
+    }
+    return markIgnored ? 'ignored' : 'hidden';
   };
 }
 
@@ -284,17 +308,18 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
    */
   async function collectVisibleEntries(
     directoryPath: string,
-    includeEntry: FileTreeEntryFilter,
+    classifyEntry: FileTreeEntryClassifier,
     remainingEntries: { value: number },
-  ): Promise<{ entries: FileTreeDirectoryEntry[]; truncated: boolean }> {
-    const visibleEntries: FileTreeDirectoryEntry[] = [];
+  ): Promise<{ entries: VisibleDirectoryEntry[]; truncated: boolean }> {
+    const visibleEntries: VisibleDirectoryEntry[] = [];
     let truncated = false;
 
     await acquire();
     try {
       for await (const entry of fileSystem.openDirectory(directoryPath)) {
         const isDirectory = entry.isDirectory();
-        if (!includeEntry(path.join(directoryPath, entry.name), isDirectory)) {
+        const visibility = classifyEntry(path.join(directoryPath, entry.name), isDirectory);
+        if (visibility === 'hidden') {
           continue;
         }
 
@@ -307,7 +332,7 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
           break;
         }
         remainingEntries.value -= 1;
-        visibleEntries.push(entry);
+        visibleEntries.push({ entry, ignored: visibility === 'ignored' });
       }
     } catch (error) {
       if (error instanceof AppError) {
@@ -329,22 +354,22 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
     directoryPath: string,
     maximumDepth: number,
     currentDepth = 0,
-    includeEntry: FileTreeEntryFilter = includeEntryByFallbackDirectoryNames,
+    classifyEntry: FileTreeEntryClassifier = classifyByFilter(includeEntryByFallbackDirectoryNames),
     remainingEntries = { value: MAXIMUM_FILE_TREE_ENTRIES },
   ): Promise<FileTreeNode[]> {
-    return (await buildFileTreeLevel(directoryPath, maximumDepth, currentDepth, includeEntry, remainingEntries)).items;
+    return (await buildFileTreeLevel(directoryPath, maximumDepth, currentDepth, classifyEntry, remainingEntries)).items;
   }
 
   async function buildFileTreeLevel(
     directoryPath: string,
     maximumDepth: number,
     currentDepth: number,
-    includeEntry: FileTreeEntryFilter,
+    classifyEntry: FileTreeEntryClassifier,
     remainingEntries: { value: number },
   ): Promise<{ items: FileTreeNode[]; truncated: boolean }> {
-    const { entries: visibleEntries, truncated } = await collectVisibleEntries(directoryPath, includeEntry, remainingEntries);
+    const { entries: visibleEntries, truncated } = await collectVisibleEntries(directoryPath, classifyEntry, remainingEntries);
 
-    const items = await Promise.all(visibleEntries.map(async (entry): Promise<FileTreeNode> => {
+    const items = await Promise.all(visibleEntries.map(async ({ entry, ignored }): Promise<FileTreeNode> => {
       const itemPath = path.join(directoryPath, entry.name);
       const item: FileTreeNode = {
         name: entry.name,
@@ -355,6 +380,7 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
         permissions: '000',
         permissionsRwx: '---------',
       };
+      if (ignored) item.ignored = true;
 
       try {
         await acquire();
@@ -387,12 +413,14 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
       const isForbiddenSystemDir = FORBIDDEN_WORKSPACE_PATHS.includes(normalizeProjectPath(itemPath));
 
       if (entry.isDirectory() && !isForbiddenSystemDir) {
-        if (currentDepth < maximumDepth) {
+        // [local] A gitignored directory (node_modules, build output, ...) is listed but
+        // never walked eagerly; the browser loads it like a truncated one when expanded.
+        if (currentDepth < maximumDepth && !ignored) {
           const child = await buildFileTreeLevel(
             itemPath,
             maximumDepth,
             currentDepth + 1,
-            includeEntry,
+            classifyEntry,
             remainingEntries,
           );
           item.children = child.items;
@@ -624,11 +652,12 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
         });
       }
 
-      let includeEntry: FileTreeEntryFilter | undefined;
+      let classifyEntry: FileTreeEntryClassifier | undefined;
       if (options?.respectGitignore) {
         try {
           const gitignoreContent = await fileSystem.readTextFile(path.join(projectRoot, '.gitignore'));
-          includeEntry = createGitignoreEntryFilter(projectRoot, gitignoreContent);
+          // [local] `includeIgnored` keeps gitignored entries, flagged `ignored`, instead of dropping them.
+          classifyEntry = createGitignoreEntryClassifier(projectRoot, gitignoreContent, options.includeIgnored === true);
         } catch (error) {
           if (readErrorCode(error) !== 'ENOENT') {
             dependencies.logger.error(`Error reading .gitignore in "${projectRoot}"`, error);
@@ -646,7 +675,7 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
         }
       }
 
-      return buildFileTree(listRoot, MAXIMUM_FILE_TREE_DEPTH, 0, includeEntry);
+      return buildFileTree(listRoot, MAXIMUM_FILE_TREE_DEPTH, 0, classifyEntry);
     },
 
     // [local] Root 0 is always the project folder; a session of this project

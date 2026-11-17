@@ -202,6 +202,8 @@ export function createFileTreeRouter(
     const subPath = readOptionalString(request.query.path);
     response.json(await services.listProjectFiles(readProjectId(request), {
       respectGitignore: request.query.respectGitignore === 'true',
+      // [local] Only the Files tab asks for gitignored entries; other callers keep them dropped.
+      ...(request.query.includeIgnored === 'true' ? { includeIgnored: true } : {}),
       ...(subPath ? { subPath } : {}),
       ...withRootScope(request.query as Record<string, unknown>),
     }));

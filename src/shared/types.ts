@@ -1073,6 +1073,8 @@ export type FileTreeNode = {
   children?: FileTreeNode[];
   /** [local] Server did not (fully) list this directory; load it on expand. */
   incomplete?: boolean;
+  /** [local] Matched by the root's .gitignore; rendered dimmed, hidden by the toolbar toggle. */
+  ignored?: boolean;
   [key: string]: unknown;
 };
 

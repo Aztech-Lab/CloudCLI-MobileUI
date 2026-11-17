@@ -316,15 +316,18 @@ export const api = {
   saveFile: (projectId: string, filePath: string, content: string) =>
     put(`/api/file-tree/projects/${projectId}/file`, { filePath, content }),
   // [local] `scope` picks another workspace root of the session by index (never a path).
+  // `includeIgnored` returns gitignored entries flagged `ignored` (the Files tab dims them).
   getFiles: (
     projectId: string,
     options: ApiRequestOptions = {},
     subPath?: string,
     scope?: { sessionId: string; root: number } | null,
+    includeIgnored = false,
   ) =>
     get(
       `/api/file-tree/projects/${projectId}/files${query({
         respectGitignore: true,
+        ...(includeIgnored ? { includeIgnored: true } : {}),
         path: subPath,
         ...(scope ? { sessionId: scope.sessionId, root: scope.root } : {}),
       })}`,

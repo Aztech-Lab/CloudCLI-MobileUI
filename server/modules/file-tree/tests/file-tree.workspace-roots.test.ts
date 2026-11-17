@@ -240,3 +240,28 @@ test('the routes pass a root index, never a path, and refuse anything else', asy
     ['p1', 's1'],
   ]);
 });
+
+// [local] Each root is matched against its own .gitignore when ignored entries are requested.
+test('a workspace root marks entries from its own .gitignore', async () => {
+  await withLayout(async ({ project, extra, services }) => {
+    await fsPromises.writeFile(path.join(project, '.gitignore'), 'main.py\n', 'utf8');
+    await fsPromises.writeFile(path.join(extra, '.gitignore'), 'out/\n', 'utf8');
+    await fsPromises.mkdir(path.join(extra, 'out'));
+    await fsPromises.writeFile(path.join(extra, 'out', 'result.bin'), 'x', 'utf8');
+
+    const marked = (nodes: Array<{ name: string; ignored?: boolean }>) =>
+      nodes.map((node) => [node.name, node.ignored === true]);
+    assert.deepEqual(
+      marked(await services.listProjectFiles('p1', { respectGitignore: true, includeIgnored: true })),
+      [['.gitignore', false], ['main.py', true]],
+    );
+    assert.deepEqual(
+      marked(await services.listProjectFiles('p1', {
+        respectGitignore: true,
+        includeIgnored: true,
+        scope: { sessionId: 'codex-multi', root: 1 },
+      })),
+      [['out', true], ['.gitignore', false], ['table.csv', false]],
+    );
+  });
+});

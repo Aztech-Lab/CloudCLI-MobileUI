@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, useRef } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Check, X, Loader2, Folder, Upload } from 'lucide-react';
@@ -10,10 +10,11 @@ import { useFileTreeData } from '@/modules/file-tree/hooks/useFileTreeData';
 import { useFileTreeOperations } from '@/modules/file-tree/hooks/useFileTreeOperations';
 import { useFileTreeSearch } from '@/modules/file-tree/hooks/useFileTreeSearch';
 import { useFileTreeViewMode } from '@/modules/file-tree/hooks/useFileTreeViewMode';
+import { useShowIgnoredFiles } from '@/modules/file-tree/hooks/useShowIgnoredFiles';
 import { useFileTreeUpload } from '@/modules/file-tree/hooks/useFileTreeUpload';
 import { useWorkspaceRoots } from '@/modules/file-tree/hooks/useWorkspaceRoots';
 import type { DirectoryRevealRequest, FileTreeImageSelection, FileTreeNode, Project, ProjectSession } from '@/shared/types';
-import { formatFileSize, formatRelativeTime, isImageFile } from '@/modules/file-tree/utils/fileTreeUtils';
+import { formatFileSize, formatRelativeTime, isImageFile, withoutIgnoredEntries } from '@/modules/file-tree/utils/fileTreeUtils';
 import { directoryRevealPaths } from '@/modules/file-tree/utils/revealDirectory';
 import { ScrollArea, Input } from '@/shared/ui';
 import FileTreeBody from '@/modules/file-tree/FileTreeBody';
@@ -92,8 +93,12 @@ export default function FileTree({ selectedProject, selectedSession = null, onFi
     walk(files);
     pending.forEach((directoryPath) => { void loadDirectory(directoryPath); });
   }, [files, expandedDirs, loadingDirs, loadDirectory]);
+  // [local] Gitignored entries are always fetched (flagged); the toggle only hides them,
+  // so search covers them exactly when they are shown.
+  const { showIgnored, toggleShowIgnored } = useShowIgnoredFiles();
+  const visibleFiles = useMemo(() => (showIgnored ? files : withoutIgnoredEntries(files)), [files, showIgnored]);
   const { searchQuery, setSearchQuery, filteredFiles } = useFileTreeSearch({
-    files,
+    files: visibleFiles,
     expandDirectories,
   });
 
@@ -258,6 +263,8 @@ export default function FileTree({ selectedProject, selectedSession = null, onFi
         onNewFolder={() => operations.handleStartCreate('', 'directory')}
         onRefresh={refreshFiles}
         onCollapseAll={collapseAll}
+        showIgnored={showIgnored}
+        onToggleShowIgnored={toggleShowIgnored}
         loading={loading}
         operationLoading={operationLoading}
         isUploading={upload.uploadProgress?.status === 'uploading'}
@@ -309,7 +316,7 @@ export default function FileTree({ selectedProject, selectedSession = null, onFi
         )}
 
         <FileTreeBody
-          files={files}
+          files={visibleFiles}
           filteredFiles={filteredFiles}
           error={displayedError}
           searchQuery={searchQuery}

@@ -103,6 +103,7 @@ export function useFileTreeData(
         {},
         directoryPath,
         scopeSessionId && scopeRoot > 0 ? { sessionId: scopeSessionId, root: scopeRoot } : null,
+        true, // [local] gitignored entries come back flagged; the toolbar toggle hides them client-side
       );
       if (response.ok) {
         children = (await response.json()) as FileTreeNode[];
@@ -154,6 +155,7 @@ export function useFileTreeData(
           { signal: abortControllerRef.current!.signal },
           undefined,
           scopeSessionId && scopeRoot > 0 ? { sessionId: scopeSessionId, root: scopeRoot } : null,
+          true, // [local] see loadDirectory
         );
 
         if (!response.ok) {
