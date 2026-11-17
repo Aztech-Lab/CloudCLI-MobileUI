@@ -612,6 +612,11 @@ export const codexRuntime = {
   // [local] Approvals and questions reach the chat only on the app-server
   // runtime (stage 3); exec never opens a prompt, so it has none to list.
   permissions: codexAppServerRuntime.permissions,
+  // [local] Stage 4: background terminals and subagents live only on the
+  // app-server runtime; under exec there is never any (the list is empty).
+  listBackgroundWork: () => codexAppServerRuntime.listBackgroundWork(),
+  stopBackgroundTask: (sessionId: string, taskId: string) => codexAppServerRuntime.stopBackgroundTask(sessionId, taskId),
+  stopAllBackgroundWork: (sessionId: string) => codexAppServerRuntime.stopAllBackgroundWork(sessionId),
   askSideQuestion: askCodexSideQuestion,
 };
 

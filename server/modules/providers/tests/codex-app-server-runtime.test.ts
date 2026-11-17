@@ -46,7 +46,18 @@ type Step =
   | ['exit', number]
   | ['request', string, Record<string, unknown>]
   // A request Codex withdraws itself shortly after (serverRequest/resolved); the turn goes on.
-  | ['requestThenResolve', string, Record<string, unknown>];
+  | ['requestThenResolve', string, Record<string, unknown>]
+  // [local] Stage 4: a background terminal starts / exits (as thread/backgroundTerminals/list reports it).
+  | ['terminal', { itemId: string; processId: string; command: string }]
+  | ['terminalExit', string]
+  // A subagent's thread status (thread/read) and last message.
+  | ['agentStatus', string, string, string?]
+  // A notification on another thread (a subagent's).
+  | ['notifyThread', string, string, Record<string, unknown>]
+  // A notification with no thread id (thread/started).
+  | ['notifyRaw', string, Record<string, unknown>]
+  // Codex starts a turn on its own on this thread and plays these steps in it.
+  | ['reportTurn', string, Step[]];
 
 type FakeConfig = {
   turns?: Step[][];
@@ -87,6 +98,9 @@ const userMessage = (threadId, turnId, clientId, content) => {
 };
 const answers = new Map();
 let nextRequestId = 900;
+// [local] Stage 4: background terminals and subagent threads.
+const terminals = [];
+const agentThreads = new Map();
 function nextTurn() {
   let n = 0;
   try { n = Number(fs.readFileSync(FILES.counter, 'utf8')) || 0; } catch {}
@@ -115,6 +129,17 @@ async function play(steps, threadId, turnId) {
     if (kind === 'request') {
       const id = nextRequestId++;
       await new Promise((resolve) => { answers.set(id, resolve); send({ jsonrpc: '2.0', id, method: a, params: { threadId, turnId, ...b } }); });
+    }
+    if (kind === 'terminal') { terminals.push({ ...a, cwd: '/', osPid: null, cpuPercent: null, rssKb: null }); continue; }
+    if (kind === 'terminalExit') { const i = terminals.findIndex((t) => t.processId === a); if (i >= 0) terminals.splice(i, 1); continue; }
+    if (kind === 'agentStatus') { agentThreads.set(a, { status: b, text: step[3] || null }); continue; }
+    if (kind === 'notifyThread') { notify(b, { threadId: a, turnId: 'child-turn', ...step[3] }); continue; }
+    if (kind === 'notifyRaw') { notify(a, b); continue; }
+    if (kind === 'reportTurn') {
+      activeTurn = { threadId, turnId: a };
+      notify('turn/started', { threadId, turn: { id: a, status: 'inProgress', items: [], error: null } });
+      play(b, threadId, a);
+      continue;
     }
     if (kind === 'requestThenResolve') {
       const id = nextRequestId++;
@@ -183,6 +208,22 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
       return reply({ status: 'unsubscribed' });
     case 'thread/approveGuardianDeniedAction':
       return reply({});
+    case 'thread/backgroundTerminals/list':
+      return reply({ data: terminals.slice(), nextCursor: null });
+    case 'thread/backgroundTerminals/terminate': {
+      const i = terminals.findIndex((t) => t.processId === m.params.processId);
+      if (i >= 0) terminals.splice(i, 1);
+      return reply({ terminated: i >= 0 });
+    }
+    case 'thread/backgroundTerminals/clean':
+      terminals.splice(0, terminals.length);
+      return reply({});
+    case 'thread/read': {
+      const agent = agentThreads.get(m.params.threadId);
+      if (!agent) return fail(-32600, 'thread not loaded: ' + m.params.threadId);
+      const turns = m.params.includeTurns && agent.text ? [{ id: 't', items: [{ type: 'agentMessage', id: 'am', text: agent.text }] }] : [];
+      return reply({ thread: { id: m.params.threadId, status: { type: agent.status, ...(agent.status === 'active' ? { activeFlags: [] } : {}) }, turns } });
+    }
     default:
       return fail(-32601, 'unknown method');
   }
@@ -557,7 +598,7 @@ test('a thread held by another writer gets the clear conflict row and is not ret
   });
 });
 
-test('Stop interrupts only the turn and leaves the completion to the abort path', async () => {
+test('Stop interrupts only the turn and ends the run at once', async () => {
   await withFake({ turns: [['wait'], ['complete']] }, async (fake) => {
     const { sent, writer } = makeWriter();
     const context = makeContext({ providerSessionId: 'thread-old' });
@@ -570,7 +611,9 @@ test('Stop interrupts only the turn and leaves the completion to the abort path'
 
     const interrupt = byMethod(await fake.requests(), 'turn/interrupt');
     assert.deepEqual(interrupt.map((request) => request.params), [{ threadId: 'thread-old', turnId: 'turn-1' }]);
-    assert.equal(sent.some((message) => message.kind === 'complete'), false, 'chat.abort sends the completion');
+    // [local] Stage 4: the runtime ends the run itself, saying whether
+    // background work goes on (here: none); chat.abort's own is a duplicate.
+    assert.deepEqual(sent.filter((message) => message.kind === 'complete').map((message) => [message.aborted, message.backgroundContinues]), [[true, false]]);
     assert.equal(codexAppServerRuntime.isRunning('app-3'), false);
     assert.equal(await codexRuntime.abort('app-3'), false, 'nothing left to stop');
     // The thread is still loaded: the next message does not resume again.
@@ -598,7 +641,7 @@ test('a message sent right after Stop waits for the stopped turn to end instead 
     const secondTurn = byMethod(requests, 'turn/start')[1];
     assert.ok(secondTurn.at - interrupt.at >= 150, 'turn/start waited for the interrupted turn to complete');
     assert.equal(byMethod(requests, 'thread/resume').length, 1);
-    assert.equal(stopped.sent.some((message) => message.kind === 'complete'), false);
+    assert.deepEqual(stopped.sent.filter((message) => message.kind === 'complete').map((message) => message.aborted), [true]);
     assert.deepEqual(kinds(next.sent), ['complete']);
     assert.equal(next.sent[0].exitCode, 0);
   });
@@ -848,7 +891,7 @@ test('Stop right after Send now ends the run without starting the new turn', asy
     await run;
 
     assert.equal(byMethod(await fake.requests(), 'turn/start').length, 1);
-    assert.equal(sent.some((message) => message.kind === 'complete'), false, 'chat.abort sends the completion');
+    assert.deepEqual(sent.filter((message) => message.kind === 'complete').map((message) => message.aborted), [true], 'one complete, from the Stop');
     assert.equal(userRows(sent).length, 0, 'never read: the composer gets it back');
   });
 });
@@ -1197,6 +1240,296 @@ test('under exec nothing is ever listed as waiting', async () => {
   await withFake({}, async (fake) => {
     assert.deepEqual(codexRuntime.permissions.listPending('app-exec'), []);
     codexRuntime.permissions.resolve('codex-unknown', { allow: true });
+    assert.deepEqual(await fake.pids(), []);
+  }, null);
+});
+
+// ---------------------------------------------------------------------------
+// [local] Stage 4: background terminals, subagents, Stop ends only the turn.
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const backgroundCommand = (id: string, processId: string, command: string): Step[] => [
+  ['notify', 'item/started', { item: {
+    type: 'commandExecution', id, command, cwd: '/', processId, source: 'unifiedExecStartup', status: 'inProgress',
+    commandActions: [], aggregatedOutput: null, exitCode: null, durationMs: null, pluginId: null, scriptPath: null,
+  } }],
+  ['terminal', { itemId: id, processId, command }],
+];
+
+const collab = (id: string, tool: string, status: string, receivers: string[], states: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+  type: 'collabAgentToolCall', id, tool, status, senderThreadId: 'parent', receiverThreadIds: receivers,
+  prompt: null, model: null, reasoningEffort: null, agentsStates: states, ...extra,
+});
+
+const backgroundSettings = { backgroundPollMs: 20, idleReleaseMs: 50, turnEndBackgroundReadMs: 1_000 };
+const tasksOf = (sessionId: string) => codexRuntime.listBackgroundWork().find((entry) => entry.sessionId === sessionId)?.tasks ?? [];
+const taskEvents = (sent: Sent[]) => sent.filter((message) => message.kind === 'task_status')
+  .map((message) => [message.event, message.status, message.taskId, message.toolUseId]);
+
+test('a background terminal outlives its turn: listed before complete, keeps the thread, and its end is reported', async () => {
+  await withFake({
+    turns: [[
+      ...backgroundCommand('c1', '1001', 'npm run dev'),
+      agentMessage('m1', 'The dev server is running.'),
+      'complete',
+      ['sleep', 300],
+      ['terminalExit', '1001'],
+    ]],
+  }, async (fake) => {
+    Object.assign(codexAppServerRuntime.settings, backgroundSettings);
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('start the dev server', { sessionId: 'app-b1', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-b1' }));
+
+    const started = sent.findIndex((message) => message.kind === 'task_status' && message.event === 'started');
+    const complete = sent.findIndex((message) => message.kind === 'complete');
+    assert.ok(started >= 0 && started < complete, 'the terminal is reported before the turn complete');
+    assert.equal(sent[started].taskType, 'local_bash');
+    assert.equal(sent[started].description, 'npm run dev');
+    assert.notEqual(sent[complete].aborted, true);
+    assert.deepEqual(tasksOf('app-b1').map((task) => [task.taskId, task.toolUseId, task.taskType, task.description]), [['1001', 'c1', 'local_bash', 'npm run dev']]);
+
+    // Past the idle release time: the thread stays loaded while it runs.
+    await sleep(150);
+    assert.equal(byMethod(await fake.requests(), 'thread/unsubscribe').length, 0);
+    assert.deepEqual(codexAppServerRuntime.loadedThreadIds(), ['thread-b1']);
+
+    await waitFor(() => sent.some((message) => message.kind === 'task_status' && message.event === 'notification'), 'the end of the terminal');
+    assert.deepEqual(taskEvents(sent), [['started', 'running', '1001', 'c1'], ['notification', 'completed', '1001', 'c1']]);
+    // Reported back in the transcript, since no turn was running.
+    const report = sent.find((message) => message.kind === 'task_notification');
+    assert.equal(report?.status, 'completed');
+    assert.match(String(report?.summary), /Background command finished: npm run dev/);
+    // The card stops spinning (Codex did not report the command's end on the stream).
+    assert.equal(sent.filter((message) => message.kind === 'tool_use' && message.toolId === 'c1').at(-1)?.status, 'completed');
+    assert.deepEqual(tasksOf('app-b1'), []);
+    // Released once nothing runs.
+    await waitFor(async () => byMethod(await fake.requests(), 'thread/unsubscribe').length === 1, 'the release');
+  });
+});
+
+test('Stop ends only the turn: the background terminal keeps running until it is stopped from the strip', async () => {
+  await withFake({ turns: [[...backgroundCommand('c2', '2002', 'python train.py'), 'wait']] }, async (fake) => {
+    Object.assign(codexAppServerRuntime.settings, backgroundSettings);
+    const { sent, writer } = makeWriter();
+    const run = codexRuntime.run('train', { sessionId: 'app-b2', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-b2' }));
+    await waitFor(() => tasksOf('app-b2').length === 1, 'the terminal to be listed during the turn');
+
+    assert.equal(await codexRuntime.abort('app-b2'), true);
+    await run;
+
+    const requests = await fake.requests();
+    assert.deepEqual(byMethod(requests, 'turn/interrupt').map((request) => request.params), [{ threadId: 'thread-b2', turnId: 'turn-1' }]);
+    assert.equal(byMethod(requests, 'thread/backgroundTerminals/terminate').length, 0, 'Stop does not stop terminals');
+    assert.equal(byMethod(requests, 'thread/backgroundTerminals/clean').length, 0);
+    const completes = sent.filter((message) => message.kind === 'complete');
+    assert.deepEqual(completes.map((message) => [message.aborted, message.backgroundContinues]), [[true, true]]);
+    assert.deepEqual(tasksOf('app-b2').map((task) => task.taskId), ['2002']);
+    await sleep(120);
+    assert.equal(byMethod(await fake.requests(), 'thread/unsubscribe').length, 0, 'still held for the terminal');
+
+    // The strip's stop button.
+    assert.equal(await codexRuntime.stopBackgroundTask('app-b2', '2002'), true);
+    assert.deepEqual(byMethod(await fake.requests(), 'thread/backgroundTerminals/terminate').map((request) => request.params), [{ threadId: 'thread-b2', processId: '2002' }]);
+    assert.deepEqual(taskEvents(sent).at(-1), ['notification', 'stopped', '2002', 'c2']);
+    assert.equal(sent.some((message) => message.kind === 'task_notification'), false, 'a stop of the user is no report');
+    assert.deepEqual(tasksOf('app-b2'), []);
+    assert.equal(await codexRuntime.stopBackgroundTask('app-b2', '2002'), false, 'nothing left to stop');
+    await waitFor(async () => byMethod(await fake.requests(), 'thread/unsubscribe').length === 1, 'the release');
+  });
+});
+
+test('a new message leaves background terminals running; "stop all" stops every one of them', async () => {
+  await withFake({
+    turns: [
+      [...backgroundCommand('c3', '3003', 'npm run dev'), ...backgroundCommand('c4', '3004', 'npm test -- --watch'), 'complete'],
+      [agentMessage('m2', 'Still running.'), 'complete'],
+    ],
+  }, async (fake) => {
+    Object.assign(codexAppServerRuntime.settings, backgroundSettings);
+    const context = makeContext({ providerSessionId: 'thread-b3' });
+    const first = makeWriter();
+    await codexRuntime.run('start both', { sessionId: 'app-b3', cwd: process.cwd() }, first.writer, context);
+    assert.deepEqual(tasksOf('app-b3').map((task) => task.taskId), ['3003', '3004']);
+
+    const second = makeWriter();
+    await codexRuntime.run('what next?', { sessionId: 'app-b3', cwd: process.cwd(), adoptHeld: true }, second.writer, context);
+    let requests = await fake.requests();
+    assert.equal(byMethod(requests, 'turn/start').length, 2);
+    assert.equal(byMethod(requests, 'thread/resume').length, 1, 'the thread stayed loaded');
+    assert.equal(byMethod(requests, 'thread/backgroundTerminals/clean').length + byMethod(requests, 'thread/backgroundTerminals/terminate').length, 0);
+    assert.deepEqual(tasksOf('app-b3').map((task) => task.taskId), ['3003', '3004']);
+
+    assert.equal(await codexRuntime.stopAllBackgroundWork('app-b3'), true);
+    requests = await fake.requests();
+    assert.deepEqual(byMethod(requests, 'thread/backgroundTerminals/clean').map((request) => request.params), [{ threadId: 'thread-b3' }]);
+    // Reported on the writer of the latest run.
+    assert.deepEqual(taskEvents(second.sent).filter(([event]) => event === 'notification'), [
+      ['notification', 'stopped', '3003', 'c3'],
+      ['notification', 'stopped', '3004', 'c4'],
+    ]);
+    assert.deepEqual(tasksOf('app-b3'), []);
+    assert.equal(await codexRuntime.stopAllBackgroundWork('app-b3'), false, 'nothing left');
+  });
+});
+
+test('a subagent gets a live card: what it was asked, its name, status, activity and result', async () => {
+  await withFake({
+    turns: [[
+      ['agentStatus', 'child-1', 'active'],
+      ['notify', 'item/started', { item: collab('s1', 'spawnAgent', 'inProgress', [], {}, { prompt: 'Count the files in A', model: 'gpt-test' }) }],
+      ['notifyRaw', 'thread/started', { thread: { id: 'child-1', parentThreadId: 'thread-b4', agentNickname: 'Ada', status: { type: 'active', activeFlags: [] } } }],
+      ['notify', 'item/completed', { item: collab('s1', 'spawnAgent', 'completed', ['child-1'], { 'child-1': { status: 'running', message: null } }, { prompt: 'Count the files in A', model: 'gpt-test' }) }],
+      ['notify', 'item/completed', { item: { type: 'subAgentActivity', id: 'sa1', kind: 'started', agentThreadId: 'child-1', agentPath: '/root/count_files', model: 'gpt-test', reasoningEffort: null } }],
+      ['notifyThread', 'child-1', 'item/completed', { item: { type: 'commandExecution', id: 'cc1', command: 'ls A', cwd: '/', status: 'completed', aggregatedOutput: 'x\ny\nz\n', exitCode: 0 } }],
+      ['notify', 'item/started', { item: collab('w1', 'wait', 'inProgress', ['child-1'], {}) }],
+      ['notify', 'item/completed', { item: collab('w1', 'wait', 'completed', ['child-1'], { 'child-1': { status: 'completed', message: 'A has 3 files.' } }) }],
+      agentMessage('m1', 'A has 3 files.'),
+      'complete',
+    ]],
+  }, async () => {
+    Object.assign(codexAppServerRuntime.settings, backgroundSettings);
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('count files with a subagent', { sessionId: 'app-b4', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-b4' }));
+
+    assert.equal(sent.some((message) => message.toolName === 'collab_tool_call'), false, 'no generic collab rows any more');
+    const cards = sent.filter((message) => message.kind === 'tool_use' && message.toolId === 's1');
+    assert.ok(cards.length >= 2, 'the card is sent live and updated');
+    assert.equal(cards[0].toolName, 'Task');
+    assert.equal(cards[0].subagent.status, 'running');
+    assert.equal(cards[0].toolInput.prompt, 'Count the files in A');
+    const last = cards.at(-1)!;
+    assert.deepEqual(last.subagent, { id: 'child-1', description: 'Count Files', status: 'completed', name: 'Ada', model: 'gpt-test' });
+    assert.deepEqual(last.toolInput, { description: 'Count Files', prompt: 'Count the files in A' });
+    assert.equal(sent.filter((message) => message.kind === 'tool_result' && message.toolId === 's1').at(-1)?.content, 'A has 3 files.');
+    // The agent's own command, under its card.
+    const activity = sent.filter((message) => message.parentToolUseId === 's1');
+    assert.deepEqual(activity.filter((message) => message.kind === 'tool_use').map((message) => [message.toolName, message.toolInput?.command]), [['Bash', 'ls A']]);
+    // Settled during the turn: no report row; the wait call has no row of its own.
+    assert.equal(sent.some((message) => message.kind === 'task_notification'), false);
+    assert.equal(sent.some((message) => message.toolId === 'w1'), false);
+    assert.deepEqual(tasksOf('app-b4'), []);
+  });
+});
+
+test('a subagent still running after the turn keeps the thread, has no stop, and reports back when done', async () => {
+  await withFake({
+    turns: [[
+      ['agentStatus', 'child-2', 'active'],
+      ['notify', 'item/completed', { item: collab('s2', 'spawnAgent', 'completed', ['child-2'], { 'child-2': { status: 'running', message: null } }, { prompt: 'Survey B' }) }],
+      agentMessage('m1', 'Started an agent.'),
+      'complete',
+      ['sleep', 250],
+      ['agentStatus', 'child-2', 'idle', 'B has 7 files.'],
+    ]],
+  }, async (fake) => {
+    Object.assign(codexAppServerRuntime.settings, backgroundSettings);
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('survey B in the background', { sessionId: 'app-b5', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-b5' }));
+
+    const [agentTask] = tasksOf('app-b5');
+    assert.deepEqual(agentTask, { taskId: 'agent:child-2', toolUseId: 's2', taskType: 'local_agent', description: 'Survey B', startedAt: agentTask?.startedAt, stoppable: false });
+    assert.equal(await codexRuntime.stopBackgroundTask('app-b5', 'agent:child-2'), false, 'Codex has no stop for one subagent');
+    assert.equal(await codexRuntime.stopAllBackgroundWork('app-b5'), false, 'stop all covers terminals only');
+    await sleep(120);
+    assert.equal(byMethod(await fake.requests(), 'thread/unsubscribe').length, 0, 'held for the agent');
+
+    await waitFor(() => sent.some((message) => message.kind === 'task_notification'), 'the report of the agent');
+    const report = sent.find((message) => message.kind === 'task_notification');
+    assert.match(String(report?.summary), /Agent finished: Survey B — B has 7 files\./);
+    const card = sent.filter((message) => message.kind === 'tool_use' && message.toolId === 's2').at(-1);
+    assert.equal(card?.subagent?.status, 'completed');
+    assert.equal(sent.filter((message) => message.kind === 'tool_result' && message.toolId === 's2').at(-1)?.content, 'B has 7 files.');
+    // The status also travels as task events on the card, with no task id (no stop).
+    assert.deepEqual(sent.filter((message) => message.kind === 'task_status').map((message) => [message.event, message.status, message.toolUseId, message.taskId]), [
+      ['started', 'running', 's2', undefined],
+      ['notification', 'completed', 's2', undefined],
+    ]);
+    assert.ok(byMethod(await fake.requests(), 'thread/read').some((request) => request.params?.includeTurns === true), 'the result is read from the thread of the agent');
+    await waitFor(async () => byMethod(await fake.requests(), 'thread/unsubscribe').length === 1, 'the release');
+  });
+});
+
+test('a turn Codex starts on its own while background work is held is shown as a report turn', async () => {
+  await withFake({
+    turns: [[
+      ...backgroundCommand('c6', '6006', 'make build'),
+      'complete',
+      ['sleep', 120],
+      ['terminalExit', '6006'],
+      ['sleep', 120],
+      ['reportTurn', 'turn-r', [agentMessage('r1', 'The build finished.'), 'complete']],
+    ]],
+  }, async () => {
+    // Codex reports within the idle time after the work ended.
+    Object.assign(codexAppServerRuntime.settings, backgroundSettings, { idleReleaseMs: 5_000 });
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('build in the background', { sessionId: 'app-b6', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-b6' }));
+    await waitFor(() => sent.filter((message) => message.kind === 'complete').length === 2, 'the complete of the report turn');
+
+    const order = sent.map((message) => message.kind === 'turn_started' ? `turn_started:${message.origin}` : message.kind);
+    const reportAt = order.indexOf('task_notification');
+    const turnAt = order.indexOf('turn_started:background');
+    assert.ok(reportAt >= 0 && turnAt > reportAt, 'the report row of the terminal, then the turn Codex started');
+    assert.equal(sent.find((message) => message.kind === 'text' && message.content === 'The build finished.')?.role, 'assistant');
+    assert.ok(order.lastIndexOf('complete') > turnAt);
+    assert.equal(codexAppServerRuntime.isRunning('app-b6'), false);
+  });
+});
+
+test('Stop during a report turn interrupts that turn only', async () => {
+  await withFake({
+    turns: [[
+      ...backgroundCommand('c7', '7007', 'npm run dev'),
+      'complete',
+      ['sleep', 80],
+      ['reportTurn', 'turn-r2', ['wait']],
+    ]],
+  }, async (fake) => {
+    Object.assign(codexAppServerRuntime.settings, backgroundSettings);
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('serve', { sessionId: 'app-b7', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-b7' }));
+    await waitFor(() => codexAppServerRuntime.isRunning('app-b7'), 'the report turn');
+
+    assert.equal(await codexRuntime.abort('app-b7'), true);
+    await waitFor(() => !codexAppServerRuntime.isRunning('app-b7'), 'the report turn to end');
+    assert.deepEqual(byMethod(await fake.requests(), 'turn/interrupt').map((request) => request.params), [{ threadId: 'thread-b7', turnId: 'turn-r2' }]);
+    assert.deepEqual(sent.filter((message) => message.kind === 'complete').map((message) => [message.aborted ?? false, message.backgroundContinues]), [[false, undefined], [true, true]]);
+    assert.deepEqual(tasksOf('app-b7').map((task) => task.taskId), ['7007']);
+  });
+});
+
+test('archiving a session stops its background terminals, then releases the thread', async () => {
+  await withFake({ turns: [[...backgroundCommand('c8', '8008', 'npm run dev'), 'complete']] }, async (fake) => {
+    Object.assign(codexAppServerRuntime.settings, backgroundSettings);
+    await codexRuntime.run('serve', { sessionId: 'app-b8', cwd: process.cwd() }, makeWriter().writer, makeContext({ providerSessionId: 'thread-b8' }));
+    assert.equal(tasksOf('app-b8').length, 1);
+
+    codexRuntime.releaseSession('app-b8');
+    await waitFor(async () => byMethod(await fake.requests(), 'thread/unsubscribe').length === 1, 'the release');
+    const requests = await fake.requests();
+    const clean = byMethod(requests, 'thread/backgroundTerminals/clean')[0];
+    assert.ok(clean && clean.at <= byMethod(requests, 'thread/unsubscribe')[0].at, 'terminals stopped before the release');
+    assert.deepEqual(codexRuntime.listBackgroundWork(), []);
+  });
+});
+
+test('when the app-server exits, its background terminals are reported stopped', async () => {
+  await withFake({ turns: [[...backgroundCommand('c9', '9009', 'npm run dev'), 'complete', ['sleep', 100], ['exit', 1]]] }, async () => {
+    Object.assign(codexAppServerRuntime.settings, backgroundSettings);
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('serve', { sessionId: 'app-b9', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-b9' }));
+    await waitFor(() => taskEvents(sent).some(([event]) => event === 'notification'), 'the stop');
+    assert.deepEqual(taskEvents(sent).at(-1), ['notification', 'stopped', '9009', 'c9']);
+    assert.deepEqual(codexRuntime.listBackgroundWork(), []);
+  });
+});
+
+test('under exec there is no background work to list or stop', async () => {
+  await withFake({}, async (fake) => {
+    assert.deepEqual(codexRuntime.listBackgroundWork(), []);
+    assert.equal(await codexRuntime.stopBackgroundTask('app-exec', '1'), false);
+    assert.equal(await codexRuntime.stopAllBackgroundWork('app-exec'), false);
     assert.deepEqual(await fake.pids(), []);
   }, null);
 });

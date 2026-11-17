@@ -67,21 +67,28 @@ async function readSchemaMethods(dir: string, name: string): Promise<string[]> {
 test('the methods the runtime uses are the reviewed set', () => {
   // A snapshot: a new method here is a deliberate change, reviewed with the
   // runtime code that uses it (stage 2 added turn/steer; stage 3 the
-  // approval answers, questions and automatic-review override).
+  // approval answers, questions and automatic-review override; stage 4 the
+  // background terminals and the subagents' status).
   assert.deepEqual([...CODEX_APP_SERVER_PROTOCOL_USAGE.requests], [
     'initialize', 'thread/start', 'thread/resume', 'turn/start', 'turn/steer', 'turn/interrupt', 'thread/unsubscribe',
     'thread/approveGuardianDeniedAction',
+    'thread/backgroundTerminals/list', 'thread/backgroundTerminals/terminate', 'thread/backgroundTerminals/clean', 'thread/read',
   ]);
   assert.deepEqual(CODEX_APP_SERVER_PROTOCOL_USAGE.requestParams, {
     TurnStartParams: ['threadId', 'input', 'clientUserMessageId'],
     TurnSteerParams: ['threadId', 'input', 'expectedTurnId', 'clientUserMessageId'],
     TurnInterruptParams: ['threadId', 'turnId'],
     ThreadApproveGuardianDeniedActionParams: ['threadId', 'event'],
+    ThreadBackgroundTerminalsListParams: ['threadId', 'cursor'],
+    ThreadBackgroundTerminalsTerminateParams: ['threadId', 'processId'],
+    ThreadBackgroundTerminalsCleanParams: ['threadId'],
+    ThreadReadParams: ['threadId', 'includeTurns'],
   });
   assert.deepEqual([...CODEX_APP_SERVER_PROTOCOL_USAGE.notifications], [
     'turn/started', 'turn/completed', 'item/started', 'item/completed', 'item/commandExecution/outputDelta',
     'turn/plan/updated', 'thread/tokenUsage/updated', 'error', 'thread/closed',
     'item/fileChange/patchUpdated', 'item/autoApprovalReview/completed', 'serverRequest/resolved',
+    'thread/started',
   ]);
   assert.deepEqual([...CODEX_APP_SERVER_PROTOCOL_USAGE.serverRequests], [
     'item/commandExecution/requestApproval', 'item/fileChange/requestApproval', 'item/permissions/requestApproval',
@@ -92,6 +99,16 @@ test('the methods the runtime uses are the reviewed set', () => {
     FileChangeRequestApprovalResponse: ['accept', 'acceptForSession', 'decline'],
     PermissionsRequestApprovalResponse: ['permissions', 'scope', 'turn', 'session'],
     ToolRequestUserInputResponse: ['answers'],
+  });
+  assert.deepEqual(CODEX_APP_SERVER_PROTOCOL_USAGE.readFields, {
+    ThreadBackgroundTerminalsListResponse: ['data', 'nextCursor', 'itemId', 'processId', 'command'],
+    ThreadBackgroundTerminalsTerminateResponse: ['terminated'],
+    ThreadReadResponse: ['thread', 'status', 'idle', 'active', 'systemError', 'notLoaded', 'turns', 'agentMessage'],
+    ItemCompletedNotification: [
+      'collabAgentToolCall', 'spawnAgent', 'receiverThreadIds', 'agentsStates', 'prompt',
+      'subAgentActivity', 'agentThreadId', 'agentPath', 'processId',
+    ],
+    ThreadStartedNotification: ['agentNickname', 'parentThreadId'],
   });
 });
 
@@ -152,6 +169,12 @@ test('every app-server method the runtime uses is in the installed CLI\'s schema
       // Server-request answers sit beside ServerRequest.json, not under v2/.
       const schema = await readFile(path.join(out, `${name}.json`), 'utf8');
       const missing = values.filter((value) => !schema.includes(`"${value}"`));
+      assert.deepEqual(missing, [], `The installed Codex CLI's ${name} no longer has ${missing.join(', ')}`);
+    }
+    // [local] Stage 4: what the background tracker reads back.
+    for (const [name, fields] of Object.entries(CODEX_APP_SERVER_PROTOCOL_USAGE.readFields)) {
+      const schema = await readFile(path.join(out, 'v2', `${name}.json`), 'utf8');
+      const missing = fields.filter((field) => !schema.includes(`"${field}"`));
       assert.deepEqual(missing, [], `The installed Codex CLI's ${name} no longer has ${missing.join(', ')}`);
     }
     const review = await readFile(path.join(out, 'v2', 'ItemGuardianApprovalReviewCompletedNotification.json'), 'utf8');

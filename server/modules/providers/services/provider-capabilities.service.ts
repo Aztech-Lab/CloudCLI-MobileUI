@@ -219,12 +219,22 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
  * `codex exec` has no channel into a running turn. Codex cannot take back a
  * steered message, so it never offers Withdraw. Approvals and Codex's
  * questions reach the chat only there as well (stage 3): exec declines them.
+ * Background terminals and subagents outlive a turn only there (stage 4).
  */
 function withRuntimeCapabilities(capabilities: ProviderCapabilities): ProviderCapabilities {
   if (capabilities.provider !== 'codex' || resolveCodexRuntimeMode() !== 'appserver') {
     return capabilities;
   }
-  return { ...capabilities, supportsSteering: true, sendNowInterruptsTurn: true, supportsPermissionRequests: true };
+  // [local] Stage 4: a new turn on the loaded thread leaves its background
+  // terminals and subagents running, so a send over background work goes
+  // straight in (the composer's adoption path) instead of asking first.
+  return {
+    ...capabilities,
+    supportsSteering: true,
+    sendNowInterruptsTurn: true,
+    supportsPermissionRequests: true,
+    supportsBackgroundAdoption: true,
+  };
 }
 
 export const providerCapabilitiesService = {

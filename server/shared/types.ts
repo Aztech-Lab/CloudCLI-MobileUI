@@ -625,6 +625,11 @@ export type BackgroundTaskSummary = {
    * it can still be stopped; not counted as the session's own work.
    */
   nested?: boolean;
+  /**
+   * [local] False for a task the provider cannot stop on its own (a Codex
+   * subagent): listed as running work, but offered no stop.
+   */
+  stoppable?: boolean;
 };
 
 /**

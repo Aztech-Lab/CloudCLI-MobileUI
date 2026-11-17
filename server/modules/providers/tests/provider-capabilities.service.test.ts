@@ -118,3 +118,26 @@ test('Codex approval and question prompts are reported only on the app-server ru
     }
   }
 });
+
+// [local] Stage 4 of the Codex parity plan.
+test('a Codex send over background work joins the loaded thread only on the app-server runtime', () => {
+  const original = process.env.CLOUDCLI_CODEX_RUNTIME;
+  try {
+    delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').supportsBackgroundAdoption, false);
+
+    process.env.CLOUDCLI_CODEX_RUNTIME = 'appserver';
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').supportsBackgroundAdoption, true);
+    // Codex still has no "Move to background" (that is Claude's Ctrl+B).
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').supportsMoveToBackground, false);
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('claude').supportsBackgroundAdoption, true);
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('cursor').supportsBackgroundAdoption, false);
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('opencode').supportsBackgroundAdoption, false);
+  } finally {
+    if (original === undefined) {
+      delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    } else {
+      process.env.CLOUDCLI_CODEX_RUNTIME = original;
+    }
+  }
+});

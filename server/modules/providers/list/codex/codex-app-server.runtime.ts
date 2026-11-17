@@ -25,6 +25,14 @@
  * automatic review ("Approve for me") shows its decision in the transcript,
  * with "Allow anyway" for a denial (`thread/approveGuardianDeniedAction`).
  *
+ * Stage 4: background terminals and subagents
+ * (`codex-app-server.background.ts`). Stop ends only the turn
+ * (`turn/interrupt`); background terminals keep running and are listed in the
+ * chat's background strip with their own stop, subagents get live cards, and
+ * a thread is not released while any of that runs. A turn Codex starts on its
+ * own on a thread CloudCLI holds (a report of finished background work) is
+ * followed like a turn of the user's.
+ *
  * Threads are released after a short idle period (`thread/unsubscribe`) so the
  * Codex desktop app can take them over; when no thread is left the child
  * itself is stopped, which frees the writer lock at once (measured against
@@ -51,7 +59,7 @@ import {
 } from '@/shared/index.js';
 import { toImageAttachments } from '@/shared/image-attachments.js';
 import type { AnyRecord, ProviderRuntimeContext, ProviderRuntimeWriter } from '@/shared/index.js';
-import type { ProviderPermissionDecision } from '@/shared/types.js';
+import type { BackgroundTaskSummary, ProviderPermissionDecision } from '@/shared/types.js';
 
 import {
   CODEX_AUTO_REVIEW_TOOL_NAME,
@@ -64,6 +72,7 @@ import {
   toGuardianAssessmentEvent,
 } from './codex-app-server.approvals.js';
 import type { CodexInteractiveServerRequest } from './codex-app-server.approvals.js';
+import { CodexThreadBackground } from './codex-app-server.background.js';
 import { codexAppServer } from './codex-app-server.client.js';
 import {
   CODEX_APP_SERVER_NO_REPLY,
@@ -98,6 +107,11 @@ export const CODEX_APP_SERVER_PROTOCOL_USAGE = {
     'turn/interrupt',
     'thread/unsubscribe',
     'thread/approveGuardianDeniedAction',
+    // Stage 4: background terminals and the subagents' status.
+    'thread/backgroundTerminals/list',
+    'thread/backgroundTerminals/terminate',
+    'thread/backgroundTerminals/clean',
+    'thread/read',
   ],
   /**
    * Request parameters the runtime relies on beyond the method itself, checked
@@ -108,6 +122,10 @@ export const CODEX_APP_SERVER_PROTOCOL_USAGE = {
     TurnSteerParams: ['threadId', 'input', 'expectedTurnId', 'clientUserMessageId'],
     TurnInterruptParams: ['threadId', 'turnId'],
     ThreadApproveGuardianDeniedActionParams: ['threadId', 'event'],
+    ThreadBackgroundTerminalsListParams: ['threadId', 'cursor'],
+    ThreadBackgroundTerminalsTerminateParams: ['threadId', 'processId'],
+    ThreadBackgroundTerminalsCleanParams: ['threadId'],
+    ThreadReadParams: ['threadId', 'includeTurns'],
   },
   /**
    * Answers the runtime sends, checked against the installed CLI's schema
@@ -119,6 +137,22 @@ export const CODEX_APP_SERVER_PROTOCOL_USAGE = {
     FileChangeRequestApprovalResponse: ['accept', 'acceptForSession', 'decline'],
     PermissionsRequestApprovalResponse: ['permissions', 'scope', 'turn', 'session'],
     ToolRequestUserInputResponse: ['answers'],
+  },
+  /**
+   * Stage 4: fields the runtime reads from responses and notifications,
+   * checked against the installed CLI's schema (`v2/<Name>.json` must mention
+   * each): background terminals, a thread's status and last message, and the
+   * subagent items and threads.
+   */
+  readFields: {
+    ThreadBackgroundTerminalsListResponse: ['data', 'nextCursor', 'itemId', 'processId', 'command'],
+    ThreadBackgroundTerminalsTerminateResponse: ['terminated'],
+    ThreadReadResponse: ['thread', 'status', 'idle', 'active', 'systemError', 'notLoaded', 'turns', 'agentMessage'],
+    ItemCompletedNotification: [
+      'collabAgentToolCall', 'spawnAgent', 'receiverThreadIds', 'agentsStates', 'prompt',
+      'subAgentActivity', 'agentThreadId', 'agentPath', 'processId',
+    ],
+    ThreadStartedNotification: ['agentNickname', 'parentThreadId'],
   },
   /** Client → server notifications. */
   clientNotifications: ['initialized'],
@@ -136,6 +170,8 @@ export const CODEX_APP_SERVER_PROTOCOL_USAGE = {
     'item/fileChange/patchUpdated',
     'item/autoApprovalReview/completed',
     'serverRequest/resolved',
+    // Stage 4: a spawned subagent's thread (its nickname).
+    'thread/started',
   ],
   /**
    * Server → client requests this runtime answers: the first four through the
@@ -184,6 +220,10 @@ const settings = {
   approvalTimeoutMs: null as number | null,
   /** How long a question waits; null means the approval timeout, but at least 30 minutes. */
   questionTimeoutMs: null as number | null,
+  /** How often a thread's background terminals and subagents are read while a turn runs or any of them is live. */
+  backgroundPollMs: 3_000,
+  /** How long the end of a turn waits for that read before it reports `complete`. */
+  turnEndBackgroundReadMs: 2_000,
 };
 
 function readApprovalTimeoutMs(): number {
@@ -278,6 +318,23 @@ type ActiveRun = {
   restarts: PendingRestart[];
   /** Puts an approval or question of this turn to the chat; resolves the JSON-RPC result. */
   ask: (method: CodexInteractiveServerRequest, params: AnyRecord, rpcId: number | string) => Promise<unknown>;
+  /** The run's writer and row session id, for the `complete` a Stop sends. */
+  ws: ProviderRuntimeWriter;
+  rowSessionId: string | null;
+};
+
+/** What the latest turn on a thread ran with: a turn Codex starts on its own is shown with it. */
+type ReportTurnSetup = {
+  ws: ProviderRuntimeWriter;
+  context: ProviderRuntimeContext;
+  // As the run's options carry them (untyped, like the exec path's).
+  sessionId: AnyRecord[string];
+  sessionSummary: AnyRecord[string];
+  sessionKey: string;
+  rowSessionId: string | null;
+  cwd: string;
+  /** `turn/start` params without the input. */
+  turnParams: AnyRecord;
 };
 
 /**
@@ -317,12 +374,65 @@ let preparingRuns = 0;
 const pendingPrompts = new Map<string, PendingCodexPrompt>();
 /** What each thread was last loaded with, so "Allow anyway" can load it again after a release. */
 const threadLoadParams = new Map<string, AnyRecord>();
+/** [local] Stage 4: background terminals and subagents of each loaded thread. */
+const backgroundByThread = new Map<string, CodexThreadBackground>();
+/** [local] Stage 4: the latest turn's setup per thread, for a turn Codex starts on its own. */
+const lastTurnSetup = new Map<string, ReportTurnSetup>();
+
+function backgroundFor(threadId: string): CodexThreadBackground {
+  let tracker = backgroundByThread.get(threadId);
+  if (!tracker) {
+    tracker = new CodexThreadBackground(threadId, {
+      request: (method, params) => connection.request(method, params),
+      isConnected: () => connection.isRunning(),
+      isTurnRunning: (id) => runsByThread.has(id),
+      // Nothing runs any more: the thread is released after the usual idle time.
+      onIdle: (id) => {
+        if (!runsByThread.has(id)) {
+          scheduleRelease(id);
+        }
+      },
+      pollMs: () => settings.backgroundPollMs,
+      mapItem: (item, phase) => mapCodexAppServerItem(item, phase),
+    });
+    backgroundByThread.set(threadId, tracker);
+  }
+  return tracker;
+}
+
+function dropBackground(threadId: string): void {
+  backgroundByThread.get(threadId)?.dispose();
+  backgroundByThread.delete(threadId);
+  lastTurnSetup.delete(threadId);
+}
+
+/** One read of a thread's background work, bounded so the end of a turn is never held up for long. */
+async function readBackgroundBriefly(tracker: CodexThreadBackground): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  await Promise.race([
+    tracker.refresh(),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, settings.turnEndBackgroundReadMs);
+      timer.unref?.();
+    }),
+  ]);
+  if (timer) {
+    clearTimeout(timer);
+  }
+}
 
 function promptsWhere(match: (prompt: PendingCodexPrompt) => boolean): PendingCodexPrompt[] {
   return [...pendingPrompts.values()].filter(match);
 }
 
 connection.onExit(() => {
+  // [local] Stage 4: background terminals and subagents went with it.
+  for (const tracker of backgroundByThread.values()) {
+    tracker.markAllGone();
+    tracker.dispose();
+  }
+  backgroundByThread.clear();
+  lastTurnSetup.clear();
   // Every loaded thread went with the child; the next message resumes it.
   for (const thread of loadedThreads.values()) {
     if (thread.releaseTimer) {
@@ -350,6 +460,7 @@ connection.onNotification((method, params) => {
     }
     return;
   }
+  routeBackgroundNotification(method, (params ?? {}) as AnyRecord);
   if (method !== 'thread/closed') {
     return;
   }
@@ -360,8 +471,111 @@ connection.onNotification((method, params) => {
       clearTimeout(thread.releaseTimer);
     }
     loadedThreads.delete(threadId);
+    // [local] Stage 4: what ran in the thread went with it.
+    backgroundByThread.get(threadId)?.markAllGone();
+    dropBackground(threadId);
   }
 });
+
+/**
+ * [local] Stage 4: notifications no running turn reads.
+ * - A spawned subagent's own thread: its activity goes under its card.
+ * - A thread CloudCLI holds between turns: a turn Codex starts on its own is
+ *   followed (a report of background work), subagent items move their cards,
+ *   and a background command's late end updates its card.
+ */
+function routeBackgroundNotification(method: string, record: AnyRecord): void {
+  if (method === 'thread/started') {
+    const thread = record.thread as AnyRecord | undefined;
+    const parentId = typeof thread?.parentThreadId === 'string' ? thread.parentThreadId : null;
+    if (parentId) {
+      backgroundByThread.get(parentId)?.onThreadStarted(thread as AnyRecord);
+    }
+    return;
+  }
+  const threadId = typeof record.threadId === 'string' ? record.threadId : null;
+  if (!threadId) {
+    return;
+  }
+  for (const tracker of backgroundByThread.values()) {
+    if (tracker.isChildThread(threadId)) {
+      tracker.onChildNotification(method, record);
+      return;
+    }
+  }
+  const tracker = backgroundByThread.get(threadId);
+  if (!tracker || runsByThread.has(threadId) || !loadedThreads.has(threadId)) {
+    // A running turn reads its own thread.
+    return;
+  }
+  if (method === 'turn/started') {
+    const turnId = typeof record.turn?.id === 'string' ? record.turn.id : null;
+    if (turnId) {
+      followReportTurn(threadId, turnId);
+    }
+    return;
+  }
+  if (method !== 'item/started' && method !== 'item/completed') {
+    return;
+  }
+  const item = record.item as AnyRecord | undefined;
+  if (!item) {
+    return;
+  }
+  const phase = method === 'item/started' ? 'started' : 'completed';
+  if (tracker.onParentItem(item, phase)) {
+    return;
+  }
+  if (item.type === 'commandExecution' && phase === 'completed' && typeof item.id === 'string') {
+    // A background command that ended between turns: its card gets its end.
+    tracker.noteCommandCompleted(item.id);
+    const sink = tracker.writerSink;
+    const event = mapCodexAppServerItem(item, 'completed');
+    if (sink && event) {
+      for (const row of sink.normalize(event, sink.rowSessionId)) {
+        sendMessage(sink.writer, row);
+      }
+    }
+  }
+}
+
+/**
+ * [local] Stage 4: a turn Codex started on its own on a thread CloudCLI
+ * holds, with no message of the user's (for example to report finished
+ * background work). It runs like a turn of the user's on the writer of the
+ * thread's latest run; the chat run reopens on `turn_started`.
+ */
+function followReportTurn(threadId: string, turnId: string): void {
+  const setup = lastTurnSetup.get(threadId);
+  const thread = loadedThreads.get(threadId);
+  if (!setup || !thread) {
+    return;
+  }
+  cancelRelease(thread);
+  const send = (message: unknown) => sendMessage(setup.ws, message);
+  void driveTurn({
+    ws: setup.ws,
+    context: setup.context,
+    sessionId: setup.sessionId,
+    sessionSummary: setup.sessionSummary,
+    thread,
+    rowSessionId: setup.rowSessionId,
+    sessionKey: setup.sessionKey,
+    workingDirectory: setup.cwd,
+    turnParams: setup.turnParams,
+    sandboxMode: thread.sandboxMode,
+    start: { kind: 'report', turnId },
+    send,
+    wroteToClient: () => true,
+    failRun: (sessionForRow, error) => {
+      send(createNormalizedMessage({ kind: 'error', content: error instanceof Error ? error.message : String(error), sessionId: sessionForRow, provider: 'codex' }));
+      send(createCompleteMessage({ provider: 'codex', sessionId: sessionForRow, exitCode: 1 }));
+    },
+    markPrepared: () => {},
+  }).catch((error) => {
+    console.warn(`[Codex] Following a turn Codex started on thread ${threadId} failed:`, error instanceof Error ? error.message : error);
+  });
+}
 
 let exitHookInstalled = false;
 function installExitHook() {
@@ -451,8 +665,9 @@ export function mapCodexAppServerItem(item: AnyRecord, phase: 'started' | 'compl
     case 'webSearch':
       return phase === 'completed' ? { type: 'item', itemType: 'web_search', itemId, query: item.query } : null;
     case 'collabAgentToolCall':
-      // What exec prints as a generic `collab_tool_call` row; subagent cards
-      // come in a later stage.
+      // What exec prints as a generic `collab_tool_call` row. [local] Stage 4:
+      // the runtime turns a thread's own collaboration calls into subagent
+      // cards before this mapping (CodexThreadBackground.onParentItem).
       return phase === 'completed' ? { type: 'item', itemType: 'collab_tool_call', itemId, item } : null;
     default:
       return null;
@@ -562,7 +777,15 @@ function scheduleRelease(threadId: string) {
   }
   cancelRelease(thread);
   if (thread.releaseWhenIdle) {
-    void releaseThread(threadId);
+    // Closed meanwhile: its background work goes with it.
+    void releaseThread(threadId, { stopWork: true });
+    return;
+  }
+  // [local] Stage 4: background terminals or subagents still run. Releasing
+  // would stop them (it stops the child); the tracker calls back once they end.
+  const tracker = backgroundByThread.get(threadId);
+  if (tracker?.hasLiveWork()) {
+    tracker.ensurePolling();
     return;
   }
   thread.releaseTimer = setTimeout(() => {
@@ -572,12 +795,30 @@ function scheduleRelease(threadId: string) {
   thread.releaseTimer.unref?.();
 }
 
-/** Unsubscribes an idle thread; stops the child once nothing is left on it. */
-async function releaseThread(threadId: string): Promise<void> {
+/**
+ * Unsubscribes an idle thread; stops the child once nothing is left on it.
+ * [local] A thread whose background work still runs is kept, unless the
+ * session was closed (`stopWork`): then its background terminals are stopped
+ * first.
+ */
+async function releaseThread(threadId: string, { stopWork = false } = {}): Promise<void> {
   const thread = loadedThreads.get(threadId);
   if (!thread || runsByThread.has(threadId)) {
     return;
   }
+  const tracker = backgroundByThread.get(threadId);
+  if (tracker?.hasLiveWork() && !stopWork) {
+    return;
+  }
+  if (tracker && stopWork && tracker.terminals.size > 0) {
+    await tracker.stopAllTerminals().catch((error) => {
+      console.warn(`[Codex] Could not stop the background terminals of thread ${threadId}:`, error instanceof Error ? error.message : error);
+    });
+    if (loadedThreads.get(threadId) !== thread || runsByThread.has(threadId)) {
+      return;
+    }
+  }
+  dropBackground(threadId);
   cancelRelease(thread);
   loadedThreads.delete(threadId);
   if (connection.isRunning()) {
@@ -765,6 +1006,73 @@ async function runAppServerTurnInner(
     sessionThreads.set(sessionId, loadedThreadId);
   }
 
+  // 3. Start the turn with this message's settings. They apply to this turn
+  // and the ones after it, so each message sends its own.
+  const turnParams: AnyRecord = {
+    threadId: loadedThreadId,
+    input,
+    cwd: workingDirectory,
+    approvalPolicy,
+    approvalsReviewer: wantsAutoReview ? 'auto_review' : thread.baselineReviewer,
+    ...(runtimeWorkspaceRoots ? { runtimeWorkspaceRoots } : {}),
+    ...(resolvedModel ? { model: resolvedModel } : {}),
+    ...(resolvedEffort ? { effort: resolvedEffort } : {}),
+    // The sandbox mode was set when the thread loaded; only a change in
+    // between needs an explicit policy.
+    ...(thread.sandboxMode !== sandboxMode ? { sandboxPolicy: sandboxPolicyFor(sandboxMode) } : {}),
+  };
+  const background = backgroundFor(loadedThreadId);
+  background.attach({ sessionKey, rowSessionId, writer: ws, normalize: (raw, sid) => context.normalizeMessage(raw, sid) });
+  const { input: _input, ...turnDefaults } = turnParams;
+  lastTurnSetup.set(loadedThreadId, { ws, context, sessionId, sessionSummary, sessionKey, rowSessionId, cwd: workingDirectory, turnParams: turnDefaults });
+
+  await driveTurn({
+    ws,
+    context,
+    sessionId,
+    sessionSummary,
+    thread,
+    rowSessionId,
+    sessionKey,
+    workingDirectory,
+    turnParams,
+    sandboxMode,
+    start: { kind: 'new', isNewThread },
+    send,
+    wroteToClient: () => wroteToClient,
+    failRun,
+    markPrepared,
+  });
+}
+
+/** What a turn needs once its thread is loaded; shared by a turn of the user's and one Codex started itself. */
+type DriveTurnInput = {
+  ws: ProviderRuntimeWriter;
+  context: ProviderRuntimeContext;
+  // As the run's options carry them (untyped, like the exec path's).
+  sessionId: AnyRecord[string];
+  sessionSummary: AnyRecord[string];
+  thread: LoadedThread;
+  rowSessionId: string | null;
+  sessionKey: string;
+  workingDirectory: string;
+  /** `turn/start` params (for a report turn: what the thread's last turn ran with, without input). */
+  turnParams: AnyRecord;
+  sandboxMode: SandboxMode;
+  /** A new turn of the user's (`turn/start`), or a turn Codex started on its own (`report`). */
+  start: { kind: 'new'; isNewThread: boolean } | { kind: 'report'; turnId: string };
+  send: (message: unknown) => void;
+  wroteToClient: () => boolean;
+  failRun: (sessionForRow: string | null, error: unknown) => void;
+  markPrepared: () => void;
+};
+
+async function driveTurn(d: DriveTurnInput): Promise<void> {
+  const { ws, context, sessionId, sessionSummary, thread, rowSessionId, sessionKey, workingDirectory, turnParams, sandboxMode, send, failRun, markPrepared } = d;
+  const loadedThreadId = thread.threadId;
+  const isNewThread = d.start.kind === 'new' && d.start.isNewThread;
+  const background = backgroundFor(loadedThreadId);
+
   // A Stop ends the chat run at once, but its turn ends only when Codex
   // confirms the interrupt (bounded by interruptTimeoutMs). A message sent in
   // between must not reach that turn: on an active turn, `turn/start` adds
@@ -804,6 +1112,8 @@ async function runAppServerTurnInner(
     unread: new Set(),
     restarts: [],
     ask: (method, params, rpcId) => askChat(method, params, rpcId),
+    ws,
+    rowSessionId,
   };
 
   // The run's `fileChange` items by id: an approval request names only the
@@ -1033,6 +1343,14 @@ async function runAppServerTurnInner(
           fileChanges.set(item.id, item);
         }
         const phase = method === 'item/started' ? 'started' : 'completed';
+        // [local] Stage 4: a spawn is the subagent's card, the other
+        // collaboration calls only move its status (as in history).
+        if (background.onParentItem(item, phase)) {
+          return;
+        }
+        if (item?.type === 'commandExecution' && phase === 'completed' && typeof item.id === 'string') {
+          background.noteCommandCompleted(item.id);
+        }
         const event = mapCodexAppServerItem(item, phase);
         if (!event) {
           return;
@@ -1168,42 +1486,35 @@ async function runAppServerTurnInner(
     }
   };
 
-  // 3. Start the turn with this message's settings. They apply to this turn
-  // and the ones after it, so each message sends its own.
-  const turnParams: AnyRecord = {
-    threadId: loadedThreadId,
-    input,
-    cwd: workingDirectory,
-    approvalPolicy,
-    approvalsReviewer: wantsAutoReview ? 'auto_review' : thread.baselineReviewer,
-    ...(runtimeWorkspaceRoots ? { runtimeWorkspaceRoots } : {}),
-    ...(resolvedModel ? { model: resolvedModel } : {}),
-    ...(resolvedEffort ? { effort: resolvedEffort } : {}),
-    // The sandbox mode was set when the thread loaded; only a change in
-    // between needs an explicit policy.
-    ...(thread.sandboxMode !== sandboxMode ? { sandboxPolicy: sandboxPolicyFor(sandboxMode) } : {}),
-  };
-  try {
-    const result = await connection.request('turn/start', turnParams) as AnyRecord | undefined;
-    if (!run.turnId && typeof result?.turn?.id === 'string') {
-      run.turnId = result.turn.id;
-    }
-    thread.sandboxMode = sandboxMode;
-  } catch (error) {
-    cleanup();
-    run.turnEnded = true;
-    if (shouldFallBack(error) && !wroteToClient) {
-      if (isNewThread) {
-        // Nothing ran on it; let it go rather than leave it loaded.
-        void releaseThread(loadedThreadId);
-      } else {
-        scheduleRelease(loadedThreadId);
+  if (d.start.kind === 'report') {
+    // [local] Stage 4: Codex started this turn on its own (a report of
+    // finished background work). It is shown and handled like a turn of the
+    // user's: running, stoppable, steerable, ended by its own `complete`.
+    run.turnId = d.start.turnId;
+    send(createNormalizedMessage({ kind: 'turn_started', origin: 'background', sessionId: rowSessionId, provider: 'codex' }));
+  } else {
+    try {
+      const result = await connection.request('turn/start', turnParams) as AnyRecord | undefined;
+      if (!run.turnId && typeof result?.turn?.id === 'string') {
+        run.turnId = result.turn.id;
       }
-      throw new CodexAppServerFallbackError(error instanceof Error ? error.message : String(error));
+      thread.sandboxMode = sandboxMode;
+    } catch (error) {
+      cleanup();
+      run.turnEnded = true;
+      if (shouldFallBack(error) && !d.wroteToClient()) {
+        if (isNewThread) {
+          // Nothing ran on it; let it go rather than leave it loaded.
+          void releaseThread(loadedThreadId);
+        } else {
+          scheduleRelease(loadedThreadId);
+        }
+        throw new CodexAppServerFallbackError(error instanceof Error ? error.message : String(error));
+      }
+      failRun(rowSessionId, error);
+      scheduleRelease(loadedThreadId);
+      return;
     }
-    failRun(rowSessionId, error);
-    scheduleRelease(loadedThreadId);
-    return;
   }
 
   // 4. Announce a brand-new thread the way exec does on `thread.started`.
@@ -1223,6 +1534,8 @@ async function runAppServerTurnInner(
     // Stop was pressed while turn/start was in flight.
     requestInterrupt(run);
   }
+  // [local] Stage 4: background terminals and subagents are read while the turn runs.
+  background.ensurePolling();
 
   let outcome = await turnDone;
 
@@ -1262,6 +1575,11 @@ async function runAppServerTurnInner(
     }
     outcome = await turnDone;
   }
+  // [local] Stage 4: what the turn left running is reported before its
+  // `complete`, so the client goes to the background state with it listed.
+  if (!run.aborted && outcome.kind !== 'lost') {
+    await readBackgroundBriefly(background);
+  }
   cleanup();
 
   // 5. Finish the way the exec path finishes.
@@ -1292,7 +1610,10 @@ async function runAppServerTurnInner(
       if (!run.aborted) {
         // Interrupted by someone else (another client of this thread); end
         // the run here, since no Stop path will.
-        send(withPendingPrompts(createCompleteMessage({ provider: 'codex', sessionId: rowSessionId, actualSessionId: loadedThreadId, exitCode: 0, aborted: true }), sessionKey));
+        send({
+          ...withPendingPrompts(createCompleteMessage({ provider: 'codex', sessionId: rowSessionId, actualSessionId: loadedThreadId, exitCode: 0, aborted: true }), sessionKey),
+          backgroundContinues: background.hasLiveWork(),
+        });
       }
       // A Stop from CloudCLI: the abort path already sent `complete`.
       notifyRunStopped({ userId: ws?.userId || null, provider: 'codex', sessionId: sessionId || loadedThreadId, sessionName: sessionSummary, stopReason: 'aborted' });
@@ -1478,6 +1799,17 @@ function abortAppServerRun(sessionId: string): boolean {
     prompt.cancel('cancelled');
   }
   requestInterrupt(run);
+  // [local] Stage 4: Stop ends only the turn. Background terminals and
+  // subagents are not stopped here; when any still runs, the `complete` says
+  // so, and the chat stays in its background state with them listed. (The
+  // chat handler's own `complete` that follows is dropped as a duplicate.)
+  const tracker = backgroundByThread.get(run.threadId);
+  const stillPending = listPendingPrompts(run.sessionKey);
+  sendMessage(run.ws, {
+    ...createCompleteMessage({ provider: 'codex', sessionId: run.rowSessionId, exitCode: 0, aborted: true }),
+    backgroundContinues: Boolean(tracker?.hasLiveWork()),
+    ...(stillPending.length > 0 ? { pendingPermissions: stillPending } : {}),
+  });
   return true;
 }
 
@@ -1499,7 +1831,48 @@ function releaseAppServerSession(sessionId: string): void {
     thread.releaseWhenIdle = true;
     return;
   }
-  void releaseThread(threadId);
+  // [local] Stage 4: a closed session's background terminals are stopped.
+  void releaseThread(threadId, { stopWork: true });
+}
+
+/** [local] Stage 4: the tracker of the session's thread, while that thread is loaded here. */
+function backgroundOfSession(sessionId: string): CodexThreadBackground | undefined {
+  const threadId = sessionThreads.get(sessionId) ?? sessionId;
+  return loadedThreads.has(threadId) ? backgroundByThread.get(threadId) : undefined;
+}
+
+/** [local] Stage 4: every session with background terminals or subagents still running. */
+function listAppServerBackgroundWork(): Array<{ sessionId: string; tasks: BackgroundTaskSummary[] }> {
+  const entries: Array<{ sessionId: string; tasks: BackgroundTaskSummary[] }> = [];
+  for (const tracker of backgroundByThread.values()) {
+    const sessionId = tracker.sessionKey;
+    if (!sessionId || !loadedThreads.has(tracker.threadId)) {
+      continue;
+    }
+    const tasks = tracker.listTasks();
+    if (tasks.length > 0) {
+      entries.push({ sessionId, tasks });
+    }
+  }
+  return entries;
+}
+
+/** [local] Stage 4: stops one background terminal of the session (its task id is Codex's process id). */
+async function stopAppServerBackgroundTask(sessionId: string, taskId: string): Promise<boolean> {
+  const tracker = backgroundOfSession(sessionId);
+  if (!tracker || !tracker.terminals.has(taskId) || !connection.isRunning()) {
+    return false;
+  }
+  return tracker.stopTerminal(taskId);
+}
+
+/** [local] Stage 4: "Stop all background work": every background terminal of the session. */
+async function stopAllAppServerBackgroundWork(sessionId: string): Promise<boolean> {
+  const tracker = backgroundOfSession(sessionId);
+  if (!tracker || !connection.isRunning()) {
+    return false;
+  }
+  return tracker.stopAllTerminals();
 }
 
 /** Stops the child; for server shutdown. */
@@ -1511,6 +1884,9 @@ function shutdownAppServerRuntime(): void {
     cancelRelease(thread);
   }
   loadedThreads.clear();
+  for (const threadId of [...backgroundByThread.keys()]) {
+    dropBackground(threadId);
+  }
   connection.stop('CloudCLI is shutting down.');
 }
 
@@ -1521,6 +1897,10 @@ export const codexAppServerRuntime = {
   steer: steerAppServerRun,
   releaseSession: releaseAppServerSession,
   shutdown: shutdownAppServerRuntime,
+  /** [local] Stage 4: background terminals and subagents. */
+  listBackgroundWork: listAppServerBackgroundWork,
+  stopBackgroundTask: stopAppServerBackgroundTask,
+  stopAllBackgroundWork: stopAllAppServerBackgroundWork,
   /** The chat's answers to approvals, questions and "Allow anyway" (stage 3). */
   permissions: {
     resolve: (requestId: string, decision: ProviderPermissionDecision) => {
