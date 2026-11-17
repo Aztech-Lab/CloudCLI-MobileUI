@@ -11,6 +11,8 @@ type SteeredMessageCardProps = {
    * when nothing can withdraw it; the card then has no button.
    */
   onWithdraw?: (messageId: string) => void;
+  /** [local] "Send now" stops the current step and starts a new turn (Codex). */
+  sendNowInterruptsTurn?: boolean;
 };
 
 /**
@@ -20,7 +22,7 @@ type SteeredMessageCardProps = {
  * which puts it back into the composer. The card goes away when the agent
  * reads it and it appears in the transcript, where it was read.
  */
-export default function SteeredMessageCard({ steer, providerLabel, onWithdraw }: SteeredMessageCardProps) {
+export default function SteeredMessageCard({ steer, providerLabel, onWithdraw, sendNowInterruptsTurn = false }: SteeredMessageCardProps) {
   const { t } = useTranslation('chat');
   const attachmentCount = steer.uploadedAttachments.length || steer.attachments.length;
 
@@ -32,6 +34,8 @@ export default function SteeredMessageCard({ steer, providerLabel, onWithdraw }:
     status = t('input.steer.withdrawing', { defaultValue: 'Withdrawing…' });
   } else if (steer.withdrawFailed) {
     status = t('input.steer.withdrawTooLate', { provider: providerLabel, defaultValue: 'Too late to withdraw: {{provider}} is already reading it' });
+  } else if (steer.urgent && sendNowInterruptsTurn) {
+    status = t('input.steer.willReadNowInterrupts', { provider: providerLabel, defaultValue: '{{provider}} stops the current step and reads it' });
   } else if (steer.urgent) {
     status = t('input.steer.willReadNow', { provider: providerLabel, defaultValue: '{{provider}} reads it right away' });
   } else {

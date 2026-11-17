@@ -34,6 +34,8 @@ type ComposerSendMenuProps = {
   supportsSideQuestions?: boolean;
   /** Same gate for the Steer row: whether the provider can take a message into the turn being written. Only `responding` has a turn to steer, so the row never shows for background work. [local] With it, Send (steer) and Send now come first and Queue follows. */
   supportsSteering?: boolean;
+  /** [local] "Send now" stops the current step and starts a new turn with the message (Codex) rather than being read inside the turn (Claude). Only changes the row's description. */
+  sendNowInterruptsTurn?: boolean;
   /**
    * [local] Whether a send over background work joins the session's running
    * process rather than stopping the work. Only changes the `background`
@@ -67,7 +69,7 @@ function ShortcutHint({ children }: { children: string }) {
  * background-send dialog, so a tap on the first row can never stop or
  * override anything.
  */
-export default function ComposerSendMenu({ state, hasInput, hasText = hasInput, supportsSideQuestions = false, supportsSteering = false, adoptsBackground = false, canAbortSession = true, sendByCtrlEnter = false, onSelect }: ComposerSendMenuProps) {
+export default function ComposerSendMenu({ state, hasInput, hasText = hasInput, supportsSideQuestions = false, supportsSteering = false, sendNowInterruptsTurn = false, adoptsBackground = false, canAbortSession = true, sendByCtrlEnter = false, onSelect }: ComposerSendMenuProps) {
   const { t } = useTranslation('chat');
   const [isOpen, setIsOpen] = useState(false);
   const close = useCallback(() => setIsOpen(false), []);
@@ -153,7 +155,9 @@ export default function ComposerSendMenu({ state, hasInput, hasText = hasInput, 
                 isSelected={false}
                 role="menuitem"
                 label={t('sendMenu.sendNow.label', { defaultValue: 'Send now' })}
-                description={t('sendMenu.sendNow.description', { defaultValue: 'Read right away; a running command or agent moves to the background' })}
+                description={sendNowInterruptsTurn
+                  ? t('sendMenu.sendNow.descriptionInterrupts', { defaultValue: 'Stop the current step and send it right away' })
+                  : t('sendMenu.sendNow.description', { defaultValue: 'Read right away; a running command or agent moves to the background' })}
                 onSelect={() => select('sendNow')}
               />
             </>

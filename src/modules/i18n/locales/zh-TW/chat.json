@@ -161,6 +161,7 @@
       "sending": "傳送中…",
       "willRead": "{{provider}} 將在下一次工具呼叫時讀取",
       "willReadNow": "{{provider}} 馬上讀取",
+      "willReadNowInterrupts": "{{provider}} 中斷目前步驟後立即讀取",
       "withdraw": "撤回",
       "withdrawing": "撤回中…",
       "withdrawTooLate": "來不及撤回：{{provider}} 已在讀取",
@@ -385,7 +386,8 @@
     },
     "sendNow": {
       "label": "立即傳送",
-      "description": "馬上讀取；正在執行的指令或子代理轉入背景"
+      "description": "馬上讀取；正在執行的指令或子代理轉入背景",
+      "descriptionInterrupts": "中斷目前步驟，立即傳送"
     },
     "sideQuestion": {
       "label": "旁路提問",

@@ -128,6 +128,9 @@ function ChatInterface({
     supportsSessionForking,
     supportsSideQuestions,
     supportsSteering,
+    supportsSteerWithdrawal,
+    sendNowInterruptsTurn,
+    supportsMoveToBackground,
     supportsBackgroundAdoption,
     supportsContextClearing,
   } = useChatProviderState({
@@ -468,15 +471,15 @@ function ChatInterface({
   const transcriptSessionValue = useMemo(() => ({ sessionId: currentSessionId }), [currentSessionId]);
 
   // [local] "Move to background" on a running foreground tool card: only while
-  // this session's turn runs and its provider can move work aside (the same
-  // capability as steering, since both write into the running turn).
+  // this session's turn runs and its provider can move work aside (Claude;
+  // Codex steers but has no such control).
   const toolCardSessionId = selectedSession?.id || currentSessionId;
   const toolCardActionsValue = useMemo(() => ({
-    moveToBackground: supportsSteering && isProcessing && toolCardSessionId
+    moveToBackground: supportsMoveToBackground && isProcessing && toolCardSessionId
       ? (toolUseId: string) => sendMessage({ type: 'chat.background-task', sessionId: toolCardSessionId, toolUseId })
       : null,
     refusedAt: backgroundRefusals,
-  }), [backgroundRefusals, isProcessing, sendMessage, supportsSteering, toolCardSessionId]);
+  }), [backgroundRefusals, isProcessing, sendMessage, supportsMoveToBackground, toolCardSessionId]);
 
   // A composer pick becomes the default for new chats and, when a session is
   // open, is recorded against that session so reopening it restores this model.
@@ -647,9 +650,11 @@ function ChatInterface({
           onDeleteQueuedDraft={deleteQueuedDraft}
           onSendMenuChoice={handleSendMenuChoice}
           supportsSteering={supportsSteering}
+          sendNowInterruptsTurn={sendNowInterruptsTurn}
           adoptsBackground={adoptsBackground}
           pendingSteers={pendingSteers}
-          onWithdrawSteer={withdrawSteer}
+          // [local] Only where the provider can take a steered message back.
+          onWithdrawSteer={supportsSteerWithdrawal ? withdrawSteer : undefined}
           attachedFiles={attachedFiles}
           onRemoveAttachment={(index) =>
             setAttachedFiles((previous) =>

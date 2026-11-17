@@ -171,6 +171,7 @@
       "sending": "发送中…",
       "willRead": "{{provider}} 将在下一次工具调用时读取",
       "willReadNow": "{{provider}} 马上读取",
+      "willReadNowInterrupts": "{{provider}} 中断当前步骤后立即读取",
       "withdraw": "撤回",
       "withdrawing": "撤回中…",
       "withdrawTooLate": "来不及撤回：{{provider}} 已在读取",
@@ -361,7 +362,8 @@
     },
     "sendNow": {
       "label": "立即发送",
-      "description": "马上读取；正在运行的命令或子代理转入后台"
+      "description": "马上读取；正在运行的命令或子代理转入后台",
+      "descriptionInterrupts": "中断当前步骤，立即发送"
     },
     "sideQuestion": {
       "label": "旁路提问",

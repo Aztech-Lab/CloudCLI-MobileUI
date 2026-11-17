@@ -104,6 +104,8 @@ type ChatComposerProps = {
   supportsSideQuestions?: boolean;
   /** Whether the provider can take a message into a running turn; gates the send menu's Steer row the same way `supportsSideQuestions` gates its row. */
   supportsSteering?: boolean;
+  /** [local] "Send now" stops the current step and starts a new turn (Codex) instead of being read inside the turn. */
+  sendNowInterruptsTurn?: boolean;
   /**
    * [local] Whether sending the composer's message joins the session's running
    * process, so its background work keeps running; the send menu then offers
@@ -193,6 +195,7 @@ export default function ChatComposer({
   onSendMenuChoice,
   supportsSideQuestions,
   supportsSteering = false,
+  sendNowInterruptsTurn = false,
   adoptsBackground = false,
   pendingSteers = NO_PENDING_STEERS,
   onWithdrawSteer,
@@ -359,7 +362,7 @@ export default function ChatComposer({
       />
 
       {pendingSteers.map((steer) => (
-        <SteeredMessageCard key={steer.messageId} steer={steer} providerLabel={providerLabel} onWithdraw={onWithdrawSteer} />
+        <SteeredMessageCard key={steer.messageId} steer={steer} providerLabel={providerLabel} onWithdraw={onWithdrawSteer} sendNowInterruptsTurn={sendNowInterruptsTurn} />
       ))}
 
       {queuedDraft && (
@@ -586,6 +589,7 @@ export default function ChatComposer({
                 supportsSideQuestions={supportsSideQuestions}
                 // [local] An edit replaces a turn, so it is never steered.
                 supportsSteering={supportsSteering && !isEditingSentMessage}
+                sendNowInterruptsTurn={sendNowInterruptsTurn}
                 adoptsBackground={adoptsBackground}
                 sendByCtrlEnter={sendByCtrlEnter}
                 onSelect={(choice) => {

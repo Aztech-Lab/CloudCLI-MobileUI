@@ -1,3 +1,4 @@
+import { resolveCodexRuntimeMode } from '@/modules/providers/list/codex/codex-runtime.shared.js';
 import type { LLMProvider } from '@/shared/types.js';
 
 /**
@@ -55,6 +56,23 @@ type ProviderCapabilities = {
    */
   supportsSteering: boolean;
   /**
+   * [local] Whether a steered message the agent has not read yet can be taken
+   * back (`chat.cancel-steer`). Without it the steer card has no Withdraw.
+   */
+  supportsSteerWithdrawal: boolean;
+  /**
+   * [local] How "Send now" (`chat.steer` with `urgent`) reaches the agent:
+   * false when the message is read at once inside the running turn (a running
+   * command or agent moves to the background), true when the current step is
+   * stopped and a new turn starts with the message.
+   */
+  sendNowInterruptsTurn: boolean;
+  /**
+   * [local] Whether a running foreground tool call can be moved to the
+   * background (`chat.background-task`), the tool card's "Move to background".
+   */
+  supportsMoveToBackground: boolean;
+  /**
    * [local] Whether a send made while only background work is running can go
    * into the CLI process that holds that work (`chat.send` with
    * `options.adoptHeld`), so the work keeps running instead of being stopped
@@ -98,6 +116,10 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     // Streaming input stays open for the whole run, and a user message written
     // to it with priority `next` joins the running turn.
     supportsSteering: true,
+    // [local] A queued stdin message can be dropped until the CLI reads it.
+    supportsSteerWithdrawal: true,
+    sendNowInterruptsTurn: false,
+    supportsMoveToBackground: true,
     // [local] A send over background work is written into the held process
     // (see the Claude runtime's adoption entry point) instead of replacing it.
     supportsBackgroundAdoption: true,
@@ -118,6 +140,9 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsSessionForking: false,
     supportsSideQuestions: false,
     supportsSteering: false,
+    supportsSteerWithdrawal: false,
+    sendNowInterruptsTurn: false,
+    supportsMoveToBackground: false,
     supportsBackgroundAdoption: false,
     supportsContextClearing: false,
   },
@@ -142,7 +167,11 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsMessageEditing: true,
     supportsSessionForking: true,
     supportsSideQuestions: true,
+    // [local] True on the app-server runtime (see withRuntimeCapabilities).
     supportsSteering: false,
+    supportsSteerWithdrawal: false,
+    sendNowInterruptsTurn: false,
+    supportsMoveToBackground: false,
     supportsBackgroundAdoption: false,
     supportsContextClearing: false,
   },
@@ -168,6 +197,9 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsSessionForking: false,
     supportsSideQuestions: true,
     supportsSteering: false,
+    supportsSteerWithdrawal: false,
+    sendNowInterruptsTurn: false,
+    supportsMoveToBackground: false,
     supportsBackgroundAdoption: false,
     supportsContextClearing: false,
   },
@@ -178,12 +210,27 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
  * Providers routes (the capabilities endpoints) and by the Providers model
  * service, which reads `effortLevels` to validate custom-model effort.
  */
+/**
+ * [local] The parts of the matrix that depend on how the server runs: Codex
+ * steering (a message into the running turn, `turn/steer`) and its "Send now"
+ * exist only on the app-server runtime (`CLOUDCLI_CODEX_RUNTIME=appserver`);
+ * `codex exec` has no channel into a running turn. Codex cannot take back a
+ * steered message, so it never offers Withdraw.
+ */
+function withRuntimeCapabilities(capabilities: ProviderCapabilities): ProviderCapabilities {
+  if (capabilities.provider !== 'codex' || resolveCodexRuntimeMode() !== 'appserver') {
+    return capabilities;
+  }
+  return { ...capabilities, supportsSteering: true, sendNowInterruptsTurn: true };
+}
+
 export const providerCapabilitiesService = {
   getProviderCapabilities(provider: LLMProvider): ProviderCapabilities {
-    return PROVIDER_CAPABILITIES[provider];
+    const capabilities = PROVIDER_CAPABILITIES[provider];
+    return capabilities ? withRuntimeCapabilities(capabilities) : capabilities;
   },
 
   listAllProviderCapabilities(): ProviderCapabilities[] {
-    return Object.values(PROVIDER_CAPABILITIES);
+    return Object.values(PROVIDER_CAPABILITIES).map(withRuntimeCapabilities);
   },
 };

@@ -62,3 +62,37 @@ test('codex offers "Approve for me" between the default mode and accept-edits', 
     assert.ok(!providerCapabilitiesService.getProviderCapabilities(provider).permissionModes.includes('approveForMe'), provider);
   }
 });
+
+// [local] Stage 2 of the Codex parity plan.
+test('Codex offers steering only on the app-server runtime, and never Withdraw', () => {
+  const original = process.env.CLOUDCLI_CODEX_RUNTIME;
+  try {
+    delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    const exec = providerCapabilitiesService.getProviderCapabilities('codex');
+    assert.equal(exec.supportsSteering, false);
+    assert.equal(exec.sendNowInterruptsTurn, false);
+    assert.equal(exec.supportsSteerWithdrawal, false);
+    assert.equal(exec.supportsMoveToBackground, false);
+
+    process.env.CLOUDCLI_CODEX_RUNTIME = 'appserver';
+    const appServer = providerCapabilitiesService.getProviderCapabilities('codex');
+    assert.equal(appServer.supportsSteering, true);
+    assert.equal(appServer.sendNowInterruptsTurn, true);
+    assert.equal(appServer.supportsSteerWithdrawal, false, 'Codex cannot take back a steered message');
+    assert.equal(appServer.supportsMoveToBackground, false);
+    assert.equal(providerCapabilitiesService.listAllProviderCapabilities().find((entry) => entry.provider === 'codex')?.supportsSteering, true);
+
+    // Claude is the same under either setting.
+    const claude = providerCapabilitiesService.getProviderCapabilities('claude');
+    assert.deepEqual(
+      [claude.supportsSteering, claude.supportsSteerWithdrawal, claude.sendNowInterruptsTurn, claude.supportsMoveToBackground],
+      [true, true, false, true],
+    );
+  } finally {
+    if (original === undefined) {
+      delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    } else {
+      process.env.CLOUDCLI_CODEX_RUNTIME = original;
+    }
+  }
+});

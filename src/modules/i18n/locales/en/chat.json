@@ -209,6 +209,7 @@
       "attachments_other": "{{count}} files attached",
       "labelNow": "Sent now",
       "willReadNow": "{{provider}} reads it right away",
+      "willReadNowInterrupts": "{{provider}} stops the current step and reads it",
       "withdraw": "Withdraw",
       "withdrawing": "Withdrawing…",
       "withdrawTooLate": "Too late to withdraw: {{provider}} is already reading it"
@@ -315,7 +316,8 @@
     },
     "sendNow": {
       "label": "Send now",
-      "description": "Read right away; a running command or agent moves to the background"
+      "description": "Read right away; a running command or agent moves to the background",
+      "descriptionInterrupts": "Stop the current step and send it right away"
     }
   },
   "shell": {
