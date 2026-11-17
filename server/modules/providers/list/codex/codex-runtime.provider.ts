@@ -609,6 +609,9 @@ export const codexRuntime = {
   steer: (sessionId: string, command: string, options: AnyRecord) => codexAppServerRuntime.steer(sessionId, command, options),
   // [local] Archived or deleted: let go of the thread so the Codex app can take it.
   releaseSession: (sessionId: string) => codexAppServerRuntime.releaseSession(sessionId),
+  // [local] Approvals and questions reach the chat only on the app-server
+  // runtime (stage 3); exec never opens a prompt, so it has none to list.
+  permissions: codexAppServerRuntime.permissions,
   askSideQuestion: askCodexSideQuestion,
 };
 

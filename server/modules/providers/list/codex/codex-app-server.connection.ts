@@ -20,6 +20,12 @@ import readline from 'node:readline';
  * ever spawns the bundled CLI as its own child.
  */
 
+/**
+ * [local] What a request handler resolves to when the request needs no answer
+ * any more: Codex withdrew it (`serverRequest/resolved`) or its turn is gone.
+ */
+export const CODEX_APP_SERVER_NO_REPLY = Symbol('codex-app-server-no-reply');
+
 /** JSON-RPC error codes the app-server uses. */
 const RPC_METHOD_NOT_FOUND = -32601;
 
@@ -28,8 +34,10 @@ export type CodexAppServerExitHandler = (reason: string) => void;
 /**
  * Answers a server-to-client request (an approval, a question, …). Resolves
  * the JSON-RPC `result`; a rejection is sent back as a JSON-RPC error.
+ * `requestId` is the request's JSON-RPC id, which `serverRequest/resolved`
+ * names when Codex withdraws it ([local] stage 3: a person may take a while).
  */
-export type CodexAppServerRequestHandler = (method: string, params: unknown) => Promise<unknown> | unknown;
+export type CodexAppServerRequestHandler = (method: string, params: unknown, requestId: number | string) => Promise<unknown> | unknown;
 
 export type CodexAppServerConnectionOptions = {
   /** Path of the `codex.js` launcher to run with `node <launcher> app-server`. */
@@ -388,10 +396,20 @@ export class CodexAppServerConnection {
   }
 
   private async answerServerRequest(id: number | string, method: string, params: unknown): Promise<void> {
+    // [local] An answer can take minutes (a person decides); one that comes
+    // after this child went away must not reach its successor, whose own
+    // requests reuse the same ids.
+    const generation = this.generation;
     try {
-      const result = await this.options.handleServerRequest(method, params);
+      const result = await this.options.handleServerRequest(method, params, id);
+      if (generation !== this.generation || result === CODEX_APP_SERVER_NO_REPLY) {
+        return;
+      }
       this.write({ jsonrpc: '2.0', id, result });
     } catch (error) {
+      if (generation !== this.generation) {
+        return;
+      }
       this.write({
         jsonrpc: '2.0',
         id,

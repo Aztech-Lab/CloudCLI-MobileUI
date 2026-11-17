@@ -44,7 +44,9 @@ type Step =
   | ['notify', string, Record<string, unknown>]
   | ['fail', string]
   | ['exit', number]
-  | ['request', string, Record<string, unknown>];
+  | ['request', string, Record<string, unknown>]
+  // A request Codex withdraws itself shortly after (serverRequest/resolved); the turn goes on.
+  | ['requestThenResolve', string, Record<string, unknown>];
 
 type FakeConfig = {
   turns?: Step[][];
@@ -84,6 +86,7 @@ const userMessage = (threadId, turnId, clientId, content) => {
   notify('item/completed', { threadId, turnId, item });
 };
 const answers = new Map();
+let nextRequestId = 900;
 function nextTurn() {
   let n = 0;
   try { n = Number(fs.readFileSync(FILES.counter, 'utf8')) || 0; } catch {}
@@ -110,8 +113,15 @@ async function play(steps, threadId, turnId) {
     if (kind === 'fail') notify('turn/completed', { threadId, turn: { id: turnId, status: 'failed', items: [], error: { message: a, codexErrorInfo: null, additionalDetails: null } } });
     if (kind === 'exit') process.exit(a);
     if (kind === 'request') {
-      const id = 900 + Math.floor(Math.random() * 1000);
+      const id = nextRequestId++;
       await new Promise((resolve) => { answers.set(id, resolve); send({ jsonrpc: '2.0', id, method: a, params: { threadId, turnId, ...b } }); });
+    }
+    if (kind === 'requestThenResolve') {
+      const id = nextRequestId++;
+      send({ jsonrpc: '2.0', id, method: a, params: { threadId, turnId, ...b } });
+      await new Promise((r) => setTimeout(r, 30));
+      notify('serverRequest/resolved', { threadId, requestId: id });
+      await new Promise((r) => setTimeout(r, 30));
     }
   }
 }
@@ -171,6 +181,8 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
       return;
     case 'thread/unsubscribe':
       return reply({ status: 'unsubscribed' });
+    case 'thread/approveGuardianDeniedAction':
+      return reply({});
     default:
       return fail(-32601, 'unknown method');
   }
@@ -475,18 +487,19 @@ test('tool calls map to the same rows as exec: command (with streamed output), f
   });
 });
 
-test('approval requests are declined, as exec has no one to ask', async () => {
+test('requests the chat cannot answer are declined, as exec has no one to ask', async () => {
   await withFake({
     turns: [[
-      ['request', 'item/commandExecution/requestApproval', { itemId: 'c1', command: 'curl x' }],
-      ['request', 'item/fileChange/requestApproval', { itemId: 'f1' }],
-      ['request', 'item/tool/requestUserInput', { itemId: 'q1', questions: [] }],
+      ['request', 'mcpServer/elicitation/request', { serverName: 'docs', mode: 'form', message: 'Token?' }],
+      ['request', 'item/tool/call', { callId: 'x', tool: 'dyn', arguments: {} }],
       'complete',
     ]],
   }, async (fake) => {
-    await codexRuntime.run('hi', { cwd: process.cwd() }, makeWriter().writer, makeContext());
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('hi', { cwd: process.cwd() }, writer, makeContext());
     const answers = (await fake.requests()).filter((line) => !line.method && line.id !== undefined && line.id >= 900);
-    assert.deepEqual(answers.map((line) => line.result ?? line.error?.code), [{ decision: 'decline' }, { decision: 'decline' }, -32601]);
+    assert.deepEqual(answers.map((line) => line.result ?? line.error?.code), [{ action: 'decline', content: null, _meta: null }, -32601]);
+    assert.equal(sent.some((message) => message.kind === 'permission_request'), false);
   });
 });
 
@@ -843,6 +856,347 @@ test('Stop right after Send now ends the run without starting the new turn', asy
 test('under exec a steer is refused without starting the app-server', async () => {
   await withFake({}, async (fake) => {
     assert.equal(await codexRuntime.steer('app-exec', 'hi', { messageId: STEER_ID }), false);
+    assert.deepEqual(await fake.pids(), []);
+  }, null);
+});
+
+// ---------------------------------------------------------------------------
+// Stage 3: approvals, questions and automatic review
+
+const prompts = (sent: Sent[]) => sent.filter((message) => message.kind === 'permission_request');
+const answersTo = async (fake: Fake) => (await fake.requests()).filter((line) => !line.method && line.id !== undefined && line.id >= 900);
+
+async function nthPrompt(sent: Sent[], n: number): Promise<Sent> {
+  await waitFor(() => prompts(sent).length >= n, `prompt ${n}`);
+  return prompts(sent)[n - 1];
+}
+
+const commandApproval = (itemId: string) => ['request', 'item/commandExecution/requestApproval', {
+  itemId,
+  kind: 'command',
+  startedAtMs: 0,
+  environmentId: null,
+  command: 'rm -rf build',
+  cwd: '/p',
+  reason: 'needs to write outside the sandbox',
+  availableDecisions: ['accept', 'acceptForSession', { acceptWithExecpolicyAmendment: { execpolicy_amendment: ['rm'] } }, 'decline', 'cancel'],
+}] as Step;
+
+test('a command approval reaches the chat, and each answer goes back as the matching decision', async () => {
+  await withFake({ turns: [[commandApproval('c1'), commandApproval('c2'), commandApproval('c3'), 'complete']] }, async (fake) => {
+    const { sent, writer } = makeWriter();
+    const run = codexRuntime.run('clean up', { sessionId: 'app-a1', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-a1' }));
+
+    const first = await nthPrompt(sent, 1);
+    assert.equal(first.toolName, 'CodexCommandApproval');
+    assert.deepEqual(first.input, {
+      command: 'rm -rf build',
+      cwd: '/p',
+      reason: 'needs to write outside the sandbox',
+      kind: 'command',
+      network: null,
+      additionalPermissions: null,
+    });
+    // Policy amendments and "cancel" are not offered from the chat.
+    assert.deepEqual(first.context.choices, ['accept', 'acceptForSession', 'decline']);
+    codexRuntime.permissions.resolve(first.requestId, { allow: true });
+
+    const second = await nthPrompt(sent, 2);
+    codexRuntime.permissions.resolve(second.requestId, { allow: true, rememberEntry: 'session' });
+    const third = await nthPrompt(sent, 3);
+    codexRuntime.permissions.resolve(third.requestId, { allow: false, message: 'no' });
+    await run;
+
+    assert.deepEqual((await answersTo(fake)).map((line) => line.result), [
+      { decision: 'accept' },
+      { decision: 'acceptForSession' },
+      { decision: 'decline' },
+    ]);
+    const resolved = sent.filter((message) => message.kind === 'permission_resolved').map((message) => message.requestId);
+    assert.deepEqual(resolved, [first.requestId, second.requestId, third.requestId]);
+    assert.equal(sent.at(-1)?.kind, 'complete');
+    assert.equal(sent.at(-1)?.pendingPermissions, undefined, 'nothing left open');
+  });
+});
+
+test('file change, permissions and question requests show what they ask and map the answers', async () => {
+  await withFake({
+    turns: [[
+      ['notify', 'item/started', { item: { type: 'fileChange', id: 'f1', status: 'inProgress', changes: [{ path: '/tmp/out.txt', kind: { type: 'add' }, diff: '+hello' }] } }],
+      ['request', 'item/fileChange/requestApproval', { itemId: 'f1', startedAtMs: 0, reason: 'outside the workspace', grantRoot: null }],
+      ['request', 'item/permissions/requestApproval', {
+        itemId: 'p1', environmentId: null, startedAtMs: 0, cwd: '/p', reason: 'download the dataset',
+        permissions: { network: { enabled: true }, fileSystem: { read: null, write: ['/data'] } },
+      }],
+      ['request', 'item/tool/requestUserInput', {
+        itemId: 'q1', isBlocking: true, autoResolutionMs: null,
+        questions: [
+          { id: 'color', header: 'Color', question: 'Which color?', isOther: false, isSecret: false, options: [{ label: 'Red', description: 'warm' }, { label: 'Blue', description: 'cool' }] },
+          { id: 'name', header: 'Name', question: 'What name?', isOther: false, isSecret: false, options: null },
+        ],
+      }],
+      'complete',
+    ]],
+  }, async (fake) => {
+    const { sent, writer } = makeWriter();
+    const run = codexRuntime.run('write it', { sessionId: 'app-a2', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-a2' }));
+
+    const file = await nthPrompt(sent, 1);
+    assert.equal(file.toolName, 'CodexFileChangeApproval');
+    assert.deepEqual(file.input, { reason: 'outside the workspace', grantRoot: null, changes: [{ path: '/tmp/out.txt', kind: 'add', diff: '+hello' }] });
+    codexRuntime.permissions.resolve(file.requestId, { allow: true });
+
+    const permissions = await nthPrompt(sent, 2);
+    assert.equal(permissions.toolName, 'CodexPermissionsApproval');
+    assert.deepEqual(permissions.input, { reason: 'download the dataset', cwd: '/p', network: true, read: [], write: ['/data'] });
+    codexRuntime.permissions.resolve(permissions.requestId, { allow: true, rememberEntry: 'session' });
+
+    const question = await nthPrompt(sent, 3);
+    assert.equal(question.toolName, 'AskUserQuestion');
+    assert.equal(question.context.answerFormat, 'label-lists');
+    assert.deepEqual(question.input.questions, [
+      { question: 'Which color?', header: 'Color', options: [{ label: 'Red', description: 'warm' }, { label: 'Blue', description: 'cool' }], multiSelect: false, custom: false },
+      { question: 'What name?', header: 'Name', options: [], multiSelect: false },
+    ]);
+    codexRuntime.permissions.resolve(question.requestId, { allow: true, updatedInput: { answers: [['Blue'], ['Ada']] } });
+    await run;
+
+    assert.deepEqual((await answersTo(fake)).map((line) => line.result), [
+      { decision: 'accept' },
+      { permissions: { network: { enabled: true }, fileSystem: { read: null, write: ['/data'] } }, scope: 'session' },
+      { answers: { color: { answers: ['Blue'] }, name: { answers: ['Ada'] } } },
+    ]);
+  });
+});
+
+test('an unanswered approval is declined when the approval timeout runs out; a question gets no answers', async () => {
+  await withFake({
+    turns: [[
+      commandApproval('c1'),
+      ['request', 'item/tool/requestUserInput', { itemId: 'q1', isBlocking: true, autoResolutionMs: null, questions: [{ id: 'x', header: 'X', question: 'X?', isOther: true, isSecret: false, options: null }] }],
+      ['request', 'item/permissions/requestApproval', { itemId: 'p1', environmentId: null, startedAtMs: 0, cwd: '/p', reason: null, permissions: { network: { enabled: true }, fileSystem: null } }],
+      'complete',
+    ]],
+  }, async (fake) => {
+    codexAppServerRuntime.settings.approvalTimeoutMs = 60;
+    codexAppServerRuntime.settings.questionTimeoutMs = 60;
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('go', { sessionId: 'app-a3', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-a3' }));
+
+    assert.deepEqual((await answersTo(fake)).map((line) => line.result), [
+      { decision: 'decline' },
+      { answers: {} },
+      { permissions: {}, scope: 'turn' },
+    ]);
+    const cancelled = sent.filter((message) => message.kind === 'permission_cancelled');
+    assert.deepEqual(cancelled.map((message) => message.reason), ['timeout', 'timeout', 'timeout']);
+    assert.deepEqual(codexRuntime.permissions.listPending('app-a3'), []);
+  });
+});
+
+test('the approval timeout defaults to CLAUDE_TOOL_APPROVAL_TIMEOUT_MS', async () => {
+  await withFake({ turns: [[commandApproval('c1'), 'complete']] }, async (fake) => {
+    const original = process.env.CLAUDE_TOOL_APPROVAL_TIMEOUT_MS;
+    process.env.CLAUDE_TOOL_APPROVAL_TIMEOUT_MS = '80';
+    try {
+      const { sent, writer } = makeWriter();
+      const started = Date.now();
+      await codexRuntime.run('go', { sessionId: 'app-a3b', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-a3b' }));
+      assert.ok(Date.now() - started < 5_000);
+      assert.deepEqual((await answersTo(fake)).map((line) => line.result), [{ decision: 'decline' }]);
+      assert.equal(sent.find((message) => message.kind === 'permission_cancelled')?.reason, 'timeout');
+    } finally {
+      if (original === undefined) {
+        delete process.env.CLAUDE_TOOL_APPROVAL_TIMEOUT_MS;
+      } else {
+        process.env.CLAUDE_TOOL_APPROVAL_TIMEOUT_MS = original;
+      }
+    }
+  });
+});
+
+test('Stop withdraws a waiting approval (declined) and ends the turn', async () => {
+  await withFake({ turns: [[commandApproval('c1'), 'wait']] }, async (fake) => {
+    const { sent, writer } = makeWriter();
+    const run = codexRuntime.run('go', { sessionId: 'app-a4', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-a4' }));
+    const prompt = await nthPrompt(sent, 1);
+    assert.equal(codexRuntime.permissions.listPending('app-a4').length, 1);
+
+    assert.equal(await codexRuntime.abort('app-a4'), true);
+    await run;
+
+    assert.deepEqual(sent.filter((message) => message.kind === 'permission_cancelled').map((message) => [message.requestId, message.reason]), [[prompt.requestId, 'cancelled']]);
+    assert.deepEqual((await answersTo(fake)).map((line) => line.result), [{ decision: 'decline' }]);
+    assert.equal(byMethod(await fake.requests(), 'turn/interrupt').length, 1);
+    assert.deepEqual(codexRuntime.permissions.listPending('app-a4'), []);
+    // A late answer from another tab changes nothing.
+    codexRuntime.permissions.resolve(prompt.requestId, { allow: true });
+    assert.equal((await answersTo(fake)).length, 1);
+  });
+});
+
+test('a waiting approval is listed for a reconnecting client and can be answered from it', async () => {
+  const { providerRuntimeService } = await import('@/modules/providers/services/provider-runtime.service.js');
+  await withFake({ turns: [[commandApproval('c1'), 'complete']] }, async (fake) => {
+    const { sent, writer } = makeWriter();
+    const run = codexRuntime.run('go', { sessionId: 'app-a5', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-a5' }));
+    const prompt = await nthPrompt(sent, 1);
+
+    // What `chat.subscribe` puts in its ack as `pendingPermissions` after a reload.
+    const pending = providerRuntimeService.getPendingApprovalsForSession('app-a5') as Sent[];
+    assert.equal(pending.length, 1);
+    assert.equal(pending[0].requestId, prompt.requestId);
+    assert.equal(pending[0].toolName, 'CodexCommandApproval');
+    assert.equal(pending[0].input.command, 'rm -rf build');
+    assert.equal(pending[0].sessionId, 'app-a5');
+    assert.ok(pending[0].receivedAt instanceof Date);
+    assert.deepEqual(providerRuntimeService.getPendingApprovalsForSession('another-session'), []);
+
+    // The reloaded page answers through `chat.permission-response`.
+    providerRuntimeService.resolveToolApproval(prompt.requestId, { allow: true });
+    await run;
+    assert.deepEqual((await answersTo(fake)).map((line) => line.result), [{ decision: 'accept' }]);
+    assert.deepEqual(providerRuntimeService.getPendingApprovalsForSession('app-a5'), []);
+  });
+});
+
+test('a request Codex resolves itself leaves the chat without an answer', async () => {
+  await withFake({ turns: [[['requestThenResolve', 'item/commandExecution/requestApproval', { itemId: 'c1', command: 'ls', startedAtMs: 0, kind: 'command', environmentId: null }], 'complete']] }, async (fake) => {
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('go', { sessionId: 'app-a6', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-a6' }));
+
+    const [prompt] = prompts(sent);
+    assert.ok(prompt);
+    assert.deepEqual(sent.filter((message) => message.kind === 'permission_cancelled').map((message) => [message.requestId, message.reason]), [[prompt.requestId, 'resolved']]);
+    assert.deepEqual(await answersTo(fake), [], 'no reply to a request Codex already settled');
+  });
+});
+
+const review = (reviewId: string, status: string, action: Record<string, unknown>, rationale: string) => ['notify', 'item/autoApprovalReview/completed', {
+  reviewId,
+  targetItemId: `${reviewId}-item`,
+  startedAtMs: 1,
+  completedAtMs: 2,
+  decisionSource: 'agent',
+  review: { status, riskLevel: 'high', userAuthorization: 'low', rationale },
+  action,
+}] as Step;
+
+test('automatic review decisions show in the transcript; a denial offers Allow anyway', async () => {
+  await withFake({
+    turns: [[
+      review('rev-1', 'denied', { type: 'command', source: 'unifiedExec', command: 'rm -rf /tmp/x', cwd: '/p' }, 'Deletes files outside the workspace'),
+      review('rev-2', 'approved', { type: 'applyPatch', cwd: '/p', files: ['/p/a.ts'] }, 'Edits inside the workspace'),
+      'complete',
+    ]],
+  }, async (fake) => {
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('go', { sessionId: 'app-g1', cwd: process.cwd(), permissionMode: 'approveForMe' }, writer, makeContext({ providerSessionId: 'thread-g1' }));
+
+    const rows = sent.filter((message) => message.toolName === 'CodexAutoReview');
+    assert.deepEqual(rows.map((message) => [message.toolId, message.toolInput.status, message.toolInput.action]), [
+      ['autoreview_rev-1', 'denied', 'rm -rf /tmp/x'],
+      ['autoreview_rev-2', 'approved', '/p/a.ts'],
+    ]);
+    const results = sent.filter((message) => message.kind === 'tool_result' && String(message.toolId).startsWith('autoreview_'));
+    assert.deepEqual(results.map((message) => [message.content, message.isError]), [
+      ['Deletes files outside the workspace', true],
+      ['Edits inside the workspace', false],
+    ]);
+
+    // Only the denial asks; it outlives the turn, and the completion lists it
+    // so the chat keeps showing it.
+    const [denial] = prompts(sent);
+    assert.equal(prompts(sent).length, 1);
+    assert.equal(denial.toolName, 'CodexAutoReviewDenial');
+    assert.equal(denial.input.rationale, 'Deletes files outside the workspace');
+    const complete = sent.at(-1)!;
+    assert.equal(complete.kind, 'complete');
+    assert.deepEqual(complete.pendingPermissions.map((entry: Sent) => entry.requestId), [denial.requestId]);
+    assert.equal(codexRuntime.permissions.listPending('app-g1').length, 1);
+
+    codexRuntime.permissions.resolve(denial.requestId, { allow: true });
+    await waitFor(async () => byMethod(await fake.requests(), 'thread/approveGuardianDeniedAction').length === 1, 'thread/approveGuardianDeniedAction');
+    assert.deepEqual(byMethod(await fake.requests(), 'thread/approveGuardianDeniedAction')[0].params, {
+      threadId: 'thread-g1',
+      // Codex's core event: snake case, as checked against 0.169.
+      event: {
+        id: 'rev-1',
+        turn_id: 'turn-1',
+        target_item_id: 'rev-1-item',
+        status: 'denied',
+        risk_level: 'high',
+        user_authorization: 'low',
+        rationale: 'Deletes files outside the workspace',
+        decision_source: 'agent',
+        started_at_ms: 1,
+        completed_at_ms: 2,
+        action: { type: 'command', source: 'unified_exec', command: 'rm -rf /tmp/x', cwd: '/p' },
+      },
+    });
+    assert.deepEqual(codexRuntime.permissions.listPending('app-g1'), []);
+  });
+});
+
+test('Allow anyway after the thread was released loads it again first; Keep denied sends nothing', async () => {
+  await withFake({
+    turns: [[
+      review('rev-1', 'denied', { type: 'networkAccess', target: 'https://example.com', host: 'example.com', protocol: 'socks5Tcp', port: 443 }, 'Network is off'),
+      review('rev-2', 'denied', { type: 'command', source: 'shell', command: 'curl example.com', cwd: '/p' }, 'Network is off'),
+      'complete',
+    ]],
+  }, async (fake) => {
+    codexAppServerRuntime.settings.idleReleaseMs = 30;
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('fetch', { sessionId: 'app-g2', cwd: '/p', permissionMode: 'approveForMe' }, writer, makeContext({ providerSessionId: 'thread-g2' }));
+    await waitFor(() => !codexAppServerRuntime.isAppServerRunning(), 'the idle child to stop');
+
+    const [network, command] = prompts(sent);
+    codexRuntime.permissions.resolve(command.requestId, { allow: false });
+    codexRuntime.permissions.resolve(network.requestId, { allow: true });
+    await waitFor(async () => byMethod(await fake.requests(), 'thread/approveGuardianDeniedAction').length === 1, 'the approval');
+
+    const requests = await fake.requests();
+    const resumes = byMethod(requests, 'thread/resume');
+    assert.equal(resumes.length, 2, 'loaded again in a new child');
+    assert.deepEqual(resumes[1].params, resumes[0].params, 'with the settings it was loaded with');
+    const approval = byMethod(requests, 'thread/approveGuardianDeniedAction');
+    assert.equal(approval.length, 1, 'Keep denied sends nothing');
+    assert.ok(approval[0].at >= resumes[1].at);
+    assert.deepEqual(approval[0].params?.event?.action, { type: 'network_access', target: 'https://example.com', host: 'example.com', protocol: 'socks5_tcp', port: 443 });
+    assert.equal((await fake.pids()).length, 2);
+    // Released again once done.
+    await waitFor(() => !codexAppServerRuntime.isAppServerRunning(), 'the child to stop again');
+    assert.deepEqual(codexRuntime.permissions.listPending('app-g2'), []);
+  });
+});
+
+test('Stop also withdraws the review denials of its turn; archiving withdraws one left from a finished turn', async () => {
+  await withFake({
+    turns: [
+      [review('rev-1', 'denied', { type: 'command', source: 'shell', command: 'a', cwd: '/p' }, 'no'), 'wait'],
+      [review('rev-2', 'denied', { type: 'command', source: 'shell', command: 'b', cwd: '/p' }, 'no'), 'complete'],
+    ],
+  }, async () => {
+    const context = makeContext({ providerSessionId: 'thread-g3' });
+    const { sent, writer } = makeWriter();
+    const run = codexRuntime.run('go', { sessionId: 'app-g3', cwd: process.cwd() }, writer, context);
+    await nthPrompt(sent, 1);
+    await codexRuntime.abort('app-g3');
+    await run;
+    assert.deepEqual(codexRuntime.permissions.listPending('app-g3'), []);
+
+    await codexRuntime.run('again', { sessionId: 'app-g3', cwd: process.cwd() }, makeWriter().writer, context);
+    assert.equal(codexRuntime.permissions.listPending('app-g3').length, 1);
+    codexRuntime.releaseSession('app-g3');
+    assert.deepEqual(codexRuntime.permissions.listPending('app-g3'), []);
+  });
+});
+
+test('under exec nothing is ever listed as waiting', async () => {
+  await withFake({}, async (fake) => {
+    assert.deepEqual(codexRuntime.permissions.listPending('app-exec'), []);
+    codexRuntime.permissions.resolve('codex-unknown', { allow: true });
     assert.deepEqual(await fake.pids(), []);
   }, null);
 });

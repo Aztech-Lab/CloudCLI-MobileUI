@@ -20,6 +20,11 @@
  * "Send now" stops the current step and starts a new turn with the message
  * (`turn/interrupt`, then `turn/start`), both inside the same chat run.
  *
+ * Stage 3: approval requests and Codex's questions reach the chat as
+ * permission prompts (`codex-app-server.approvals.ts` maps them), and an
+ * automatic review ("Approve for me") shows its decision in the transcript,
+ * with "Allow anyway" for a denial (`thread/approveGuardianDeniedAction`).
+ *
  * Threads are released after a short idle period (`thread/unsubscribe`) so the
  * Codex desktop app can take them over; when no thread is left the child
  * itself is stopped, which frees the writer lock at once (measured against
@@ -27,9 +32,16 @@
  * and locked for about 60 seconds before `thread/closed`).
  */
 
+import { randomUUID } from 'node:crypto';
+
 import type { ModelReasoningEffort } from '@openai/codex-sdk';
 
-import { notifyRunFailed, notifyRunStopped } from '@/modules/notifications/index.js';
+import {
+  createNotificationEvent,
+  notifyRunFailed,
+  notifyRunStopped,
+  notifyUserIfEnabled,
+} from '@/modules/notifications/index.js';
 import {
   appendFilesInputTag,
   buildCodexInputItems,
@@ -39,9 +51,22 @@ import {
 } from '@/shared/index.js';
 import { toImageAttachments } from '@/shared/image-attachments.js';
 import type { AnyRecord, ProviderRuntimeContext, ProviderRuntimeWriter } from '@/shared/index.js';
+import type { ProviderPermissionDecision } from '@/shared/types.js';
 
+import {
+  CODEX_AUTO_REVIEW_TOOL_NAME,
+  CODEX_PROMPT_TOOL_NAMES,
+  codexDeclineResponse,
+  codexServerRequestResponse,
+  describeAutoReview,
+  describeCodexServerRequest,
+  isInteractiveCodexServerRequest,
+  toGuardianAssessmentEvent,
+} from './codex-app-server.approvals.js';
+import type { CodexInteractiveServerRequest } from './codex-app-server.approvals.js';
 import { codexAppServer } from './codex-app-server.client.js';
 import {
+  CODEX_APP_SERVER_NO_REPLY,
   CodexAppServerConnection,
   CodexAppServerUnavailableError,
   isCodexProtocolMismatchError,
@@ -64,7 +89,16 @@ import { resolveRunnableWorkspaceRoots } from './codex-workspace-roots.js';
  */
 export const CODEX_APP_SERVER_PROTOCOL_USAGE = {
   /** Client → server requests. */
-  requests: ['initialize', 'thread/start', 'thread/resume', 'turn/start', 'turn/steer', 'turn/interrupt', 'thread/unsubscribe'],
+  requests: [
+    'initialize',
+    'thread/start',
+    'thread/resume',
+    'turn/start',
+    'turn/steer',
+    'turn/interrupt',
+    'thread/unsubscribe',
+    'thread/approveGuardianDeniedAction',
+  ],
   /**
    * Request parameters the runtime relies on beyond the method itself, checked
    * against the installed CLI's schema (`v2/<Name>Params.json`).
@@ -73,6 +107,18 @@ export const CODEX_APP_SERVER_PROTOCOL_USAGE = {
     TurnStartParams: ['threadId', 'input', 'clientUserMessageId'],
     TurnSteerParams: ['threadId', 'input', 'expectedTurnId', 'clientUserMessageId'],
     TurnInterruptParams: ['threadId', 'turnId'],
+    ThreadApproveGuardianDeniedActionParams: ['threadId', 'event'],
+  },
+  /**
+   * Answers the runtime sends, checked against the installed CLI's schema
+   * (`<Name>.json` must mention each value): the decisions the chat offers,
+   * the permission grant scopes, and the answer shape of a question.
+   */
+  responseValues: {
+    CommandExecutionRequestApprovalResponse: ['accept', 'acceptForSession', 'decline'],
+    FileChangeRequestApprovalResponse: ['accept', 'acceptForSession', 'decline'],
+    PermissionsRequestApprovalResponse: ['permissions', 'scope', 'turn', 'session'],
+    ToolRequestUserInputResponse: ['answers'],
   },
   /** Client → server notifications. */
   clientNotifications: ['initialized'],
@@ -87,12 +133,19 @@ export const CODEX_APP_SERVER_PROTOCOL_USAGE = {
     'thread/tokenUsage/updated',
     'error',
     'thread/closed',
+    'item/fileChange/patchUpdated',
+    'item/autoApprovalReview/completed',
+    'serverRequest/resolved',
   ],
-  /** Server → client requests this runtime answers (all declined for now). */
+  /**
+   * Server → client requests this runtime answers: the first four through the
+   * chat (stage 3), the rest declined as exec would.
+   */
   serverRequests: [
     'item/commandExecution/requestApproval',
     'item/fileChange/requestApproval',
     'item/permissions/requestApproval',
+    'item/tool/requestUserInput',
     'mcpServer/elicitation/request',
     'execCommandApproval',
     'applyPatchApproval',
@@ -122,36 +175,57 @@ const settings = {
   /** First restart delay after the child dies; doubles per crash in a row, up to the ceiling. */
   restartBackoffMs: 1_000,
   maxRestartBackoffMs: 60_000,
+  /**
+   * How long an approval waits for the chat before it is declined; null reads
+   * `CLAUDE_TOOL_APPROVAL_TIMEOUT_MS` (the setting Claude's approvals use,
+   * default 55 s), 0 waits for good. Also how long a denied review offers
+   * "Allow anyway".
+   */
+  approvalTimeoutMs: null as number | null,
+  /** How long a question waits; null means the approval timeout, but at least 30 minutes. */
+  questionTimeoutMs: null as number | null,
 };
 
-/**
- * Exec has no channel to a person, so an approval request there can only be
- * refused. Stage 1 keeps exactly that: every request is declined (approvals
- * reach the user in a later stage). "Approve for me" is unaffected, since its
- * reviews run inside Codex and never reach the client.
- */
-async function declineServerRequest(method: string): Promise<unknown> {
-  switch (method) {
-    case 'item/commandExecution/requestApproval':
-    case 'item/fileChange/requestApproval':
-      return { decision: 'decline' };
-    case 'item/permissions/requestApproval':
-      return { permissions: {}, scope: 'turn' };
-    case 'mcpServer/elicitation/request':
-      return { action: 'decline', content: null, _meta: null };
-    case 'execCommandApproval':
-    case 'applyPatchApproval':
-      return { decision: { denied: { rejection: 'No one is available to approve this request.' } } };
-    default:
-      throw new Error(`CloudCLI does not support "${method}" yet.`);
+function readApprovalTimeoutMs(): number {
+  if (typeof settings.approvalTimeoutMs === 'number') {
+    return settings.approvalTimeoutMs;
   }
+  const parsed = Number.parseInt(process.env.CLAUDE_TOOL_APPROVAL_TIMEOUT_MS ?? '', 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 55_000;
+}
+
+function readQuestionTimeoutMs(): number {
+  if (typeof settings.questionTimeoutMs === 'number') {
+    return settings.questionTimeoutMs;
+  }
+  const approval = readApprovalTimeoutMs();
+  // A question usually needs thought, not just a yes or no (as for OpenCode).
+  return approval === 0 ? 0 : Math.max(approval, 30 * 60_000);
+}
+
+// The notifications module is JavaScript; these state the shapes passed.
+const notificationEvent = createNotificationEvent as (event: AnyRecord) => unknown;
+
+/**
+ * Server-to-client requests. Approvals and questions of a running turn go to
+ * the chat (the run's `ask`); anything else, and anything that arrives with no
+ * turn of ours running on its thread, is declined as `codex exec` would (it
+ * has no channel to a person). Nothing is ever approved without the user.
+ */
+async function handleServerRequest(method: string, params: unknown, rpcId: number | string): Promise<unknown> {
+  const record = (params ?? {}) as AnyRecord;
+  const run = typeof record.threadId === 'string' ? runsByThread.get(record.threadId) : undefined;
+  if (run && !run.aborted && isInteractiveCodexServerRequest(method)) {
+    return run.ask(method, record, rpcId);
+  }
+  return codexDeclineResponse(method);
 }
 
 const connection = new CodexAppServerConnection({
   // Through the exported client object so tests swap in a fake app-server
   // script the same way they do for forks and side questions.
   resolveLauncher: () => codexAppServer.resolveLauncher(),
-  handleServerRequest: declineServerRequest,
+  handleServerRequest,
   // Getters, so a change to `settings` (tests) applies to the next request.
   get requestTimeoutMs() { return settings.requestTimeoutMs; },
   get restartBackoffMs() { return settings.restartBackoffMs; },
@@ -202,6 +276,31 @@ type ActiveRun = {
   unread: Set<string>;
   /** "Send now" messages waiting for the interrupted step to end. */
   restarts: PendingRestart[];
+  /** Puts an approval or question of this turn to the chat; resolves the JSON-RPC result. */
+  ask: (method: CodexInteractiveServerRequest, params: AnyRecord, rpcId: number | string) => Promise<unknown>;
+};
+
+/**
+ * A prompt waiting in the chat: an approval or question Codex is blocked on
+ * (`request`), or a review denial that can still be allowed (`reviewDenial`,
+ * which blocks nothing and may outlive its turn).
+ */
+type PendingCodexPrompt = {
+  requestId: string;
+  kind: 'request' | 'reviewDenial';
+  /** Session the chat knows it by (the app session id), and the thread it belongs to. */
+  sessionKey: string;
+  threadId: string;
+  /** JSON-RPC id of the server request, which `serverRequest/resolved` names. */
+  rpcId: number | string | null;
+  toolName: string;
+  input: AnyRecord;
+  context: AnyRecord;
+  receivedAt: Date;
+  timer: ReturnType<typeof setTimeout> | null;
+  answer: (decision: ProviderPermissionDecision) => void;
+  /** Withdraws it from the chat without an answer from the user (timeout, turn ended, Codex resolved it). */
+  cancel: (reason: string, reply?: 'decline' | 'none') => void;
 };
 
 const loadedThreads = new Map<string, LoadedThread>();
@@ -214,6 +313,14 @@ const sessionThreads = new Map<string, string>();
 const releasing = new Map<string, Promise<void>>();
 /** Messages between entering run() and registering their turn. */
 let preparingRuns = 0;
+/** Prompts waiting in the chat, by the request id the chat answers with. */
+const pendingPrompts = new Map<string, PendingCodexPrompt>();
+/** What each thread was last loaded with, so "Allow anyway" can load it again after a release. */
+const threadLoadParams = new Map<string, AnyRecord>();
+
+function promptsWhere(match: (prompt: PendingCodexPrompt) => boolean): PendingCodexPrompt[] {
+  return [...pendingPrompts.values()].filter(match);
+}
 
 connection.onExit(() => {
   // Every loaded thread went with the child; the next message resumes it.
@@ -223,9 +330,26 @@ connection.onExit(() => {
     }
   }
   loadedThreads.clear();
+  // Requests of the old child can no longer be answered. Review denials stay:
+  // "Allow anyway" loads the thread again.
+  for (const prompt of promptsWhere((entry) => entry.kind === 'request')) {
+    prompt.cancel('cancelled', 'none');
+  }
 });
 
 connection.onNotification((method, params) => {
+  if (method === 'serverRequest/resolved') {
+    // Codex settled a request itself (the turn ended or was interrupted, or
+    // another client answered): the chat's prompt goes, and no answer is sent.
+    const record = (params ?? {}) as AnyRecord;
+    for (const prompt of promptsWhere((entry) => entry.kind === 'request'
+      && entry.threadId === record.threadId
+      && entry.rpcId !== null
+      && String(entry.rpcId) === String(record.requestId))) {
+      prompt.cancel('resolved', 'none');
+    }
+    return;
+  }
   if (method !== 'thread/closed') {
     return;
   }
@@ -630,6 +754,7 @@ async function runAppServerTurnInner(
       releaseWhenIdle: false,
     };
     loadedThreads.set(loadedId, thread);
+    threadLoadParams.set(loadedId, threadParams);
   }
   cancelRelease(thread);
   thread.releaseWhenIdle = false;
@@ -678,6 +803,163 @@ async function runAppServerTurnInner(
     turnReady: Promise.resolve(false),
     unread: new Set(),
     restarts: [],
+    ask: (method, params, rpcId) => askChat(method, params, rpcId),
+  };
+
+  // The run's `fileChange` items by id: an approval request names only the
+  // item, whose paths and diffs Codex reported just before.
+  const fileChanges = new Map<string, AnyRecord>();
+
+  const notify = (event: AnyRecord) => notifyUserIfEnabled({ userId: ws?.userId ?? null, event: notificationEvent(event) });
+
+  /**
+   * Shows a prompt in the chat and holds it until the user answers, it times
+   * out, or it is withdrawn. Every way out removes it from the chat
+   * (`permission_resolved` for an answer, `permission_cancelled` otherwise) on
+   * the run's stream, so the replay buffer and other tabs drop it as well.
+   */
+  const openPrompt = (prompt: {
+    kind: PendingCodexPrompt['kind'];
+    rpcId: number | string | null;
+    toolName: string;
+    input: AnyRecord;
+    context: AnyRecord;
+    timeoutMs: number;
+    onAnswer: (decision: ProviderPermissionDecision) => void;
+    onCancel: (reply: 'decline' | 'none') => void;
+  }): PendingCodexPrompt => {
+    const requestId = `codex-${randomUUID()}`;
+    const remove = (reason?: string) => {
+      if (pendingPrompts.get(requestId) !== pending) {
+        return false;
+      }
+      pendingPrompts.delete(requestId);
+      if (pending.timer) {
+        clearTimeout(pending.timer);
+      }
+      sendMessage(ws, createNormalizedMessage({
+        kind: reason ? 'permission_cancelled' : 'permission_resolved',
+        requestId,
+        ...(reason ? { reason } : {}),
+        sessionId: rowSessionId,
+        provider: 'codex',
+      }));
+      return true;
+    };
+    const pending: PendingCodexPrompt = {
+      requestId,
+      kind: prompt.kind,
+      sessionKey,
+      threadId: loadedThreadId,
+      rpcId: prompt.rpcId,
+      toolName: prompt.toolName,
+      input: prompt.input,
+      context: prompt.context,
+      receivedAt: new Date(),
+      timer: null,
+      answer: (decision) => {
+        if (remove()) {
+          prompt.onAnswer(decision);
+        }
+      },
+      cancel: (reason, reply = 'decline') => {
+        if (remove(reason)) {
+          prompt.onCancel(reply);
+        }
+      },
+    };
+    pendingPrompts.set(requestId, pending);
+    if (prompt.timeoutMs > 0) {
+      pending.timer = setTimeout(() => pending.cancel('timeout'), prompt.timeoutMs);
+      pending.timer.unref?.();
+    }
+    send(createNormalizedMessage({
+      kind: 'permission_request',
+      requestId,
+      toolName: prompt.toolName,
+      input: prompt.input,
+      context: prompt.context,
+      sessionId: rowSessionId,
+      provider: 'codex',
+    }));
+    return pending;
+  };
+
+  const askChat = (method: CodexInteractiveServerRequest, params: AnyRecord, rpcId: number | string): Promise<unknown> => {
+    const description = describeCodexServerRequest(method, params, fileChanges);
+    const isQuestion = method === 'item/tool/requestUserInput';
+    return new Promise((resolve) => {
+      openPrompt({
+        kind: 'request',
+        rpcId,
+        ...description,
+        timeoutMs: isQuestion ? readQuestionTimeoutMs() : readApprovalTimeoutMs(),
+        onAnswer: (decision) => resolve(codexServerRequestResponse(method, params, decision)),
+        // A timeout declines, as Claude's approvals do; a request Codex
+        // withdrew itself gets no answer.
+        onCancel: (reply) => resolve(reply === 'none' ? CODEX_APP_SERVER_NO_REPLY : codexDeclineResponse(method)),
+      });
+      notify({
+        provider: 'codex',
+        sessionId: sessionId || loadedThreadId,
+        kind: 'action_required',
+        code: isQuestion ? 'agent.notification' : 'permission.required',
+        meta: isQuestion
+          ? { message: String(description.input.questions?.[0]?.question || 'Codex has a question for you'), sessionName: sessionSummary }
+          : { toolName: description.toolName, sessionName: sessionSummary },
+        severity: 'warning',
+        requiresUserAction: true,
+        dedupeKey: `codex:${isQuestion ? 'question' : 'permission'}:${sessionId || loadedThreadId}:${rpcId}`,
+      });
+    });
+  };
+
+  /**
+   * A finished automatic review: one row in the transcript with the
+   * reviewer's decision and reason, and for a denial a prompt offering
+   * "Allow anyway" (`thread/approveGuardianDeniedAction`).
+   */
+  const showAutoReview = (params: AnyRecord) => {
+    const review = describeAutoReview(params);
+    if (!review.reviewId || review.status === 'inProgress') {
+      return;
+    }
+    const toolId = `autoreview_${review.reviewId}`;
+    send(createNormalizedMessage({
+      id: toolId,
+      kind: 'tool_use',
+      toolName: CODEX_AUTO_REVIEW_TOOL_NAME,
+      toolInput: review,
+      toolId,
+      sessionId: rowSessionId,
+      provider: 'codex',
+    }));
+    send(createNormalizedMessage({
+      id: `${toolId}_result`,
+      kind: 'tool_result',
+      toolId,
+      content: review.rationale ?? '',
+      isError: review.status !== 'approved',
+      sessionId: rowSessionId,
+      provider: 'codex',
+    }));
+    if (review.status !== 'denied') {
+      return;
+    }
+    openPrompt({
+      kind: 'reviewDenial',
+      rpcId: null,
+      toolName: CODEX_PROMPT_TOOL_NAMES.reviewDenial,
+      input: review,
+      context: { provider: 'codex' },
+      timeoutMs: readApprovalTimeoutMs(),
+      onAnswer: (decision) => {
+        if (decision.allow) {
+          void approveDeniedAction(loadedThreadId, params);
+        }
+      },
+      onCancel: () => {},
+    });
   };
 
   // One per turn: "Send now" starts another turn inside the same run.
@@ -747,6 +1029,9 @@ async function runAppServerTurnInner(
           echoIfSteered(item);
           return;
         }
+        if (item?.type === 'fileChange' && typeof item.id === 'string') {
+          fileChanges.set(item.id, item);
+        }
         const phase = method === 'item/started' ? 'started' : 'completed';
         const event = mapCodexAppServerItem(item, phase);
         if (!event) {
@@ -797,6 +1082,16 @@ async function runAppServerTurnInner(
       }
       case 'thread/tokenUsage/updated':
         latestTokenUsage = (params.tokenUsage as AnyRecord) ?? null;
+        return;
+      case 'item/fileChange/patchUpdated': {
+        const itemId = typeof params.itemId === 'string' ? params.itemId : null;
+        if (itemId && Array.isArray(params.changes)) {
+          fileChanges.set(itemId, { ...(fileChanges.get(itemId) ?? { type: 'fileChange', id: itemId }), changes: params.changes });
+        }
+        return;
+      }
+      case 'item/autoApprovalReview/completed':
+        showAutoReview(params);
         return;
       case 'error': {
         if (params.willRetry) {
@@ -854,6 +1149,12 @@ async function runAppServerTurnInner(
     markTurnReady(false);
     removeNotificationListener();
     removeExitListener();
+    // Nothing of this turn waits for an answer any more. A denied review can
+    // still be allowed after the turn, unless the user stopped it.
+    for (const prompt of promptsWhere((entry) => entry.threadId === loadedThreadId
+      && (entry.kind === 'request' || run.aborted))) {
+      prompt.cancel(run.aborted ? 'cancelled' : 'turn-ended');
+    }
     for (const entry of commandOutput.values()) {
       if (entry.timer) {
         clearTimeout(entry.timer);
@@ -929,6 +1230,10 @@ async function runAppServerTurnInner(
   // waiting message starts the next turn, inside the same chat run, so the
   // client sees one run with no `complete` in between.
   while (run.restarts.length > 0 && !run.aborted && (outcome.kind === 'interrupted' || outcome.kind === 'completed')) {
+    // Requests of the stopped step are void; Codex asks again if it needs to.
+    for (const prompt of promptsWhere((entry) => entry.threadId === loadedThreadId && entry.kind === 'request')) {
+      prompt.cancel('turn-ended');
+    }
     run.turnId = null;
     turnDone = nextTurn();
     const [first, ...rest] = run.restarts.splice(0);
@@ -966,7 +1271,7 @@ async function runAppServerTurnInner(
       if (tokenBudget) {
         send(createNormalizedMessage({ kind: 'status', text: 'token_budget', tokenBudget, sessionId: rowSessionId, provider: 'codex' }));
       }
-      send(createCompleteMessage({ provider: 'codex', sessionId: rowSessionId, actualSessionId: loadedThreadId, exitCode: 0 }));
+      send(withPendingPrompts(createCompleteMessage({ provider: 'codex', sessionId: rowSessionId, actualSessionId: loadedThreadId, exitCode: 0 }), sessionKey));
       notifyRunStopped({ userId: ws?.userId || null, provider: 'codex', sessionId: sessionId || loadedThreadId, sessionName: sessionSummary, stopReason: 'completed' });
       break;
     }
@@ -979,7 +1284,7 @@ async function runAppServerTurnInner(
       } else {
         forward({ type: 'turn_failed', error: { message } });
       }
-      send(createCompleteMessage({ provider: 'codex', sessionId: rowSessionId, actualSessionId: loadedThreadId, exitCode: 1 }));
+      send(withPendingPrompts(createCompleteMessage({ provider: 'codex', sessionId: rowSessionId, actualSessionId: loadedThreadId, exitCode: 1 }), sessionKey));
       notifyRunFailed({ userId: ws?.userId || null, provider: 'codex', sessionId: sessionId || loadedThreadId, sessionName: sessionSummary, error: new Error(message) });
       break;
     }
@@ -987,7 +1292,7 @@ async function runAppServerTurnInner(
       if (!run.aborted) {
         // Interrupted by someone else (another client of this thread); end
         // the run here, since no Stop path will.
-        send(createCompleteMessage({ provider: 'codex', sessionId: rowSessionId, actualSessionId: loadedThreadId, exitCode: 0, aborted: true }));
+        send(withPendingPrompts(createCompleteMessage({ provider: 'codex', sessionId: rowSessionId, actualSessionId: loadedThreadId, exitCode: 0, aborted: true }), sessionKey));
       }
       // A Stop from CloudCLI: the abort path already sent `complete`.
       notifyRunStopped({ userId: ws?.userId || null, provider: 'codex', sessionId: sessionId || loadedThreadId, sessionName: sessionSummary, stopReason: 'aborted' });
@@ -1005,6 +1310,67 @@ async function runAppServerTurnInner(
   }
 
   scheduleRelease(loadedThreadId);
+}
+
+/** The prompts a session still has open, as the chat lists them (`pendingPermissions`). */
+function listPendingPrompts(sessionId: string): AnyRecord[] {
+  return promptsWhere((prompt) => prompt.sessionKey === sessionId || prompt.threadId === sessionId).map((prompt) => ({
+    requestId: prompt.requestId,
+    toolName: prompt.toolName,
+    input: prompt.input,
+    context: prompt.context,
+    sessionId,
+    receivedAt: prompt.receivedAt,
+  }));
+}
+
+/**
+ * A `complete` that lists the prompts still open (a denied review's "Allow
+ * anyway" outlives its turn); the client keeps exactly those. Without the
+ * list, `complete` clears every prompt, as before.
+ */
+function withPendingPrompts(message: AnyRecord, sessionKey: string): AnyRecord {
+  const pending = listPendingPrompts(sessionKey);
+  return pending.length > 0 ? { ...message, pendingPermissions: pending } : message;
+}
+
+/**
+ * "Allow anyway" for an action the automatic reviewer denied: records the
+ * user's approval in the thread (`thread/approveGuardianDeniedAction`), which
+ * Codex adds to the conversation for the model's next step; the retry is
+ * still reviewed. The thread is loaded again first if it was released since.
+ */
+async function approveDeniedAction(threadId: string, review: AnyRecord): Promise<boolean> {
+  preparingRuns += 1;
+  try {
+    await connection.ensureStarted();
+    installExitHook();
+    const pendingRelease = releasing.get(threadId);
+    if (pendingRelease) {
+      await pendingRelease;
+    }
+    if (!loadedThreads.has(threadId)) {
+      const loadParams = threadLoadParams.get(threadId) ?? {};
+      const result = await connection.request('thread/resume', { threadId, excludeTurns: true, ...loadParams }) as AnyRecord | undefined;
+      loadedThreads.set(threadId, {
+        threadId,
+        sandboxMode: (loadParams.sandbox as SandboxMode | undefined) ?? 'workspace-write',
+        baselineReviewer: typeof result?.approvalsReviewer === 'string' ? result.approvalsReviewer : 'user',
+        releaseTimer: null,
+        releaseWhenIdle: false,
+      });
+    }
+    await connection.request('thread/approveGuardianDeniedAction', { threadId, event: toGuardianAssessmentEvent(review) });
+    return true;
+  } catch (error) {
+    console.warn(`[Codex] Could not record the approval of a denied action on thread ${threadId}:`, error instanceof Error ? error.message : error);
+    return false;
+  } finally {
+    preparingRuns -= 1;
+    if (!runsByThread.has(threadId)) {
+      scheduleRelease(threadId);
+    }
+  }
 }
 
 function requestInterrupt(run: ActiveRun) {
@@ -1107,6 +1473,10 @@ function abortAppServerRun(sessionId: string): boolean {
     return true;
   }
   run.aborted = true;
+  // The stopped turn asks nothing more; its prompts go at once.
+  for (const prompt of promptsWhere((entry) => entry.threadId === run.threadId)) {
+    prompt.cancel('cancelled');
+  }
   requestInterrupt(run);
   return true;
 }
@@ -1118,6 +1488,9 @@ function abortAppServerRun(sessionId: string): boolean {
 function releaseAppServerSession(sessionId: string): void {
   const threadId = sessionThreads.get(sessionId) ?? sessionId;
   sessionThreads.delete(sessionId);
+  for (const prompt of promptsWhere((entry) => entry.kind === 'reviewDenial' && (entry.sessionKey === sessionId || entry.threadId === threadId))) {
+    prompt.cancel('cancelled');
+  }
   const thread = loadedThreads.get(threadId);
   if (!thread) {
     return;
@@ -1131,6 +1504,9 @@ function releaseAppServerSession(sessionId: string): void {
 
 /** Stops the child; for server shutdown. */
 function shutdownAppServerRuntime(): void {
+  for (const prompt of [...pendingPrompts.values()]) {
+    prompt.cancel('cancelled', 'none');
+  }
   for (const thread of loadedThreads.values()) {
     cancelRelease(thread);
   }
@@ -1145,6 +1521,13 @@ export const codexAppServerRuntime = {
   steer: steerAppServerRun,
   releaseSession: releaseAppServerSession,
   shutdown: shutdownAppServerRuntime,
+  /** The chat's answers to approvals, questions and "Allow anyway" (stage 3). */
+  permissions: {
+    resolve: (requestId: string, decision: ProviderPermissionDecision) => {
+      pendingPrompts.get(requestId)?.answer(decision);
+    },
+    listPending: listPendingPrompts,
+  },
   /** Whether the session has a turn running in this runtime. */
   isRunning: (sessionId: string) => activeRuns.has(sessionId),
   /** Thread ids currently loaded (for tests and diagnostics). */

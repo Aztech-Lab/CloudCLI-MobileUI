@@ -93,7 +93,8 @@ type ProviderCapabilities = {
  * The capability matrix mirrors what each runtime actually implements today:
  * - permission modes match the option sets accepted by each CLI/SDK.
  * - the Claude and OpenCode SDK integrations surface interactive permission
- *   requests (and the agent's questions); Cursor and Codex run without them.
+ *   requests (and the agent's questions); Cursor runs without them, and Codex
+ *   only has them on its app-server runtime ([local] stage 3).
  * - Cursor has no token usage endpoint support (its store.db has no usage rows).
  */
 const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
@@ -156,6 +157,7 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsImages: true,
     supportsFiles: true,
     supportsAbort: true,
+    // [local] True on the app-server runtime (see withRuntimeCapabilities).
     supportsPermissionRequests: false,
     supportsTokenUsage: true,
     supportsEffort: true,
@@ -215,13 +217,14 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
  * steering (a message into the running turn, `turn/steer`) and its "Send now"
  * exist only on the app-server runtime (`CLOUDCLI_CODEX_RUNTIME=appserver`);
  * `codex exec` has no channel into a running turn. Codex cannot take back a
- * steered message, so it never offers Withdraw.
+ * steered message, so it never offers Withdraw. Approvals and Codex's
+ * questions reach the chat only there as well (stage 3): exec declines them.
  */
 function withRuntimeCapabilities(capabilities: ProviderCapabilities): ProviderCapabilities {
   if (capabilities.provider !== 'codex' || resolveCodexRuntimeMode() !== 'appserver') {
     return capabilities;
   }
-  return { ...capabilities, supportsSteering: true, sendNowInterruptsTurn: true };
+  return { ...capabilities, supportsSteering: true, sendNowInterruptsTurn: true, supportsPermissionRequests: true };
 }
 
 export const providerCapabilitiesService = {

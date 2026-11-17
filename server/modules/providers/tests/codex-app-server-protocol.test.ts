@@ -66,14 +66,32 @@ async function readSchemaMethods(dir: string, name: string): Promise<string[]> {
 
 test('the methods the runtime uses are the reviewed set', () => {
   // A snapshot: a new method here is a deliberate change, reviewed with the
-  // runtime code that uses it (stage 2 added turn/steer).
+  // runtime code that uses it (stage 2 added turn/steer; stage 3 the
+  // approval answers, questions and automatic-review override).
   assert.deepEqual([...CODEX_APP_SERVER_PROTOCOL_USAGE.requests], [
     'initialize', 'thread/start', 'thread/resume', 'turn/start', 'turn/steer', 'turn/interrupt', 'thread/unsubscribe',
+    'thread/approveGuardianDeniedAction',
   ]);
   assert.deepEqual(CODEX_APP_SERVER_PROTOCOL_USAGE.requestParams, {
     TurnStartParams: ['threadId', 'input', 'clientUserMessageId'],
     TurnSteerParams: ['threadId', 'input', 'expectedTurnId', 'clientUserMessageId'],
     TurnInterruptParams: ['threadId', 'turnId'],
+    ThreadApproveGuardianDeniedActionParams: ['threadId', 'event'],
+  });
+  assert.deepEqual([...CODEX_APP_SERVER_PROTOCOL_USAGE.notifications], [
+    'turn/started', 'turn/completed', 'item/started', 'item/completed', 'item/commandExecution/outputDelta',
+    'turn/plan/updated', 'thread/tokenUsage/updated', 'error', 'thread/closed',
+    'item/fileChange/patchUpdated', 'item/autoApprovalReview/completed', 'serverRequest/resolved',
+  ]);
+  assert.deepEqual([...CODEX_APP_SERVER_PROTOCOL_USAGE.serverRequests], [
+    'item/commandExecution/requestApproval', 'item/fileChange/requestApproval', 'item/permissions/requestApproval',
+    'item/tool/requestUserInput', 'mcpServer/elicitation/request', 'execCommandApproval', 'applyPatchApproval',
+  ]);
+  assert.deepEqual(CODEX_APP_SERVER_PROTOCOL_USAGE.responseValues, {
+    CommandExecutionRequestApprovalResponse: ['accept', 'acceptForSession', 'decline'],
+    FileChangeRequestApprovalResponse: ['accept', 'acceptForSession', 'decline'],
+    PermissionsRequestApprovalResponse: ['permissions', 'scope', 'turn', 'session'],
+    ToolRequestUserInputResponse: ['answers'],
   });
 });
 
@@ -128,6 +146,17 @@ test('every app-server method the runtime uses is in the installed CLI\'s schema
       const schema = JSON.parse(await readFile(path.join(out, 'v2', `${name}.json`), 'utf8')) as { properties?: Record<string, unknown> };
       const missing = fields.filter((field) => !(field in (schema.properties ?? {})));
       assert.deepEqual(missing, [], `The installed Codex CLI's ${name} no longer has ${missing.join(', ')}`);
+    }
+    // [local] Stage 3: the answers the chat sends must still be values Codex accepts.
+    for (const [name, values] of Object.entries(CODEX_APP_SERVER_PROTOCOL_USAGE.responseValues)) {
+      // Server-request answers sit beside ServerRequest.json, not under v2/.
+      const schema = await readFile(path.join(out, `${name}.json`), 'utf8');
+      const missing = values.filter((value) => !schema.includes(`"${value}"`));
+      assert.deepEqual(missing, [], `The installed Codex CLI's ${name} no longer has ${missing.join(', ')}`);
+    }
+    const review = await readFile(path.join(out, 'v2', 'ItemGuardianApprovalReviewCompletedNotification.json'), 'utf8');
+    for (const field of ['reviewId', 'review', 'action', 'rationale', 'riskLevel']) {
+      assert.match(review, new RegExp(`"${field}"`), `automatic review notifications no longer carry ${field}`);
     }
     const threadItem = await readFile(path.join(out, 'v2', 'ItemStartedNotification.json'), 'utf8');
     assert.match(threadItem, /"clientId"/, 'userMessage items no longer carry the clientId steering confirms delivery with');

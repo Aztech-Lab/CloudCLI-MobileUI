@@ -96,3 +96,25 @@ test('Codex offers steering only on the app-server runtime, and never Withdraw',
     }
   }
 });
+
+// [local] Stage 3 of the Codex parity plan.
+test('Codex approval and question prompts are reported only on the app-server runtime', () => {
+  const original = process.env.CLOUDCLI_CODEX_RUNTIME;
+  try {
+    delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').supportsPermissionRequests, false);
+
+    process.env.CLOUDCLI_CODEX_RUNTIME = 'appserver';
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').supportsPermissionRequests, true);
+    // The others are unchanged by the setting.
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('claude').supportsPermissionRequests, true);
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('cursor').supportsPermissionRequests, false);
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('opencode').supportsPermissionRequests, true);
+  } finally {
+    if (original === undefined) {
+      delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    } else {
+      process.env.CLOUDCLI_CODEX_RUNTIME = original;
+    }
+  }
+});
