@@ -301,6 +301,10 @@ for (const withRoots of [true, false]) {
 
       const requests = (await readFile(logFile, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
       const fork = requests.find((request) => request.method === 'thread/fork');
+      const initialize = requests.find((request) => request.method === 'initialize');
+      // Codex 0.169 rejects runtimeWorkspaceRoots unless the client opted
+      // into the experimental API; without roots the handshake is unchanged.
+      assert.deepEqual(initialize.params.capabilities, withRoots ? { experimentalApi: true } : {});
       if (withRoots) {
         assert.deepEqual(fork.params.runtimeWorkspaceRoots, ['E:\\work\\paper', 'F:\\data\\bench']);
       } else {

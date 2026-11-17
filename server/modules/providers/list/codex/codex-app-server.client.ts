@@ -92,6 +92,13 @@ async function withAppServer<T>(
     onExit: (handler: (reason: string) => void) => () => void;
   }) => Promise<T>,
   signal?: AbortSignal,
+  /**
+   * [local] Opt into the experimental API. Codex 0.169 refuses
+   * `runtimeWorkspaceRoots` without it ("thread/fork.runtimeWorkspaceRoots
+   * requires experimentalApi capability"), so it is set only when a request
+   * carries extra roots; every other exchange stays on the stable API.
+   */
+  experimentalApi = false,
 ): Promise<T> {
   // Resolved through the exported object, not a module-local function, so
   // tests can replace `codexAppServer.resolveLauncher` with a fake app-server
@@ -240,7 +247,7 @@ async function withAppServer<T>(
     // are gated behind `experimentalApi`, and neither is needed here.
     await call('initialize', {
       clientInfo: { name: 'cloudcli', title: 'CloudCLI', version: '1' },
-      capabilities: {},
+      capabilities: experimentalApi ? { experimentalApi: true } : {},
     });
     child.stdin?.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'initialized', params: {} })}\n`);
 
@@ -269,6 +276,11 @@ function runtimeWorkspaceRootsParam(cwd: string, workspaceRoots: string[] | unde
   return cwd && workspaceRoots && workspaceRoots.length > 0
     ? { runtimeWorkspaceRoots: [cwd, ...workspaceRoots] }
     : {};
+}
+
+/** [local] Whether runtimeWorkspaceRootsParam sends anything (and so needs the experimental API). */
+function hasExtraWorkspaceRoots(cwd: string, workspaceRoots: string[] | undefined): boolean {
+  return 'runtimeWorkspaceRoots' in runtimeWorkspaceRootsParam(cwd, workspaceRoots);
 }
 
 export const codexAppServer = {
@@ -342,7 +354,7 @@ export const codexAppServer = {
       }
 
       return { threadId, path };
-    });
+    }, undefined, hasExtraWorkspaceRoots(input.cwd, input.workspaceRoots));
   },
 
   /**
@@ -671,7 +683,7 @@ export const codexAppServer = {
           settle(() => reject(error));
         });
       });
-    }, input.signal).catch((error: unknown) => {
+    }, input.signal, hasExtraWorkspaceRoots(input.cwd, input.workspaceRoots)).catch((error: unknown) => {
       // A dismiss during `initialize` surfaces as the killed child's exit;
       // report it as the abort it was.
       throw input.signal.aborted ? abortedError() : error;
