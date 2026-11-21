@@ -174,6 +174,9 @@ Make one branch per change, starting from `main`, and open a pull request in thi
 
 ## What's new
 
+**21 November 2026**
+- The Codex model picker lists the models your Codex account actually offers, with each model's own effort levels, instead of a fixed list ([#13](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/13)).
+
 **20 November 2026**
 - The Files tab no longer hides what `.gitignore` excludes: those files and folders show dimmed, and a toggle hides them.
 - Codex conversations that use several folders (set up in the Codex app) keep all of them: the Files tab can switch between them, and Codex can still write to each one when you continue the conversation here.
