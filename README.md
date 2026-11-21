@@ -137,7 +137,7 @@ Background work now behaves like the official Claude Code app. Try it with your 
 </td>
 <td valign="top">
 
-Codex in CloudCLI: making Codex conversations as dependable from a phone as Claude ones (sandbox, approvals, conversations shared with the Codex app).
+Codex on the new app-server runtime (opt-in, see [AGENTS_DEPLOY.md](AGENTS_DEPLOY.md)): try steering, approvals, background commands and subagents with your own work and tell us what differs from the Codex app. Making it the default comes after that.
 
 </td>
 <td valign="top">
@@ -173,6 +173,11 @@ gitGraph
 Make one branch per change, starting from `main`, and open a pull request in this repository. The template asks what changed, why, and how you tested it. A maintainer reviews and merges it and writes it up under "What's new". [CONTRIBUTING.md](CONTRIBUTING.md) has the details, including how to set up a development copy.
 
 ## What's new
+
+**20 November 2026**
+- The Files tab no longer hides what `.gitignore` excludes: those files and folders show dimmed, and a toggle hides them.
+- Codex conversations that use several folders (set up in the Codex app) keep all of them: the Files tab can switch between them, and Codex can still write to each one when you continue the conversation here.
+- Codex can run on a long-lived app-server connection instead of one process per message, like the official Codex app. It is off by default; when turned on (`CLOUDCLI_CODEX_RUNTIME=appserver`), Codex conversations get the same mid-reply messages and "Send now" as Claude, approval and question cards (including "Allow anyway" after an automatic review declines), background commands and live subagent cards, Stop that ends only the current reply, and catch-up after a reload.
 
 **16 November 2026**
 - Links inside the app (About page, star badge, "report an issue", the sidebar) now lead to this project, the update prompt that would install the original package is off, and the About page credits the original CloudCLI ([#12](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/12)).
