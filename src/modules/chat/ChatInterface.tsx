@@ -29,6 +29,7 @@ import {
   useSessionProtectionActions,
 } from '@/shared/context/SessionProtectionContext';
 import ChatMessagesPane from '@/modules/chat/transcript/ChatMessagesPane';
+import ThreadHeldElsewhereStatus from '@/modules/chat/transcript/ThreadHeldElsewhereStatus';
 import ChatComposer from '@/modules/chat/composer/ChatComposer';
 import CommandResultModal from '@/modules/chat/modals/CommandResultModal';
 
@@ -133,6 +134,7 @@ function ChatInterface({
     supportsMoveToBackground,
     supportsBackgroundAdoption,
     supportsContextClearing,
+    showsThreadHeldElsewhere,
   } = useChatProviderState({
     selectedSession,
     selectedProject,
@@ -532,6 +534,12 @@ function ChatInterface({
   return (
     <PermissionContext.Provider value={permissionContextValue}>
       <div className="flex h-full min-h-0 flex-col">
+        {/* [local] Codex (app-server): the thread is open in the Codex app. */}
+        <ThreadHeldElsewhereStatus
+          enabled={showsThreadHeldElsewhere}
+          isProcessing={isProcessing}
+          messages={chatMessages}
+        />
         <MarkdownWorkspaceContext.Provider value={markdownWorkspaceValue}>
           <TranscriptSessionContext.Provider value={transcriptSessionValue}>
             <ToolCardActionsContext.Provider value={toolCardActionsValue}>

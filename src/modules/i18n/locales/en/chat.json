@@ -512,6 +512,17 @@
     "builtInModelsHidden": "Hidden from model pickers while “Use only my models” is on.",
     "customModelsOnlyFailed": "Unable to change this setting."
   },
+  "taskNotices": {
+    "codex_background_command_finished": "Background command finished: {{command}}",
+    "codex_agent_finished": "Agent finished: {{name}}",
+    "codex_agent_finished_result": "Agent finished: {{name}} — {{result}}",
+    "codex_agent_failed": "Agent failed: {{name}}",
+    "codex_agent_stopped": "Agent stopped: {{name}}"
+  },
+  "threadHeldElsewhere": {
+    "label": "Open in the Codex app",
+    "hint": "The last send was refused because this conversation is open in the Codex app. Close it there, then send again."
+  },
   "errors": {
     "codex_thread_active_writer": "This conversation is open in the Codex app, which allows only one writer at a time. Close it there (or continue there), then send again.",
     "background_work_lost_on_restart": "Background work was stopped by a server restart. Agents, workflows and commands that were still running did not finish."

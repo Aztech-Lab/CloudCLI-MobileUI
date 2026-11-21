@@ -547,6 +547,8 @@ export function normalizedToChatMessages(messages: NormalizedMessage[]): ChatMes
           timestamp: msg.timestamp,
           isTaskNotification: true,
           taskNotificationStatus: msg.status || 'completed',
+          // [local] Translated where the client knows the code.
+          ...(msg.notice ? { taskNotificationNotice: msg.notice } : {}),
           ...sharedMetadata,
         });
         break;

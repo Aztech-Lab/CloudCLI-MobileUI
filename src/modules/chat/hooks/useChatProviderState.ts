@@ -79,6 +79,8 @@ type ProviderCapabilities = {
   // [local] Whether a send can join the session's held process, keeping its background work running.
   supportsBackgroundAdoption?: boolean;
   supportsContextClearing?: boolean;
+  // [local] Whether the chat shows that the thread is open in another program (Codex app-server).
+  showsThreadHeldElsewhere?: boolean;
 };
 
 type ProviderCapabilitiesApiResponse = {
@@ -485,6 +487,7 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
   // asking before a send that would stop the work.
   const supportsBackgroundAdoption = Boolean(providerCapabilities?.[provider]?.supportsBackgroundAdoption);
   const supportsContextClearing = Boolean(providerCapabilities?.[provider]?.supportsContextClearing);
+  const showsThreadHeldElsewhere = Boolean(providerCapabilities?.[provider]?.showsThreadHeldElsewhere);
 
   const resolvePermissionModeForProvider = useCallback((
     targetProvider: LLMProvider,
@@ -870,5 +873,6 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
     supportsMoveToBackground,
     supportsBackgroundAdoption,
     supportsContextClearing,
+    showsThreadHeldElsewhere,
   };
 }

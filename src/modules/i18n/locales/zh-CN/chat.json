@@ -378,6 +378,17 @@
       "description": "立即发送；这会停止后台任务"
     }
   },
+  "taskNotices": {
+    "codex_background_command_finished": "后台命令已结束：{{command}}",
+    "codex_agent_finished": "代理已完成：{{name}}",
+    "codex_agent_finished_result": "代理已完成：{{name}} — {{result}}",
+    "codex_agent_failed": "代理失败：{{name}}",
+    "codex_agent_stopped": "代理已停止：{{name}}"
+  },
+  "threadHeldElsewhere": {
+    "label": "在 Codex 应用中打开",
+    "hint": "上次发送被拒绝，因为此对话正在 Codex 应用中打开。请在那边关闭它，然后再发送。"
+  },
   "errors": {
     "codex_thread_active_writer": "此对话正在 Codex 应用中打开，而同一对话同一时间只允许一个写入方。请在那边关闭它（或直接在那边继续），然后再发送。",
     "background_work_lost_on_restart": "后台任务已因服务器重启而停止。当时仍在运行的代理、工作流和命令没有完成。"

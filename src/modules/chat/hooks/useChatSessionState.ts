@@ -169,6 +169,7 @@ function chatMessageToNormalized(
       kind: 'task_notification',
       status: msg.taskNotificationStatus || 'completed',
       summary: msg.content || '',
+      ...(msg.taskNotificationNotice ? { notice: msg.taskNotificationNotice } : {}),
     } as NormalizedMessage;
   }
   if (msg.type === 'error') {
