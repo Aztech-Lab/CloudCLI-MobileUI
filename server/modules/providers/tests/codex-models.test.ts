@@ -40,7 +40,7 @@ const runChatCodexCli = async (args: string[]): Promise<string> => {
 
 test('lists GPT-6 Sol and GPT-6 Luna with the effort levels the Codex CLI accepts', () => {
   const sol = findCodexModel('gpt-6-sol');
-  assert.equal(sol?.label, 'GPT-6 Sol');
+  assert.equal(sol?.label, 'GPT-6-Sol');
   assert.equal(sol?.effort?.default, 'medium');
   assert.deepEqual(
     sol?.effort?.values.map((effort) => effort.value),
@@ -48,7 +48,7 @@ test('lists GPT-6 Sol and GPT-6 Luna with the effort levels the Codex CLI accept
   );
 
   const luna = findCodexModel('gpt-6-luna');
-  assert.equal(luna?.label, 'GPT-6 Luna');
+  assert.equal(luna?.label, 'GPT-6-Luna');
   assert.equal(luna?.effort?.default, 'medium');
   assert.deepEqual(
     luna?.effort?.values.map((effort) => effort.value),
@@ -58,7 +58,7 @@ test('lists GPT-6 Sol and GPT-6 Luna with the effort levels the Codex CLI accept
 
 test('lists GPT-6.1 Sol and GPT-6.1 Terra with the effort levels the Codex CLI accepts', () => {
   const sol = findCodexModel('gpt-6.1-sol');
-  assert.equal(sol?.label, 'GPT-6.1 Sol');
+  assert.equal(sol?.label, 'GPT-6.1-Sol');
   assert.equal(sol?.effort?.default, 'low');
   assert.deepEqual(
     sol?.effort?.values.map((effort) => effort.value),
