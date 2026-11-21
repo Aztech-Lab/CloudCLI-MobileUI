@@ -62,3 +62,104 @@ test('codex offers "Approve for me" between the default mode and accept-edits', 
     assert.ok(!providerCapabilitiesService.getProviderCapabilities(provider).permissionModes.includes('approveForMe'), provider);
   }
 });
+
+// [local] Stage 2 of the Codex parity plan.
+test('Codex offers steering only on the app-server runtime, and never Withdraw', () => {
+  const original = process.env.CLOUDCLI_CODEX_RUNTIME;
+  try {
+    delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    const exec = providerCapabilitiesService.getProviderCapabilities('codex');
+    assert.equal(exec.supportsSteering, false);
+    assert.equal(exec.sendNowInterruptsTurn, false);
+    assert.equal(exec.supportsSteerWithdrawal, false);
+    assert.equal(exec.supportsMoveToBackground, false);
+
+    process.env.CLOUDCLI_CODEX_RUNTIME = 'appserver';
+    const appServer = providerCapabilitiesService.getProviderCapabilities('codex');
+    assert.equal(appServer.supportsSteering, true);
+    assert.equal(appServer.sendNowInterruptsTurn, true);
+    assert.equal(appServer.supportsSteerWithdrawal, false, 'Codex cannot take back a steered message');
+    assert.equal(appServer.supportsMoveToBackground, false);
+    assert.equal(providerCapabilitiesService.listAllProviderCapabilities().find((entry) => entry.provider === 'codex')?.supportsSteering, true);
+
+    // Claude is the same under either setting.
+    const claude = providerCapabilitiesService.getProviderCapabilities('claude');
+    assert.deepEqual(
+      [claude.supportsSteering, claude.supportsSteerWithdrawal, claude.sendNowInterruptsTurn, claude.supportsMoveToBackground],
+      [true, true, false, true],
+    );
+  } finally {
+    if (original === undefined) {
+      delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    } else {
+      process.env.CLOUDCLI_CODEX_RUNTIME = original;
+    }
+  }
+});
+
+// [local] Stage 3 of the Codex parity plan.
+test('Codex approval and question prompts are reported only on the app-server runtime', () => {
+  const original = process.env.CLOUDCLI_CODEX_RUNTIME;
+  try {
+    delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').supportsPermissionRequests, false);
+
+    process.env.CLOUDCLI_CODEX_RUNTIME = 'appserver';
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').supportsPermissionRequests, true);
+    // The others are unchanged by the setting.
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('claude').supportsPermissionRequests, true);
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('cursor').supportsPermissionRequests, false);
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('opencode').supportsPermissionRequests, true);
+  } finally {
+    if (original === undefined) {
+      delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    } else {
+      process.env.CLOUDCLI_CODEX_RUNTIME = original;
+    }
+  }
+});
+
+// [local] Stage 4 of the Codex parity plan.
+test('a Codex send over background work joins the loaded thread only on the app-server runtime', () => {
+  const original = process.env.CLOUDCLI_CODEX_RUNTIME;
+  try {
+    delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').supportsBackgroundAdoption, false);
+
+    process.env.CLOUDCLI_CODEX_RUNTIME = 'appserver';
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').supportsBackgroundAdoption, true);
+    // Codex still has no "Move to background" (that is Claude's Ctrl+B).
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').supportsMoveToBackground, false);
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('claude').supportsBackgroundAdoption, true);
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('cursor').supportsBackgroundAdoption, false);
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('opencode').supportsBackgroundAdoption, false);
+  } finally {
+    if (original === undefined) {
+      delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    } else {
+      process.env.CLOUDCLI_CODEX_RUNTIME = original;
+    }
+  }
+});
+
+// [local] Stage 5 of the Codex parity plan.
+test('only Codex on the app-server runtime shows that its thread is open in another program', () => {
+  const original = process.env.CLOUDCLI_CODEX_RUNTIME;
+  try {
+    delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    for (const provider of ['claude', 'codex', 'cursor', 'opencode'] as LLMProvider[]) {
+      assert.equal(providerCapabilitiesService.getProviderCapabilities(provider).showsThreadHeldElsewhere, false, provider);
+    }
+    process.env.CLOUDCLI_CODEX_RUNTIME = 'appserver';
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').showsThreadHeldElsewhere, true);
+    for (const provider of ['claude', 'cursor', 'opencode'] as LLMProvider[]) {
+      assert.equal(providerCapabilitiesService.getProviderCapabilities(provider).showsThreadHeldElsewhere, false, provider);
+    }
+  } finally {
+    if (original === undefined) {
+      delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    } else {
+      process.env.CLOUDCLI_CODEX_RUNTIME = original;
+    }
+  }
+});

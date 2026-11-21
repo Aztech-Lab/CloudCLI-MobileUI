@@ -209,6 +209,7 @@
       "attachments_other": "{{count}} files attached",
       "labelNow": "Sent now",
       "willReadNow": "{{provider}} reads it right away",
+      "willReadNowInterrupts": "{{provider}} stops the current step and reads it",
       "withdraw": "Withdraw",
       "withdrawing": "Withdrawing…",
       "withdrawTooLate": "Too late to withdraw: {{provider}} is already reading it"
@@ -291,7 +292,7 @@
       "label": "Queue",
       "descriptionResponding": "Send when this turn ends",
       "descriptionBackground": "Send when the background work ends",
-      "descriptionBackgroundKeepsWork": "Send when Claude is free; the work keeps running"
+      "descriptionBackgroundKeepsWork": "Send when no reply is being written; the work keeps running"
     },
     "steer": {
       "label": "Send",
@@ -315,7 +316,8 @@
     },
     "sendNow": {
       "label": "Send now",
-      "description": "Read right away; a running command or agent moves to the background"
+      "description": "Read right away; a running command or agent moves to the background",
+      "descriptionInterrupts": "Stop the current step and send it right away"
     }
   },
   "shell": {
@@ -510,8 +512,64 @@
     "builtInModelsHidden": "Hidden from model pickers while “Use only my models” is on.",
     "customModelsOnlyFailed": "Unable to change this setting."
   },
+  "taskNotices": {
+    "codex_background_command_finished": "Background command finished: {{command}}",
+    "codex_agent_finished": "Agent finished: {{name}}",
+    "codex_agent_finished_result": "Agent finished: {{name}} — {{result}}",
+    "codex_agent_failed": "Agent failed: {{name}}",
+    "codex_agent_stopped": "Agent stopped: {{name}}"
+  },
+  "threadHeldElsewhere": {
+    "label": "Open in the Codex app",
+    "hint": "The last send was refused because this conversation is open in the Codex app. Close it there, then send again."
+  },
   "errors": {
     "codex_thread_active_writer": "This conversation is open in the Codex app, which allows only one writer at a time. Close it there (or continue there), then send again.",
     "background_work_lost_on_restart": "Background work was stopped by a server restart. Agents, workflows and commands that were still running did not finish."
+  },
+  "codexApprovals": {
+    "title": {
+      "command": "Codex wants to run a command",
+      "stdin": "Codex wants to type into a running command",
+      "network": "Codex wants network access",
+      "fileChange": "Codex wants to change files",
+      "permissions": "Codex asks for more access",
+      "reviewDenial": "Auto-review blocked an action"
+    },
+    "label": {
+      "reason": "Why",
+      "cwd": "Folder",
+      "host": "Host",
+      "network": "Network",
+      "networkOn": "on",
+      "read": "Read",
+      "write": "Write",
+      "files": "Files",
+      "grantRoot": "Write access under",
+      "showChanges": "Show changes",
+      "reviewReason": "Reviewer",
+      "risk": "Risk"
+    },
+    "risk": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "critical": "critical"
+    },
+    "actions": {
+      "allowOnce": "Allow once",
+      "allowSession": "Allow for this session",
+      "deny": "Deny",
+      "allowAnyway": "Allow anyway",
+      "keepDenied": "Keep denied"
+    },
+    "reviewDenialHint": "Allow anyway tells Codex you approve this exact action. It sees that at its next step; if it has already finished, send a message such as \"try again\". The retry is still reviewed.",
+    "review": {
+      "approved": "Auto-review approved: {{action}}",
+      "denied": "Auto-review denied: {{action}}",
+      "timedOut": "Auto-review timed out: {{action}}",
+      "aborted": "Auto-review stopped: {{action}}",
+      "other": "Auto-review: {{action}}"
+    }
   }
 }

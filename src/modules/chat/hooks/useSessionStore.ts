@@ -12,7 +12,10 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { api } from '@/shared/api';
 import type { LLMProvider, NormalizedMessage } from '@/shared/types';
 import { sideQuestionStore } from '@/modules/chat/hooks/useSideQuestions';
-import { removeOptimisticUserEchoes } from '@/modules/chat/utils/sessionMessageReconciliation';
+import {
+  reconcileLiveCardsWithHistory,
+  removeOptimisticUserEchoes,
+} from '@/modules/chat/utils/sessionMessageReconciliation';
 import {
   hasReachedCachedTailTimeBoundary,
   mergeLatestServerPage,
@@ -310,7 +313,11 @@ function pruneRealtimeSupersededByServer(
   }
 
   const serverIds = new Set(serverMessages.map((message) => message.id));
-  const reconciledRealtimeMessages = removeOptimisticUserEchoes(serverMessages, realtimeMessages);
+  // [local] A live card the history holds under another id is that card (Codex).
+  const reconciledRealtimeMessages = removeOptimisticUserEchoes(
+    serverMessages,
+    reconcileLiveCardsWithHistory(serverMessages, realtimeMessages),
+  );
 
   return reconciledRealtimeMessages.filter((message) => {
     if (serverIds.has(message.id)) {
@@ -354,7 +361,8 @@ function computeMerged(server: NormalizedMessage[], realtime: NormalizedMessage[
   }
 
   const serverIds = new Set(server.map((message) => message.id));
-  const reconciledRealtime = removeOptimisticUserEchoes(server, realtime);
+  // [local] A live card the history holds under another id is that card (Codex).
+  const reconciledRealtime = removeOptimisticUserEchoes(server, reconcileLiveCardsWithHistory(server, realtime));
   const extra = reconciledRealtime.filter((message) => {
     if (serverIds.has(message.id)) {
       return false;

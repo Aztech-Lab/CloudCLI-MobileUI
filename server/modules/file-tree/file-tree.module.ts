@@ -5,16 +5,22 @@ import os from 'node:os';
 import mime from 'mime-types';
 import multer from 'multer';
 
-import { projectsDb } from '@/modules/database/index.js';
+import { projectsDb, sessionsDb } from '@/modules/database/index.js';
 import { createFileTreeRouter } from '@/modules/file-tree/file-tree.routes.js';
 import { createFileTreeService } from '@/modules/file-tree/file-tree.service.js';
 import type {
   FileTreeFileSystem,
   FileTreeLogger,
   FileTreeProjectGateway,
+  FileTreeSessionGateway,
   FileTreeWorkspaceGateway,
 } from '@/shared/types.js';
-import { WORKSPACES_ROOT, resolveReadOnlyRootPath, validateWorkspacePath } from '@/shared/utils.js';
+import {
+  WORKSPACES_ROOT,
+  projectIdentityKey,
+  resolveReadOnlyRootPath,
+  validateWorkspacePath,
+} from '@/shared/utils.js';
 
 const MAXIMUM_UPLOAD_SIZE_MEGABYTES = 200;
 const MAXIMUM_UPLOAD_SIZE_BYTES = MAXIMUM_UPLOAD_SIZE_MEGABYTES * 1024 * 1024;
@@ -76,6 +82,32 @@ const fileTreeWorkspace: FileTreeWorkspaceGateway = {
   resolveReadOnlyRootPath: (candidatePath) => resolveReadOnlyRootPath(candidatePath),
 };
 
+/**
+ * [local] Session boundary for the workspace-root switcher: the extra roots a
+ * Codex conversation recorded, and the union of them for a project.
+ */
+const fileTreeSessions: FileTreeSessionGateway = {
+  getSessionWorkspaceRoots(sessionId) {
+    const session = sessionsDb.getSessionById(sessionId);
+    return session
+      ? { projectPath: session.project_path, roots: sessionsDb.getSessionWorkspaceRoots(sessionId) }
+      : null;
+  },
+  listProjectWorkspaceRoots(projectRoot) {
+    const projectKey = projectIdentityKey(projectRoot);
+    const roots = new Map<string, string>();
+    for (const row of sessionsDb.listSessionsWithWorkspaceRoots()) {
+      if (projectIdentityKey(row.project_path) !== projectKey) {
+        continue;
+      }
+      for (const root of row.workspace_roots) {
+        roots.set(projectIdentityKey(root).toLowerCase(), root);
+      }
+    }
+    return [...roots.values()];
+  },
+};
+
 const fileTreeLogger: FileTreeLogger = {
   error: (message, error) => console.error(message, error),
 };
@@ -84,6 +116,7 @@ const fileTreeServices = createFileTreeService({
   fileSystem: fileTreeFileSystem,
   projects: fileTreeProjects,
   workspace: fileTreeWorkspace,
+  sessions: fileTreeSessions,
   resolveMimeType: (filePath) => mime.lookup(filePath) || 'application/octet-stream',
   fileSystemConcurrency: readFileSystemConcurrency(),
   logger: fileTreeLogger,

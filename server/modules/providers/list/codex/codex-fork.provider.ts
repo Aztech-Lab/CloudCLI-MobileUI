@@ -1,4 +1,5 @@
 import { codexAppServer } from '@/modules/providers/list/codex/codex-app-server.client.js';
+import { resolveRunnableWorkspaceRoots } from '@/modules/providers/list/codex/codex-workspace-roots.js';
 import type { IProviderFork } from '@/shared/interfaces.js';
 
 /**
@@ -20,16 +21,20 @@ export class CodexForkProvider implements IProviderFork {
     providerSessionId: string;
     jsonlPath: string;
     projectPath: string;
+    workspaceRoots?: string[];
     upToAnchorId?: string;
     title?: string;
   }): Promise<{ providerSessionId: string; jsonlPath: string }> {
     // `title` is deliberately not forwarded. The sidebar name lives in this
     // app's own session row, and naming the thread inside Codex would mean a
     // second call that could fail after the fork already succeeded.
+    // [local] The branch keeps the source's other workspace roots.
+    const workspaceRoots = await resolveRunnableWorkspaceRoots(input.workspaceRoots ?? [], input.projectPath);
     const fork = await codexAppServer.forkThread({
       threadId: input.providerSessionId,
       lastTurnId: input.upToAnchorId,
       cwd: input.projectPath,
+      ...(workspaceRoots.length > 0 ? { workspaceRoots } : {}),
     });
 
     // The path is the one the server reported and already confirmed on disk,

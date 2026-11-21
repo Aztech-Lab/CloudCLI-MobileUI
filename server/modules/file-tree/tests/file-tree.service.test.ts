@@ -594,3 +594,139 @@ test('a file in another folder of the workspace can be read, but never written t
     await fsPromises.rm(outsideDirectory, { recursive: true, force: true });
   }
 });
+
+// [local] The Files tab asks for gitignored entries too, flagged `ignored`, so the tree
+// matches what is on disk; other callers still get them dropped.
+function createIgnoredLayoutFileSystem(projectRoot: string, readDirectories: string[]): FileTreeFileSystem {
+  const directories = new Map<string, Array<[string, boolean]>>([
+    [projectRoot, [
+      ['.git', true],
+      ['.gitignore', false],
+      ['.wrangler', true],
+      ['_drafts', true],
+      ['_keep.md', false],
+      ['assets', true],
+      ['aztecan', true],
+      ['node_modules', true],
+      ['README.md', false],
+    ]],
+    [path.join(projectRoot, '.git'), [['HEAD', false]]],
+    [path.join(projectRoot, '.wrangler'), [['state', true]]],
+    [path.join(projectRoot, '_drafts'), [['post.md', false]]],
+    [path.join(projectRoot, 'assets'), [['logo.png', false], ['icons', true]]],
+    [path.join(projectRoot, 'assets', 'icons'), [['a.svg', false]]],
+    [path.join(projectRoot, 'aztecan'), [['archive', true], ['index.md', false]]],
+    [path.join(projectRoot, 'aztecan', 'archive'), [['old.md', false], ['deep', true]]],
+    [path.join(projectRoot, 'aztecan', 'archive', 'deep'), [['older.md', false]]],
+    [path.join(projectRoot, 'node_modules'), [['left-pad', true]]],
+    [path.join(projectRoot, 'node_modules', 'left-pad'), [['index.js', false]]],
+  ]);
+  return createFakeFileSystem({
+    access: async () => undefined,
+    readTextFile: async (filePath) => {
+      assert.equal(filePath, path.join(projectRoot, '.gitignore'));
+      return ['/_*/', '.wrangler/', 'assets/', 'aztecan/archive/', 'node_modules/'].join('\n');
+    },
+    openDirectory: createDirectoryReader((directoryPath) => {
+      readDirectories.push(directoryPath);
+      return (directories.get(directoryPath) ?? []).map(([name, directory]) => createDirectoryEntry(name, directory));
+    }),
+    lstat: async (candidatePath) => createStats(directories.has(candidatePath), 0o755),
+  });
+}
+
+test('listProjectFiles marks gitignored entries instead of dropping them when asked', async () => {
+  const projectRoot = path.resolve('file-tree-test-project');
+  const readDirectories: string[] = [];
+  const service = createFileTreeService(createDependencies(
+    createIgnoredLayoutFileSystem(projectRoot, readDirectories),
+    projectRoot,
+  ));
+
+  const tree = await service.listProjectFiles('project-1', { respectGitignore: true, includeIgnored: true });
+
+  // `.git` stays hidden; everything the .gitignore matches is listed and flagged.
+  assert.deepEqual(
+    tree.map((entry) => [entry.name, entry.ignored === true]),
+    [
+      ['_drafts', true],
+      ['.wrangler', true],
+      ['assets', true],
+      ['aztecan', false],
+      ['node_modules', true],
+      ['_keep.md', false],
+      ['.gitignore', false],
+      ['README.md', false],
+    ],
+  );
+  // A nested ignored directory is flagged inside a normal one.
+  const aztecan = tree.find((entry) => entry.name === 'aztecan');
+  assert.deepEqual(
+    aztecan?.children?.map((entry) => [entry.name, entry.ignored === true]),
+    [['archive', true], ['index.md', false]],
+  );
+  // Ignored directories are listed lazily: no children, flagged incomplete, never read.
+  for (const entry of [...tree, ...(aztecan?.children ?? [])].filter((node) => node.ignored && node.type === 'directory')) {
+    assert.equal(entry.children, undefined, entry.name);
+    assert.equal(entry.incomplete, true, entry.name);
+    assert.equal(readDirectories.includes(entry.path), false, entry.name);
+  }
+  assert.equal(readDirectories.includes(path.join(projectRoot, '.git')), false);
+});
+
+test('expanding an ignored directory lists one level, all flagged ignored', async () => {
+  const projectRoot = path.resolve('file-tree-test-project');
+  const archiveDirectory = path.join(projectRoot, 'aztecan', 'archive');
+  const readDirectories: string[] = [];
+  const service = createFileTreeService(createDependencies(
+    createIgnoredLayoutFileSystem(projectRoot, readDirectories),
+    projectRoot,
+  ));
+
+  const children = await service.listProjectFiles('project-1', {
+    respectGitignore: true,
+    includeIgnored: true,
+    subPath: archiveDirectory,
+  });
+
+  assert.deepEqual(children.map((entry) => [entry.name, entry.ignored === true]), [['deep', true], ['old.md', true]]);
+  assert.equal(children[0]?.incomplete, true);
+  assert.equal(readDirectories.includes(path.join(archiveDirectory, 'deep')), false);
+});
+
+test('without includeIgnored gitignored entries are still dropped', async () => {
+  const projectRoot = path.resolve('file-tree-test-project');
+  const readDirectories: string[] = [];
+  const service = createFileTreeService(createDependencies(
+    createIgnoredLayoutFileSystem(projectRoot, readDirectories),
+    projectRoot,
+  ));
+
+  const tree = await service.listProjectFiles('project-1', { respectGitignore: true });
+
+  assert.deepEqual(tree.map((entry) => entry.name), ['aztecan', '_keep.md', '.gitignore', 'README.md']);
+  assert.deepEqual(tree[0]?.children?.map((entry) => entry.name), ['index.md']);
+  assert.equal(tree.some((entry) => 'ignored' in entry), false);
+});
+
+test('includeIgnored keeps node_modules hidden when the .gitignore does not cover it', async () => {
+  const projectRoot = path.resolve('file-tree-test-project');
+  const fileSystem = createFakeFileSystem({
+    access: async () => undefined,
+    readTextFile: async () => '*.log',
+    openDirectory: createDirectoryReader((directoryPath) => directoryPath === projectRoot
+      ? [
+          createDirectoryEntry('.git', true),
+          createDirectoryEntry('debug.log', false),
+          createDirectoryEntry('node_modules', true),
+          createDirectoryEntry('src', true),
+        ]
+      : []),
+    lstat: async (candidatePath) => createStats(!candidatePath.endsWith('.log'), 0o755),
+  });
+  const service = createFileTreeService(createDependencies(fileSystem, projectRoot));
+
+  const tree = await service.listProjectFiles('project-1', { respectGitignore: true, includeIgnored: true });
+
+  assert.deepEqual(tree.map((entry) => [entry.name, entry.ignored === true]), [['src', false], ['debug.log', true]]);
+});

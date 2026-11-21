@@ -103,6 +103,14 @@
     "recentProjects": "最近的專案"
   },
   "fileTree": {
+    "folderNotFound": "資料夾不存在：{{path}}",
+    "roots": {
+      "switch": "工作區資料夾：{{name}}",
+      "position": "{{current}}/{{total}}",
+      "title": "工作區資料夾",
+      "primary": "工作目錄",
+      "missing": "不存在"
+    },
     "loading": "正在載入檔案...",
     "files": "檔案",
     "simpleView": "簡易檢視",
@@ -126,6 +134,9 @@
     "newFolder": "新增資料夾 (Cmd+Shift+N)",
     "refresh": "重新整理",
     "collapseAll": "全部收合",
+    "showIgnoredFiles": "顯示已忽略的檔案",
+    "ignoredFilesShown": "已忽略的檔案以淡色顯示，點按可隱藏。",
+    "ignoredFilesHidden": "已隱藏已忽略的檔案，點按可顯示。",
     "context": {
       "rename": "重新命名",
       "delete": "刪除",
@@ -276,6 +287,8 @@
   "workflow": {
     "stopAllBackground": "停止全部背景工作",
     "stopAllBackgroundConfirm": "再點一次全部停止",
-    "stopAllBackgroundHint": "停止此對話的所有背景代理和命令。「停止」按鈕只結束目前的回覆。"
+    "stopAllBackgroundHint": "停止此對話的所有背景代理和命令。「停止」按鈕只結束目前的回覆。",
+    "stopAllBackgroundCommands": "停止全部背景命令",
+    "stopAllBackgroundCommandsHint": "停止此對話的所有背景命令。代理會繼續執行：這裡無法停止它們。「停止」按鈕只結束目前的回覆。"
   }
 }

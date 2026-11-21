@@ -108,12 +108,21 @@ const MessageComponent = memo(({ message, prevMessage, createDiff, onFileOpen, s
       if (message.type === 'error' && message.errorCode) {
         return t(`errors.${message.errorCode}`, { defaultValue: String(message.content || '') });
       }
+      // [local] A task notification with a stable code reads in the user's
+      // language too (Codex's "background command finished" and the like).
+      if (message.isTaskNotification && message.taskNotificationNotice?.code) {
+        return t(`taskNotices.${message.taskNotificationNotice.code}`, {
+          ...message.taskNotificationNotice.params,
+          defaultValue: String(message.content || ''),
+          interpolation: { escapeValue: false },
+        });
+      }
       const content = formatUsageLimitText(String(message.content || ''));
       return provider === 'codex' && message.type === 'assistant' && !message.isThinking
         ? stripProposedPlanEnvelope(content)
         : content;
     },
-    [message.content, message.errorCode, message.isThinking, message.type, provider, t]
+    [message.content, message.errorCode, message.isThinking, message.isTaskNotification, message.taskNotificationNotice, message.type, provider, t]
   );
   const assistantCopyContent = message.isToolUse
     ? String(message.displayText || message.content || '')
@@ -310,7 +319,7 @@ const MessageComponent = memo(({ message, prevMessage, createDiff, onFileOpen, s
         <div className="w-full">
           <div className="flex items-center gap-2 py-0.5">
             <span className={`inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full ${message.taskNotificationStatus === 'completed' ? 'bg-green-400 dark:bg-green-500' : 'bg-amber-400 dark:bg-amber-500'}`} />
-            <span className="text-xs text-gray-500 dark:text-gray-400">{message.content}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{message.taskNotificationNotice ? formattedMessageContent : message.content}</span>
           </div>
         </div>
       ) : (

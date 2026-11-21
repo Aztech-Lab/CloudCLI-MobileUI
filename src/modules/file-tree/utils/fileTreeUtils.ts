@@ -30,6 +30,17 @@ export function filterFileTree(items: FileTreeNode[], query: string): FileTreeNo
   }, []);
 }
 
+// [local] The tree without gitignored entries (the "Show ignored files" toggle is off).
+export function withoutIgnoredEntries(items: FileTreeNode[]): FileTreeNode[] {
+  return items.reduce<FileTreeNode[]>((visibleItems, item) => {
+    if (item.ignored) {
+      return visibleItems;
+    }
+    visibleItems.push(item.children ? { ...item, children: withoutIgnoredEntries(item.children) } : item);
+    return visibleItems;
+  }, []);
+}
+
 // During search we auto-expand every directory present in the filtered subtree.
 export function collectExpandedDirectoryPaths(items: FileTreeNode[]): string[] {
   const paths: string[] = [];

@@ -109,6 +109,10 @@ const STOP_ALL_CONFIRM_MS = 4000;
  * [local] Stop (the composer's) ends only the current reply and leaves this
  * work running, so the strip also offers "Stop all background work", which
  * takes a second tap to confirm.
+ *
+ * [local] A task the provider cannot stop (`stoppable: false`, a Codex
+ * subagent) is listed without a ✕, and then the button says it stops the
+ * background commands only.
  */
 export const BackgroundTasksStrip = memo(({ messages, tasks, sessionId, sendMessage, onReveal, onLoadAll }: BackgroundTasksStripProps) => {
   const { t } = useTranslation();
@@ -134,7 +138,12 @@ export const BackgroundTasksStrip = memo(({ messages, tasks, sessionId, sendMess
     return null;
   }
   // [local] Offered when at least one task can be stopped from here.
-  const canStopAll = Boolean(sessionId) && (fromMap.length > 0 || running.some((message) => Boolean(readBackgroundTaskId(message))));
+  const canStopAll = Boolean(sessionId) && (
+    fromMap.some((task) => task.stoppable !== false)
+    || running.some((message) => Boolean(readBackgroundTaskId(message)))
+  );
+  // [local] Some of the work cannot be stopped from here: the button stops the rest.
+  const leavesWorkRunning = (tasks ?? []).some((task) => task.stoppable === false);
   const stopAll = () => {
     if (!confirmingStopAll) {
       setConfirmingStopAll(true);
@@ -216,7 +225,7 @@ export const BackgroundTasksStrip = memo(({ messages, tasks, sessionId, sendMess
                 {label}
               </button>
             )}
-            {sessionId && (
+            {sessionId && task.stoppable !== false && (
               <button
                 type="button"
                 onClick={() => sendMessage({ type: 'chat.stop-task', sessionId, taskId: task.taskId })}
@@ -234,13 +243,17 @@ export const BackgroundTasksStrip = memo(({ messages, tasks, sessionId, sendMess
         <button
           type="button"
           onClick={stopAll}
-          title={t('workflow.stopAllBackgroundHint', 'Stops every background agent and command of this session. Stop only ends the current reply.')}
+          title={leavesWorkRunning
+            ? t('workflow.stopAllBackgroundCommandsHint', 'Stops every background command of this session. Agents keep running: they cannot be stopped from here. Stop only ends the current reply.')
+            : t('workflow.stopAllBackgroundHint', 'Stops every background agent and command of this session. Stop only ends the current reply.')}
           className={`ml-auto flex flex-shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-medium ${confirmingStopAll ? 'bg-destructive text-destructive-foreground' : 'text-destructive hover:bg-destructive/10'}`}
         >
           <Square className="h-2.5 w-2.5 fill-current" />
           {confirmingStopAll
             ? t('workflow.stopAllBackgroundConfirm', 'Tap again to stop all')
-            : t('workflow.stopAllBackground', 'Stop all background work')}
+            : leavesWorkRunning
+              ? t('workflow.stopAllBackgroundCommands', 'Stop all background commands')
+              : t('workflow.stopAllBackground', 'Stop all background work')}
         </button>
       )}
     </div>

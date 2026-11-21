@@ -13,6 +13,8 @@ import {
 } from '@/shared/utils.js';
 import type { IProviderSessionSynchronizer } from '@/shared/interfaces.js';
 
+import { createCodexWorkspaceRootsReader } from './codex-workspace-roots.js';
+
 type ParsedSession = {
   sessionId: string;
   projectPath: string;
@@ -22,6 +24,8 @@ type ParsedSession = {
    * a session that was edited off this thread (see `resolveThreadRow`).
    */
   appSessionId?: string;
+  /** [local] Extra workspace roots the rollout records (see codex-workspace-roots). */
+  workspaceRoots: string[];
 };
 
 type SessionMeta = {
@@ -50,6 +54,7 @@ const readMetaTimestamp = (
 export class CodexSessionSynchronizer implements IProviderSessionSynchronizer {
   private readonly provider = 'codex' as const;
   private readonly codexHome = path.join(os.homedir(), '.codex');
+  private readonly workspaceRoots = createCodexWorkspaceRootsReader(this.codexHome);
 
   /**
    * Scans ~/.codex/sessions and upserts discovered sessions into DB.
@@ -79,7 +84,7 @@ export class CodexSessionSynchronizer implements IProviderSessionSynchronizer {
       }
 
       const timestamps = await readFileTimestamps(filePath);
-      sessionsDb.createSession(
+      const sessionId = sessionsDb.createSession(
         parsed.sessionId,
         this.provider,
         parsed.projectPath,
@@ -89,10 +94,25 @@ export class CodexSessionSynchronizer implements IProviderSessionSynchronizer {
         filePath,
         parsed.appSessionId
       );
+      sessionsDb.setSessionWorkspaceRoots(sessionId, parsed.workspaceRoots);
       processed += 1;
     }
 
+    await this.backfillWorkspaceRoots();
     return processed;
+  }
+
+  /**
+   * [local] Reads the workspace roots of indexed rows that predate the
+   * `workspace_roots` column. The scan cursor only picks up new rollouts, so
+   * without this an old conversation would wait until Codex next wrote to it.
+   * Only the new column is written; a row is visited once.
+   */
+  private async backfillWorkspaceRoots(): Promise<void> {
+    for (const row of sessionsDb.getSessionsMissingWorkspaceRoots(this.provider)) {
+      const roots = await this.workspaceRoots.read(row.jsonl_path, row.project_path ?? '');
+      sessionsDb.setSessionWorkspaceRoots(row.session_id, roots);
+    }
   }
 
   /**
@@ -110,7 +130,7 @@ export class CodexSessionSynchronizer implements IProviderSessionSynchronizer {
     }
 
     const timestamps = await readFileTimestamps(filePath);
-    return sessionsDb.createSession(
+    const sessionId = sessionsDb.createSession(
       parsed.sessionId,
       this.provider,
       parsed.projectPath,
@@ -120,6 +140,8 @@ export class CodexSessionSynchronizer implements IProviderSessionSynchronizer {
       filePath,
       parsed.appSessionId
     );
+    sessionsDb.setSessionWorkspaceRoots(sessionId, parsed.workspaceRoots);
+    return sessionId;
   }
 
   /**
@@ -133,7 +155,11 @@ export class CodexSessionSynchronizer implements IProviderSessionSynchronizer {
     if (!meta || meta.isSubagent) {
       return null;
     }
-    const parsed = { sessionId: meta.sessionId, projectPath: meta.projectPath };
+    const parsed = {
+      sessionId: meta.sessionId,
+      projectPath: meta.projectPath,
+      workspaceRoots: [] as string[],
+    };
 
     // A thread a session was edited off is left on disk on purpose, but it is
     // nobody's conversation any more. Re-indexing it would add a sidebar entry
@@ -159,6 +185,8 @@ export class CodexSessionSynchronizer implements IProviderSessionSynchronizer {
     ) {
       return null;
     }
+
+    parsed.workspaceRoots = await this.workspaceRoots.read(filePath, meta.projectPath);
 
     if (!existingSession && idTaken) {
       // [local] The thread id is still the app id of the session that was

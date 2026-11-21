@@ -191,6 +191,11 @@ export type BackgroundTaskSummary = {
    * it can still be stopped; not counted as the session's own work.
    */
   nested?: boolean;
+  /**
+   * [local] False for a task the provider cannot stop (a Codex subagent): it
+   * is listed as running work, with no stop button.
+   */
+  stoppable?: boolean;
 };
 
 /** What a busy session is doing, as shown by the activity indicator: producing a response, or only running background tasks. */
@@ -429,6 +434,8 @@ export type ChatMessage = {
   /** Set on the row that stands for a background task's completion report, with the status it reported. */
   isTaskNotification?: boolean;
   taskNotificationStatus?: string;
+  /** [local] What the task notification says, translatable; `content` is the English fallback. */
+  taskNotificationNotice?: TaskNotificationNotice;
   /** Stored memory this reply drew on, shown as a footnote beneath it. */
   memoryCitations?: MemoryCitation[];
   /** Lifecycle the provider reported for this tool call, when it reports one; otherwise the status is inferred from whether a result has arrived. */
@@ -553,6 +560,9 @@ export type SideQuestionEvent = {
 //----------------- CHAT SESSION STORE ------------
 
 /** A provider-agnostic transcript event as normalized by the backend adapters, with all kind-specific fields kept flat; it is the shape the session store holds and that chat converts into ChatMessage for rendering, so treat it as the wire contract rather than a view model. */
+/** [local] A task notification's message as a code the client translates, with its values. */
+export type TaskNotificationNotice = { code: string; params?: Record<string, string> };
+
 export type NormalizedMessage = {
   id: string;
   /**
@@ -636,6 +646,17 @@ export type NormalizedMessage = {
    * of showing `content` (which stays the English fallback).
    */
   errorCode?: string;
+  /**
+   * [local] On a `task_notification` row, a stable code and its values the
+   * client translates instead of showing `summary` (the English fallback).
+   */
+  notice?: TaskNotificationNotice;
+  /**
+   * [local] On a live tool card whose id may differ from the one the
+   * persisted transcript gives it (Codex on the app-server runtime): the key
+   * it is matched against the history card by, so a reload shows one card.
+   */
+  dedupeKey?: string;
   text?: string;
   tokens?: number;
   canInterrupt?: boolean;
@@ -1001,7 +1022,8 @@ export type PermissionPanelProps = {
   agentLabel?: string;
   onDecision: (
     requestIds: string | string[],
-    decision: { allow?: boolean; message?: string; updatedInput?: unknown },
+    // [local] `rememberEntry: 'session'` is Codex's "Allow for this session".
+    decision: { allow?: boolean; message?: string; updatedInput?: unknown; rememberEntry?: string | null },
   ) => void;
 };
 
@@ -1073,6 +1095,8 @@ export type FileTreeNode = {
   children?: FileTreeNode[];
   /** [local] Server did not (fully) list this directory; load it on expand. */
   incomplete?: boolean;
+  /** [local] Matched by the root's .gitignore; rendered dimmed, hidden by the toolbar toggle. */
+  ignored?: boolean;
   [key: string]: unknown;
 };
 

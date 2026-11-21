@@ -9,6 +9,7 @@ import { backgroundWorkLedger } from '@/modules/providers/services/background-wo
 import { listBusyClaudeCliSessions } from '@/modules/providers/services/claude-cli-liveness.service.js';
 import { providerCapabilitiesService } from '@/modules/providers/services/provider-capabilities.service.js';
 import { sessionHistoryCache } from '@/modules/providers/services/session-history-cache.service.js';
+import { transcriptNotes } from '@/modules/providers/services/transcript-notes.service.js';
 import type {
   BackgroundTaskSummary,
   ClearedContextSegment,
@@ -142,6 +143,19 @@ function resolveProjectDisplayName(
 }
 
 /**
+ * [local] Tells the session's provider runtime to let go of anything it still
+ * holds for it (the Codex app-server runtime releases the thread). Never
+ * throws: archiving or deleting must not fail over it.
+ */
+function releaseSessionInRuntime(provider: string, sessionId: string): void {
+  try {
+    providerRegistry.resolveProvider(provider).runtime.releaseSession?.(sessionId);
+  } catch (error) {
+    console.warn(`[Sessions] Could not release session ${sessionId} in its runtime:`, error instanceof Error ? error.message : error);
+  }
+}
+
+/**
  * Application service for provider-backed session message operations.
  *
  * Callers pass a provider id and this service resolves the concrete provider
@@ -185,7 +199,8 @@ async function readClearedContextSegment(
       loadFull,
     }) ?? await loadFull();
 
-  const messages: NormalizedMessage[] = (full?.messages ?? [])
+  // [local] With the rows CloudCLI kept for that transcript (Codex reports).
+  const messages: NormalizedMessage[] = transcriptNotes.withNotes(sessionId, segment.providerSessionId, full?.messages ?? [])
     .map((message) => ({ ...message, transcriptAnchorId: undefined }));
   messages.push(createNormalizedMessage({
     // Stable across reads, so the client can tell it already has this row.
@@ -255,14 +270,34 @@ async function readCurrentContextHistory(
   if (fullHistory) {
     // Providers slice with this same helper, so a cached page is identical
     // to what a direct `(limit, offset)` read would have returned.
-    // [local] With a notice where a restart ended the session's background work.
-    const messages = withRestartNotices
+    // [local] With a notice where a restart ended the session's background work,
+    // and the rows CloudCLI kept that the transcript does not record (notes).
+    const messages = transcriptNotes.withNotes(sessionId, providerSessionId, withRestartNotices
       ? backgroundWorkLedger.withLostNotices(sessionId, provider, fullHistory.messages)
-      : fullHistory.messages;
+      : fullHistory.messages);
     const { page, hasMore } = sliceTailPage(messages, requestedLimit, Math.max(0, requestedOffset));
     result = {
       ...fullHistory,
       ...(messages !== fullHistory.messages ? { total: messages.length } : {}),
+      messages: page,
+      hasMore,
+      offset: requestedOffset,
+      limit: requestedLimit,
+    };
+  } else if (transcriptNotes.has(sessionId, providerSessionId)) {
+    // [local] Notes are placed by time across the whole transcript, so the
+    // page is cut after they are in (only sessions with notes read it whole).
+    const full = await providerSessions.fetchHistory(sessionId, {
+      limit: null,
+      offset: 0,
+      projectPath,
+      providerSessionId,
+    });
+    const messages = transcriptNotes.withNotes(sessionId, providerSessionId, full.messages);
+    const { page, hasMore } = sliceTailPage(messages, requestedLimit, Math.max(0, requestedOffset));
+    result = {
+      ...full,
+      total: messages.length,
       messages: page,
       hasMore,
       offset: requestedOffset,
@@ -411,6 +446,14 @@ export const sessionsService = {
   },
 
   /**
+   * [local] Extra workspace roots recorded for a session (Codex multi-root
+   * projects); empty for sessions without any.
+   */
+  getSessionWorkspaceRoots(sessionId: string | null | undefined): string[] {
+    return sessionId ? sessionsDb.getSessionWorkspaceRoots(sessionId) : [];
+  },
+
+  /**
    * Normalizes one provider-native event into frontend session message events.
    */
   normalizeMessage(
@@ -501,6 +544,7 @@ export const sessionsService = {
       providerSessionId: source.provider_session_id,
       jsonlPath: source.jsonl_path,
       projectPath: source.project_path ?? '',
+      workspaceRoots: sessionsDb.getSessionWorkspaceRoots(sessionId),
       upToAnchorId: options.upToAnchorId,
       title: sessionName,
     });
@@ -518,6 +562,8 @@ export const sessionsService = {
       // differently from the conversation it was branched from.
       model: source.model,
       effort: source.effort,
+      // [local] The copy keeps the workspace roots of the conversation it was branched from.
+      workspaceRoots: sessionsDb.getSessionWorkspaceRoots(sessionId),
     });
 
     await broadcastSessionUpserted(forkSessionId);
@@ -871,6 +917,9 @@ export const sessionsService = {
       });
     }
 
+    // [local] A closed session keeps nothing open in a provider runtime.
+    releaseSessionInRuntime(session.provider, sessionId);
+
     if (!options.force) {
       sessionsDb.updateSessionIsArchived(sessionId, true);
       return {
@@ -897,6 +946,8 @@ export const sessionsService = {
     }
 
     sessionsDb.clearSupersededProviderSessions(sessionId);
+    // [local] The rows CloudCLI kept for its transcripts go with it.
+    transcriptNotes.deleteSession(sessionId);
     const deleted = sessionsDb.deleteSessionById(sessionId);
     if (!deleted) {
       throw new AppError(`Session "${sessionId}" was not found.`, {

@@ -1,6 +1,6 @@
 import { useRef } from 'react';
-import type { ChangeEvent } from 'react';
-import { ChevronDown, Eye, FileText, FolderPlus, List, Loader2, RefreshCw, Search, TableProperties, Upload, X } from 'lucide-react';
+import type { ChangeEvent, ReactNode } from 'react';
+import { ChevronDown, Eye, EyeOff, FileText, FolderPlus, List, Loader2, RefreshCw, Search, TableProperties, Upload, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Button, Input } from '@/shared/ui';
@@ -19,11 +19,16 @@ type FileTreeHeaderProps = {
   onUploadFiles?: (files: FileList) => void;
   onRefresh?: () => void;
   onCollapseAll?: () => void;
+  /** [local] "Show ignored files" toggle; gitignored entries are dimmed when shown. */
+  showIgnored?: boolean;
+  onToggleShowIgnored?: () => void;
   // Loading state
   loading?: boolean;
   operationLoading?: boolean;
   isUploading?: boolean;
   uploadProgress?: number | null;
+  /** [local] Workspace-root switcher; renders nothing for sessions with one root. */
+  rootSwitcher?: ReactNode;
 };
 
 /** Rendered by FileTree to host the search box, view-mode switch and the create/upload/refresh/collapse actions. */
@@ -37,10 +42,13 @@ export default function FileTreeHeader({
   onUploadFiles,
   onRefresh,
   onCollapseAll,
+  showIgnored = true,
+  onToggleShowIgnored,
   loading,
   operationLoading,
   isUploading,
   uploadProgress,
+  rootSwitcher,
 }: FileTreeHeaderProps) {
   const { t } = useTranslation();
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -56,9 +64,10 @@ export default function FileTreeHeader({
   return (
     <div className="space-y-2 border-b border-border px-3 pb-2 pt-3">
       {/* Title and Toolbar */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-foreground">{t('fileTree.files')}</h3>
-        <div className="flex items-center gap-0.5">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="shrink-0 text-sm font-medium text-foreground">{t('fileTree.files')}</h3>
+        {/* [local] Wraps rather than overflowing on narrow phones. */}
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-0.5">
           {/* Action buttons */}
           {onUploadFiles && (
             <>
@@ -155,6 +164,23 @@ export default function FileTreeHeader({
               <ChevronDown className="h-3.5 w-3.5" />
             </Button>
           )}
+          {onToggleShowIgnored && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={onToggleShowIgnored}
+              title={showIgnored
+                ? t('fileTree.ignoredFilesShown', 'Ignored files are shown dimmed. Tap to hide them.')
+                : t('fileTree.ignoredFilesHidden', 'Ignored files are hidden. Tap to show them.')}
+              aria-label={t('fileTree.showIgnoredFiles', 'Show ignored files')}
+              aria-pressed={showIgnored}
+              data-testid="file-tree-show-ignored"
+            >
+              {/* Muted while ignored files show (the default); highlighted while they are hidden. */}
+              <EyeOff className={cn('h-3.5 w-3.5', showIgnored ? 'opacity-60' : 'text-primary')} />
+            </Button>
+          )}
           {/* Divider */}
           <div className="mx-0.5 h-4 w-px bg-border" />
           {/* View mode buttons */}
@@ -190,6 +216,8 @@ export default function FileTreeHeader({
           </Button>
         </div>
       </div>
+
+      {rootSwitcher}
 
       {/* Search Bar */}
       <div className="relative">

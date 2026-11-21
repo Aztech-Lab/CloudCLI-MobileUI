@@ -92,6 +92,13 @@ async function withAppServer<T>(
     onExit: (handler: (reason: string) => void) => () => void;
   }) => Promise<T>,
   signal?: AbortSignal,
+  /**
+   * [local] Opt into the experimental API. Codex 0.169 refuses
+   * `runtimeWorkspaceRoots` without it ("thread/fork.runtimeWorkspaceRoots
+   * requires experimentalApi capability"), so it is set only when a request
+   * carries extra roots; every other exchange stays on the stable API.
+   */
+  experimentalApi = false,
 ): Promise<T> {
   // Resolved through the exported object, not a module-local function, so
   // tests can replace `codexAppServer.resolveLauncher` with a fake app-server
@@ -240,7 +247,7 @@ async function withAppServer<T>(
     // are gated behind `experimentalApi`, and neither is needed here.
     await call('initialize', {
       clientInfo: { name: 'cloudcli', title: 'CloudCLI', version: '1' },
-      capabilities: {},
+      capabilities: experimentalApi ? { experimentalApi: true } : {},
     });
     child.stdin?.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'initialized', params: {} })}\n`);
 
@@ -258,6 +265,22 @@ async function withAppServer<T>(
     reader.close();
     child.kill();
   }
+}
+
+/**
+ * [local] `thread/fork`'s `runtimeWorkspaceRoots` replaces the thread's roots,
+ * so it lists `cwd` first and then the extra roots. Sent only when there are
+ * extra roots; otherwise the request is exactly what it was before.
+ */
+function runtimeWorkspaceRootsParam(cwd: string, workspaceRoots: string[] | undefined): { runtimeWorkspaceRoots?: string[] } {
+  return cwd && workspaceRoots && workspaceRoots.length > 0
+    ? { runtimeWorkspaceRoots: [cwd, ...workspaceRoots] }
+    : {};
+}
+
+/** [local] Whether runtimeWorkspaceRootsParam sends anything (and so needs the experimental API). */
+function hasExtraWorkspaceRoots(cwd: string, workspaceRoots: string[] | undefined): boolean {
+  return 'runtimeWorkspaceRoots' in runtimeWorkspaceRootsParam(cwd, workspaceRoots);
 }
 
 export const codexAppServer = {
@@ -298,12 +321,15 @@ export const codexAppServer = {
     threadId: string;
     lastTurnId?: string;
     cwd: string;
+    /** [local] Extra workspace roots to keep; see runtimeWorkspaceRootsParam. */
+    workspaceRoots?: string[];
   }): Promise<CodexThreadFork> {
     return withAppServer(async ({ call }) => {
       const result = await call('thread/fork', {
         threadId: input.threadId,
         ...(input.lastTurnId ? { lastTurnId: input.lastTurnId } : {}),
         ...(input.cwd ? { cwd: input.cwd } : {}),
+        ...runtimeWorkspaceRootsParam(input.cwd, input.workspaceRoots),
       }) as { thread?: { id?: unknown; path?: unknown } } | undefined;
 
       const threadId = typeof result?.thread?.id === 'string' ? result.thread.id : '';
@@ -328,7 +354,7 @@ export const codexAppServer = {
       }
 
       return { threadId, path };
-    });
+    }, undefined, hasExtraWorkspaceRoots(input.cwd, input.workspaceRoots));
   },
 
   /**
@@ -412,7 +438,15 @@ export const codexAppServer = {
    *   codex-rs/config/src/types.rs at rust-v0.166.0).
    */
   async askSideQuestion(
-    input: { threadId: string; cwd: string; model: string; question: string; signal: AbortSignal },
+    input: {
+      threadId: string;
+      cwd: string;
+      model: string;
+      question: string;
+      signal: AbortSignal;
+      /** [local] Extra workspace roots; see runtimeWorkspaceRootsParam. */
+      workspaceRoots?: string[];
+    },
     onDelta: (text: string) => void,
   ): Promise<string> {
     const abortedError = () => new AppError('The side question was aborted.', {
@@ -539,6 +573,7 @@ export const codexAppServer = {
           return call('thread/fork', {
             threadId: input.threadId,
             ...(input.cwd ? { cwd: input.cwd } : {}),
+            ...runtimeWorkspaceRootsParam(input.cwd, input.workspaceRoots),
             ...(input.model ? { model: input.model } : {}),
             ephemeral: true,
             sandbox: 'read-only',
@@ -648,7 +683,7 @@ export const codexAppServer = {
           settle(() => reject(error));
         });
       });
-    }, input.signal).catch((error: unknown) => {
+    }, input.signal, hasExtraWorkspaceRoots(input.cwd, input.workspaceRoots)).catch((error: unknown) => {
       // A dismiss during `initialize` surfaces as the killed child's exit;
       // report it as the abort it was.
       throw input.signal.aborted ? abortedError() : error;

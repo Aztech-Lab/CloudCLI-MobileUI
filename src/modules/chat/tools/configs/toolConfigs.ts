@@ -1,7 +1,12 @@
 /**
  * Centralized tool configuration registry
- * Defines display behavior for all tool types 
+ * Defines display behavior for all tool types
  */
+
+import i18next from 'i18next';
+
+/** [local] Review outcomes with their own title (Codex auto-review rows). */
+const REVIEW_STATUSES = new Set(['approved', 'denied', 'timedOut', 'aborted']);
 
 export type ToolDisplayConfig = {
   input: {
@@ -91,6 +96,7 @@ const UNIFIED_TOOL_LABELS: Record<string, string> = {
   TodoWrite: 'Checklist',
   TodoRead: 'Checklist',
   AskUserQuestion: 'Question',
+  CodexAutoReview: 'Auto-review',
 };
 
 export function formatToolDisplayName(toolName: string): string {
@@ -670,6 +676,33 @@ export const TOOL_CONFIGS: Record<string, ToolDisplayConfig> = {
     result: {
       hideOnSuccess: true
     }
+  },
+
+  // [local] A decision of Codex's automatic reviewer ("Approve for me", app-server
+  // runtime): approved or denied, what, and the reviewer's reason. A denial also
+  // shows as a card above the composer offering "Allow anyway".
+  CodexAutoReview: {
+    input: {
+      type: 'collapsible',
+      title: (input: any) => i18next.t(`chat:codexApprovals.review.${REVIEW_STATUSES.has(input?.status) ? input.status : 'other'}`, {
+        action: String(input?.action || ''),
+        defaultValue: `Auto-review ${String(input?.status || '')}: ${String(input?.action || '')}`,
+      }),
+      defaultOpen: false,
+      contentType: 'text',
+      getContentProps: (input: any) => ({
+        content: [
+          input?.rationale ? `${i18next.t('chat:codexApprovals.label.reviewReason', { defaultValue: 'Reviewer' })}: ${input.rationale}` : '',
+          input?.riskLevel ? `${i18next.t('chat:codexApprovals.label.risk', { defaultValue: 'Risk' })}: ${i18next.t(`chat:codexApprovals.risk.${input.riskLevel}`, { defaultValue: input.riskLevel })}` : '',
+          input?.cwd ? `${i18next.t('chat:codexApprovals.label.cwd', { defaultValue: 'Folder' })}: ${input.cwd}` : '',
+        ].filter(Boolean).join('\n'),
+        format: 'plain',
+      }),
+    },
+    // The reason is already in the row.
+    result: {
+      hidden: true,
+    },
   },
 
   // ============================================================================

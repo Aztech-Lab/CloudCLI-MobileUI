@@ -70,9 +70,17 @@ type ProviderCapabilities = {
   supportsSessionForking?: boolean;
   supportsSideQuestions?: boolean;
   supportsSteering?: boolean;
+  // [local] Whether a steered message can be withdrawn before the agent reads it.
+  supportsSteerWithdrawal?: boolean;
+  // [local] Whether "Send now" stops the current step and starts a new turn (Codex).
+  sendNowInterruptsTurn?: boolean;
+  // [local] Whether a running tool call can be moved to the background.
+  supportsMoveToBackground?: boolean;
   // [local] Whether a send can join the session's held process, keeping its background work running.
   supportsBackgroundAdoption?: boolean;
   supportsContextClearing?: boolean;
+  // [local] Whether the chat shows that the thread is open in another program (Codex app-server).
+  showsThreadHeldElsewhere?: boolean;
 };
 
 type ProviderCapabilitiesApiResponse = {
@@ -469,11 +477,17 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
   const supportsSessionForking = Boolean(providerCapabilities?.[provider]?.supportsSessionForking);
   const supportsSideQuestions = Boolean(providerCapabilities?.[provider]?.supportsSideQuestions);
   const supportsSteering = Boolean(providerCapabilities?.[provider]?.supportsSteering);
+  // [local] Same default: no Withdraw, no "Move to background", and the
+  // in-turn wording of "Send now" until the matrix says otherwise.
+  const supportsSteerWithdrawal = Boolean(providerCapabilities?.[provider]?.supportsSteerWithdrawal);
+  const sendNowInterruptsTurn = Boolean(providerCapabilities?.[provider]?.sendNowInterruptsTurn);
+  const supportsMoveToBackground = Boolean(providerCapabilities?.[provider]?.supportsMoveToBackground);
   // [local] Whether a send while background work runs joins the held process instead of
   // stopping that work. False until the matrix loads, like the rest, so the composer keeps
   // asking before a send that would stop the work.
   const supportsBackgroundAdoption = Boolean(providerCapabilities?.[provider]?.supportsBackgroundAdoption);
   const supportsContextClearing = Boolean(providerCapabilities?.[provider]?.supportsContextClearing);
+  const showsThreadHeldElsewhere = Boolean(providerCapabilities?.[provider]?.showsThreadHeldElsewhere);
 
   const resolvePermissionModeForProvider = useCallback((
     targetProvider: LLMProvider,
@@ -854,7 +868,11 @@ export function useChatProviderState({ selectedSession, selectedProject: _select
     supportsSessionForking,
     supportsSideQuestions,
     supportsSteering,
+    supportsSteerWithdrawal,
+    sendNowInterruptsTurn,
+    supportsMoveToBackground,
     supportsBackgroundAdoption,
     supportsContextClearing,
+    showsThreadHeldElsewhere,
   };
 }

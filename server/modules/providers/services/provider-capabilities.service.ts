@@ -1,3 +1,4 @@
+import { resolveCodexRuntimeMode } from '@/modules/providers/list/codex/codex-runtime.shared.js';
 import type { LLMProvider } from '@/shared/types.js';
 
 /**
@@ -55,6 +56,23 @@ type ProviderCapabilities = {
    */
   supportsSteering: boolean;
   /**
+   * [local] Whether a steered message the agent has not read yet can be taken
+   * back (`chat.cancel-steer`). Without it the steer card has no Withdraw.
+   */
+  supportsSteerWithdrawal: boolean;
+  /**
+   * [local] How "Send now" (`chat.steer` with `urgent`) reaches the agent:
+   * false when the message is read at once inside the running turn (a running
+   * command or agent moves to the background), true when the current step is
+   * stopped and a new turn starts with the message.
+   */
+  sendNowInterruptsTurn: boolean;
+  /**
+   * [local] Whether a running foreground tool call can be moved to the
+   * background (`chat.background-task`), the tool card's "Move to background".
+   */
+  supportsMoveToBackground: boolean;
+  /**
    * [local] Whether a send made while only background work is running can go
    * into the CLI process that holds that work (`chat.send` with
    * `options.adoptHeld`), so the work keeps running instead of being stopped
@@ -69,13 +87,20 @@ type ProviderCapabilities = {
    * longer points at, and an indexer that leaves such a transcript alone.
    */
   supportsContextClearing: boolean;
+  /**
+   * [local] Whether the chat shows that the conversation's thread is open in
+   * another program (the Codex app holds its single writer), read from the
+   * last refused send's row. Codex on the app-server runtime only (stage 5).
+   */
+  showsThreadHeldElsewhere: boolean;
 };
 
 /**
  * The capability matrix mirrors what each runtime actually implements today:
  * - permission modes match the option sets accepted by each CLI/SDK.
  * - the Claude and OpenCode SDK integrations surface interactive permission
- *   requests (and the agent's questions); Cursor and Codex run without them.
+ *   requests (and the agent's questions); Cursor runs without them, and Codex
+ *   only has them on its app-server runtime ([local] stage 3).
  * - Cursor has no token usage endpoint support (its store.db has no usage rows).
  */
 const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
@@ -98,10 +123,15 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     // Streaming input stays open for the whole run, and a user message written
     // to it with priority `next` joins the running turn.
     supportsSteering: true,
+    // [local] A queued stdin message can be dropped until the CLI reads it.
+    supportsSteerWithdrawal: true,
+    sendNowInterruptsTurn: false,
+    supportsMoveToBackground: true,
     // [local] A send over background work is written into the held process
     // (see the Claude runtime's adoption entry point) instead of replacing it.
     supportsBackgroundAdoption: true,
     supportsContextClearing: true,
+    showsThreadHeldElsewhere: false,
   },
   cursor: {
     provider: 'cursor',
@@ -118,8 +148,12 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsSessionForking: false,
     supportsSideQuestions: false,
     supportsSteering: false,
+    supportsSteerWithdrawal: false,
+    sendNowInterruptsTurn: false,
+    supportsMoveToBackground: false,
     supportsBackgroundAdoption: false,
     supportsContextClearing: false,
+    showsThreadHeldElsewhere: false,
   },
   codex: {
     provider: 'codex',
@@ -131,6 +165,7 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsImages: true,
     supportsFiles: true,
     supportsAbort: true,
+    // [local] True on the app-server runtime (see withRuntimeCapabilities).
     supportsPermissionRequests: false,
     supportsTokenUsage: true,
     supportsEffort: true,
@@ -142,9 +177,14 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsMessageEditing: true,
     supportsSessionForking: true,
     supportsSideQuestions: true,
+    // [local] True on the app-server runtime (see withRuntimeCapabilities).
     supportsSteering: false,
+    supportsSteerWithdrawal: false,
+    sendNowInterruptsTurn: false,
+    supportsMoveToBackground: false,
     supportsBackgroundAdoption: false,
     supportsContextClearing: false,
+    showsThreadHeldElsewhere: false,
   },
   opencode: {
     provider: 'opencode',
@@ -168,8 +208,12 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsSessionForking: false,
     supportsSideQuestions: true,
     supportsSteering: false,
+    supportsSteerWithdrawal: false,
+    sendNowInterruptsTurn: false,
+    supportsMoveToBackground: false,
     supportsBackgroundAdoption: false,
     supportsContextClearing: false,
+    showsThreadHeldElsewhere: false,
   },
 };
 
@@ -178,12 +222,40 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
  * Providers routes (the capabilities endpoints) and by the Providers model
  * service, which reads `effortLevels` to validate custom-model effort.
  */
+/**
+ * [local] The parts of the matrix that depend on how the server runs: Codex
+ * steering (a message into the running turn, `turn/steer`) and its "Send now"
+ * exist only on the app-server runtime (`CLOUDCLI_CODEX_RUNTIME=appserver`);
+ * `codex exec` has no channel into a running turn. Codex cannot take back a
+ * steered message, so it never offers Withdraw. Approvals and Codex's
+ * questions reach the chat only there as well (stage 3): exec declines them.
+ * Background terminals and subagents outlive a turn only there (stage 4).
+ */
+function withRuntimeCapabilities(capabilities: ProviderCapabilities): ProviderCapabilities {
+  if (capabilities.provider !== 'codex' || resolveCodexRuntimeMode() !== 'appserver') {
+    return capabilities;
+  }
+  // [local] Stage 4: a new turn on the loaded thread leaves its background
+  // terminals and subagents running, so a send over background work goes
+  // straight in (the composer's adoption path) instead of asking first.
+  return {
+    ...capabilities,
+    supportsSteering: true,
+    sendNowInterruptsTurn: true,
+    supportsPermissionRequests: true,
+    supportsBackgroundAdoption: true,
+    // [local] Stage 5: the refused send's row is kept with the history.
+    showsThreadHeldElsewhere: true,
+  };
+}
+
 export const providerCapabilitiesService = {
   getProviderCapabilities(provider: LLMProvider): ProviderCapabilities {
-    return PROVIDER_CAPABILITIES[provider];
+    const capabilities = PROVIDER_CAPABILITIES[provider];
+    return capabilities ? withRuntimeCapabilities(capabilities) : capabilities;
   },
 
   listAllProviderCapabilities(): ProviderCapabilities[] {
-    return Object.values(PROVIDER_CAPABILITIES);
+    return Object.values(PROVIDER_CAPABILITIES).map(withRuntimeCapabilities);
   },
 };

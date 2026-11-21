@@ -8,6 +8,8 @@ import { getClaudeSettings } from '@/modules/chat/utils/chatStorage';
 import { getPermissionPanel, registerPermissionPanel } from '@/modules/chat/tools/configs/permissionPanelRegistry';
 import { AskUserQuestionPanel } from '@/modules/chat/tools/InteractiveRenderers/AskUserQuestionPanel';
 import { McpElicitationPanel } from '@/modules/chat/tools/InteractiveRenderers/McpElicitationPanel';
+import { CodexApprovalPanel } from '@/modules/chat/tools/InteractiveRenderers/CodexApprovalPanel';
+import { CODEX_APPROVAL_TOOL_NAMES } from '@/modules/chat/tools/configs/codexApprovalToolNames';
 import { MCP_ELICITATION_TOOL_NAME } from '@/shared/constants';
 import {
   Confirmation,
@@ -19,6 +21,10 @@ import {
 
 registerPermissionPanel('AskUserQuestion', AskUserQuestionPanel);
 registerPermissionPanel(MCP_ELICITATION_TOOL_NAME, McpElicitationPanel);
+// [local] Codex on the app-server runtime: approvals and auto-review denials.
+for (const toolName of Object.values(CODEX_APPROVAL_TOOL_NAMES)) {
+  registerPermissionPanel(toolName, CodexApprovalPanel);
+}
 
 type PermissionRequestsBannerProps = {
   pendingPermissionRequests: PendingPermissionRequest[];

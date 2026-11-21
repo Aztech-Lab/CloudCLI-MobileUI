@@ -12,7 +12,7 @@
  */
 
 import { Codex } from '@openai/codex-sdk';
-import type { CodexOptions, ModelReasoningEffort, Thread, ThreadOptions } from '@openai/codex-sdk';
+import type { ModelReasoningEffort, Thread, ThreadOptions } from '@openai/codex-sdk';
 
 import {
   appendFilesInputTag,
@@ -28,6 +28,27 @@ import type { AnyRecord, ProviderRuntimeContext, ProviderRuntimeWriter } from '@
 import type { SideQuestionOutcome, SideQuestionRequest, SideQuestionSink } from '@/shared/types.js';
 
 import { codexAppServer } from './codex-app-server.client.js';
+import {
+  CodexAppServerFallbackError,
+  codexAppServerRuntime,
+  resolveCodexRuntimeMode,
+} from './codex-app-server.runtime.js';
+import {
+  CODEX_IMAGE_ONLY_PROMPT,
+  createCodexActiveWriterErrorMessage,
+  extractCodexTokenBudget,
+  isCodexThreadActiveWriterError,
+  mapPermissionModeToCodexOptions,
+  sendMessage,
+} from './codex-runtime.shared.js';
+import { resolveRunnableWorkspaceRoots } from './codex-workspace-roots.js';
+
+export {
+  CODEX_THREAD_ACTIVE_WRITER_ERROR_CODE,
+  CODEX_THREAD_ACTIVE_WRITER_MESSAGE,
+  isCodexThreadActiveWriterError,
+  mapPermissionModeToCodexOptions,
+} from './codex-runtime.shared.js';
 
 type ActiveCodexSession = {
   thread: Thread;
@@ -39,9 +60,6 @@ type ActiveCodexSession = {
 
 const activeCodexSessions = new Map<string, ActiveCodexSession>();
 
-// Codex CLI requires non-whitespace stdin even when --image arguments are
-// present, so attachment-only turns need a small text instruction.
-const CODEX_IMAGE_ONLY_PROMPT = 'Please analyze the attached image(s).';
 
 /**
  * Item types whose in-flight updates are worth showing. These are the ones a
@@ -49,33 +67,6 @@ const CODEX_IMAGE_ONLY_PROMPT = 'Please analyze the attached image(s).';
  */
 const PROGRESSIVE_CODEX_ITEM_TYPES = new Set(['command_execution', 'mcp_tool_call', 'todo_list']);
 
-function readUsageNumber(value: unknown) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function extractCodexTokenBudget(event: AnyRecord) {
-  const info = event?.info || event?.payload?.info || event?.usage?.info;
-  const usage = info?.total_token_usage || event?.usage?.total_token_usage || event?.usage;
-  if (!usage || typeof usage !== 'object') {
-    return null;
-  }
-
-  const inputTokens = readUsageNumber(usage.input_tokens);
-  const outputTokens = readUsageNumber(usage.output_tokens);
-  const used = readUsageNumber(usage.total_tokens) || inputTokens + outputTokens;
-
-  return {
-    used,
-    total: readUsageNumber(info?.model_context_window || event?.usage?.model_context_window) || 200000,
-    inputTokens,
-    outputTokens,
-    breakdown: {
-      input: inputTokens,
-      output: outputTokens,
-    },
-  };
-}
 
 /**
  * Transform Codex SDK event to WebSocket message format
@@ -227,75 +218,7 @@ function transformCodexEvent(event: AnyRecord): AnyRecord {
   }
 }
 
-type CodexPermissionOptions = Pick<ThreadOptions, 'sandboxMode' | 'approvalPolicy'> & {
-  /**
-   * Extra `--config` overrides for the Codex CLI, passed through
-   * `CodexOptions.config`. Absent for every mode that needs none, so those
-   * keep spawning the CLI exactly as before.
-   */
-  config?: CodexOptions['config'];
-};
 
-/**
- * Map permission mode to Codex SDK options
- * @param {string} permissionMode - 'default', 'approveForMe', 'acceptEdits', or 'bypassPermissions'
- * @returns {object} - { sandboxMode, approvalPolicy, config? }
- */
-export function mapPermissionModeToCodexOptions(permissionMode: string): CodexPermissionOptions {
-  switch (permissionMode) {
-    // [local] Codex's "Approve for me": what `codex exec --approve-for-me`
-    // sets. Same sandbox and policy as the default mode, but approval
-    // requests go to Codex's automatic reviewer instead of the user. The
-    // reviewer is spelled out per run so a user-level `approvals_reviewer`
-    // in config.toml cannot change what this mode means.
-    case 'approveForMe':
-      return {
-        sandboxMode: 'workspace-write',
-        approvalPolicy: 'on-request',
-        config: { approvals_reviewer: 'auto_review' },
-      };
-    case 'acceptEdits':
-      return {
-        sandboxMode: 'workspace-write',
-        approvalPolicy: 'never'
-      };
-    case 'bypassPermissions':
-      return {
-        sandboxMode: 'danger-full-access',
-        approvalPolicy: 'never'
-      };
-    case 'default':
-    default:
-      return {
-        sandboxMode: 'workspace-write',
-        // Current Codex CLI versions reject the retired `untrusted` policy.
-        // Keep sandboxing enabled; exec cannot grant interactive approval requests.
-        approvalPolicy: 'on-request'
-      };
-  }
-}
-
-/**
- * [local] Stable code on the error row sent when Codex refuses to resume a
- * thread because another process (typically the Codex desktop app's
- * app-server) already holds it open for writing. The client translates it.
- */
-export const CODEX_THREAD_ACTIVE_WRITER_ERROR_CODE = 'codex_thread_active_writer';
-
-/** English fallback for the error row above, shown when no translation applies. */
-export const CODEX_THREAD_ACTIVE_WRITER_MESSAGE =
-  'This conversation is open in the Codex app, which allows only one writer at a time. '
-  + 'Close it there (or continue there), then send again.';
-
-/**
- * Codex allows one writer per thread. A second resume fails with
- * `thread/resume failed: thread <id> already has an active writer (code -32600)`
- * or, from the thread store, `thread-store conflict: thread <id> already has
- * an active writer`; the SDK wraps either in "Codex Exec exited with code 1".
- */
-export function isCodexThreadActiveWriterError(message: unknown): boolean {
-  return typeof message === 'string' && /already has an active writer/i.test(message);
-}
 
 /**
  * Execute a Codex query with streaming
@@ -328,6 +251,12 @@ async function queryCodex(
   const resolvedModel = await context.resolveResumeModel(sessionId, model);
 
   const workingDirectory = cwd || projectPath || process.cwd();
+  // [local] A conversation from a multi-root Codex project keeps write access
+  // to its other roots (`--add-dir`), as it has in the user's own Codex app.
+  const additionalDirectories = await resolveRunnableWorkspaceRoots(
+    context.getSessionWorkspaceRoots?.(sessionId) ?? [],
+    workingDirectory,
+  );
   const { sandboxMode, approvalPolicy, config: codexConfig } = mapPermissionModeToCodexOptions(permissionMode);
   const catalog = await context.getProviderModels();
   const selectedModel = catalog.OPTIONS.find((option) => option.value === resolvedModel) || null;
@@ -375,6 +304,7 @@ async function queryCodex(
       approvalPolicy,
       model: resolvedModel,
       modelReasoningEffort: resolvedEffort,
+      ...(additionalDirectories.length > 0 ? { additionalDirectories } : {}),
     };
 
     if (providerSessionId) {
@@ -613,7 +543,7 @@ function abortCodexSession(sessionId: string) {
 async function askCodexSideQuestion(
   request: SideQuestionRequest,
   sink: SideQuestionSink,
-  _context: ProviderRuntimeContext,
+  context: ProviderRuntimeContext,
 ): Promise<SideQuestionOutcome> {
   if (!request.providerSessionId) {
     return { status: 'error', error: 'This Codex session has no provider thread to ask a side question on yet.', answer: '' };
@@ -621,9 +551,15 @@ async function askCodexSideQuestion(
 
   let answer = '';
   try {
+    const cwd = request.projectPath || '';
+    // [local] Same roots the conversation runs with (see queryCodex).
+    const workspaceRoots = cwd
+      ? await resolveRunnableWorkspaceRoots(context.getSessionWorkspaceRoots?.(request.appSessionId) ?? [], cwd)
+      : [];
     const text = await codexAppServer.askSideQuestion({
       threadId: request.providerSessionId,
-      cwd: request.projectPath || '',
+      cwd,
+      workspaceRoots,
       model: request.model || '',
       question: request.question,
       signal: request.signal,
@@ -637,42 +573,54 @@ async function askCodexSideQuestion(
   }
 }
 
-/** Used by the providers module's CodexProvider to run and abort SDK turns. */
+/**
+ * [local] Runs one message on the runtime `CLOUDCLI_CODEX_RUNTIME` selects:
+ * `codex exec` through the SDK (default), or the shared app-server
+ * (`appserver`). When the app-server cannot take the message before anything
+ * was shown, the message runs through exec instead and the reason is logged.
+ */
+async function runCodex(
+  command: string,
+  options: AnyRecord,
+  ws: ProviderRuntimeWriter,
+  context: ProviderRuntimeContext,
+) {
+  if (resolveCodexRuntimeMode() === 'appserver') {
+    try {
+      return await codexAppServerRuntime.run(command, options, ws, context);
+    } catch (error) {
+      if (!(error instanceof CodexAppServerFallbackError)) {
+        throw error;
+      }
+      console.warn(`[Codex] app-server runtime unavailable, running this message with codex exec: ${error.message}`);
+    }
+  }
+  return queryCodex(command, options, ws, context);
+}
+
+/** Used by the providers module's CodexProvider to run and abort turns. */
 export const codexRuntime = {
-  run: queryCodex,
-  abort: abortCodexSession,
+  run: runCodex,
+  // A turn lives in exactly one of the two runtimes.
+  abort: (sessionId: string) => codexAppServerRuntime.abort(sessionId) || abortCodexSession(sessionId),
+  // [local] Only a turn on the app-server can take a message while it runs;
+  // under exec (or after a fallback to it) this is false and the client
+  // sends the message as the next turn.
+  steer: (sessionId: string, command: string, options: AnyRecord) => codexAppServerRuntime.steer(sessionId, command, options),
+  // [local] Archived or deleted: let go of the thread so the Codex app can take it.
+  releaseSession: (sessionId: string) => codexAppServerRuntime.releaseSession(sessionId),
+  // [local] Approvals and questions reach the chat only on the app-server
+  // runtime (stage 3); exec never opens a prompt, so it has none to list.
+  permissions: codexAppServerRuntime.permissions,
+  // [local] Stage 4: background terminals and subagents live only on the
+  // app-server runtime; under exec there is never any (the list is empty).
+  listBackgroundWork: () => codexAppServerRuntime.listBackgroundWork(),
+  stopBackgroundTask: (sessionId: string, taskId: string) => codexAppServerRuntime.stopBackgroundTask(sessionId, taskId),
+  stopAllBackgroundWork: (sessionId: string) => codexAppServerRuntime.stopAllBackgroundWork(sessionId),
   askSideQuestion: askCodexSideQuestion,
 };
 
-/** The error row for a thread another process holds open; see CODEX_THREAD_ACTIVE_WRITER_ERROR_CODE. */
-function createCodexActiveWriterErrorMessage(sessionId: string | null) {
-  return createNormalizedMessage({
-    kind: 'error',
-    content: CODEX_THREAD_ACTIVE_WRITER_MESSAGE,
-    errorCode: CODEX_THREAD_ACTIVE_WRITER_ERROR_CODE,
-    sessionId,
-    provider: 'codex',
-  });
-}
 
-/**
- * Helper to send message via WebSocket or writer
- * @param {WebSocket|object} ws - WebSocket or response writer
- * @param {object} data - Data to send
- */
-function sendMessage(ws: ProviderRuntimeWriter, data: unknown) {
-  try {
-    if (ws.isWebSocketWriter) {
-      // The gateway writer handles stringification
-      ws.send(data);
-    } else if (typeof ws.send === 'function') {
-      // Raw WebSocket - stringify here
-      ws.send(JSON.stringify(data));
-    }
-  } catch (error) {
-    console.error('[Codex] Error sending message:', error);
-  }
-}
 
 // Clean up old completed sessions periodically
 const completedSessionCleanupTimer = setInterval(() => {

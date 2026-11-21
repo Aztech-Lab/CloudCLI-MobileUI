@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from '@/shared/api';
 import type { Project,FileTreeNode } from '@/shared/types';
+import type { WorkspaceRootScope } from '@/modules/file-tree/hooks/useWorkspaceRoots';
 
 type UseFileTreeDataResult = {
   files: FileTreeNode[];
   loading: boolean;
   error: string | null;
+  /** [local] Set instead of a raw message when the listed folder no longer exists. */
+  missingFolder: string | null;
   refreshFiles: () => void;
   /** [local] Directories whose contents are being fetched on demand. */
   loadingDirs: Set<string>;
@@ -26,6 +29,18 @@ function readResponseErrorMessage(responseBody: string): string | null {
       ? (parsedBody as { error: unknown }).error
       : null;
     return typeof message === 'string' && message.trim() ? message : null;
+  } catch {
+    return null;
+  }
+}
+
+/** [local] The folder a "folder not found" refusal names, so the message can be translated. */
+function readMissingFolderPath(responseBody: string): string | null {
+  try {
+    const parsedBody = JSON.parse(responseBody) as { code?: unknown; path?: unknown };
+    return parsedBody.code === 'PROJECT_PATH_NOT_FOUND' && typeof parsedBody.path === 'string'
+      ? parsedBody.path
+      : null;
   } catch {
     return null;
   }
@@ -57,10 +72,17 @@ function replaceDirectoryChildren(
   return changed ? next : nodes;
 }
 
-export function useFileTreeData(selectedProject: Project | null): UseFileTreeDataResult {
+export function useFileTreeData(
+  selectedProject: Project | null,
+  // [local] Another workspace root of the session; null lists the project folder as before.
+  rootScope: WorkspaceRootScope | null = null,
+): UseFileTreeDataResult {
   const [files, setFiles] = useState<FileTreeNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [missingFolder, setMissingFolder] = useState<string | null>(null);
+  const scopeSessionId = rootScope?.sessionId ?? null;
+  const scopeRoot = rootScope?.root ?? 0;
   const [refreshKey, setRefreshKey] = useState(0);
   const [loadingDirs, setLoadingDirs] = useState<Set<string>>(() => new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -76,7 +98,13 @@ export function useFileTreeData(selectedProject: Project | null): UseFileTreeDat
     setLoadingDirs((previous) => new Set(previous).add(directoryPath));
     let children: FileTreeNode[] | undefined;
     try {
-      const response = await api.getFiles(projectId, {}, directoryPath);
+      const response = await api.getFiles(
+        projectId,
+        {},
+        directoryPath,
+        scopeSessionId && scopeRoot > 0 ? { sessionId: scopeSessionId, root: scopeRoot } : null,
+        true, // [local] gitignored entries come back flagged; the toolbar toggle hides them client-side
+      );
       if (response.ok) {
         children = (await response.json()) as FileTreeNode[];
       } else {
@@ -93,7 +121,7 @@ export function useFileTreeData(selectedProject: Project | null): UseFileTreeDat
         return next;
       });
     }
-  }, [projectId]);
+  }, [projectId, scopeSessionId, scopeRoot]);
 
   useEffect(() => {
     // File-tree requests use the DB projectId; the backend resolves it to the
@@ -102,6 +130,7 @@ export function useFileTreeData(selectedProject: Project | null): UseFileTreeDat
       setFiles([]);
       setLoading(false);
       setError(null);
+      setMissingFolder(null);
       return;
     }
 
@@ -118,9 +147,16 @@ export function useFileTreeData(selectedProject: Project | null): UseFileTreeDat
       if (isActive) {
         setLoading(true);
         setError(null);
+        setMissingFolder(null);
       }
       try {
-        const response = await api.getFiles(projectId, { signal: abortControllerRef.current!.signal });
+        const response = await api.getFiles(
+          projectId,
+          { signal: abortControllerRef.current!.signal },
+          undefined,
+          scopeSessionId && scopeRoot > 0 ? { sessionId: scopeSessionId, root: scopeRoot } : null,
+          true, // [local] see loadDirectory
+        );
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -128,6 +164,7 @@ export function useFileTreeData(selectedProject: Project | null): UseFileTreeDat
           if (isActive) {
             setFiles([]);
             setError(readResponseErrorMessage(errorText) ?? DEFAULT_LOAD_ERROR);
+            setMissingFolder(readMissingFolderPath(errorText));
           }
           return;
         }
@@ -159,12 +196,13 @@ export function useFileTreeData(selectedProject: Project | null): UseFileTreeDat
       isActive = false;
       abortControllerRef.current?.abort();
     };
-  }, [projectId, refreshKey]);
+  }, [projectId, refreshKey, scopeSessionId, scopeRoot]);
 
   return {
     files,
     loading,
     error,
+    missingFolder,
     refreshFiles,
     loadingDirs,
     loadDirectory,

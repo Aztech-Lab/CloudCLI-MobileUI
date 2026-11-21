@@ -171,6 +171,7 @@
       "sending": "发送中…",
       "willRead": "{{provider}} 将在下一次工具调用时读取",
       "willReadNow": "{{provider}} 马上读取",
+      "willReadNowInterrupts": "{{provider}} 中断当前步骤后立即读取",
       "withdraw": "撤回",
       "withdrawing": "撤回中…",
       "withdrawTooLate": "来不及撤回：{{provider}} 已在读取",
@@ -353,7 +354,7 @@
       "label": "排队",
       "descriptionResponding": "等这次回复结束后再发送",
       "descriptionBackground": "等后台任务结束后再发送",
-      "descriptionBackgroundKeepsWork": "Claude 空闲时发送；后台任务继续运行"
+      "descriptionBackgroundKeepsWork": "没有回复在进行时发送；后台任务继续运行"
     },
     "steer": {
       "label": "发送",
@@ -361,7 +362,8 @@
     },
     "sendNow": {
       "label": "立即发送",
-      "description": "马上读取；正在运行的命令或子代理转入后台"
+      "description": "马上读取；正在运行的命令或子代理转入后台",
+      "descriptionInterrupts": "中断当前步骤，立即发送"
     },
     "sideQuestion": {
       "label": "旁路提问",
@@ -376,8 +378,64 @@
       "description": "立即发送；这会停止后台任务"
     }
   },
+  "taskNotices": {
+    "codex_background_command_finished": "后台命令已结束：{{command}}",
+    "codex_agent_finished": "代理已完成：{{name}}",
+    "codex_agent_finished_result": "代理已完成：{{name}} — {{result}}",
+    "codex_agent_failed": "代理失败：{{name}}",
+    "codex_agent_stopped": "代理已停止：{{name}}"
+  },
+  "threadHeldElsewhere": {
+    "label": "在 Codex 应用中打开",
+    "hint": "上次发送被拒绝，因为此对话正在 Codex 应用中打开。请在那边关闭它，然后再发送。"
+  },
   "errors": {
     "codex_thread_active_writer": "此对话正在 Codex 应用中打开，而同一对话同一时间只允许一个写入方。请在那边关闭它（或直接在那边继续），然后再发送。",
     "background_work_lost_on_restart": "后台任务已因服务器重启而停止。当时仍在运行的代理、工作流和命令没有完成。"
+  },
+  "codexApprovals": {
+    "title": {
+      "command": "Codex 想运行一条命令",
+      "stdin": "Codex 想向运行中的命令输入内容",
+      "network": "Codex 想访问网络",
+      "fileChange": "Codex 想修改文件",
+      "permissions": "Codex 请求更多权限",
+      "reviewDenial": "自动审查拦下了一个操作"
+    },
+    "label": {
+      "reason": "原因",
+      "cwd": "目录",
+      "host": "主机",
+      "network": "网络",
+      "networkOn": "开启",
+      "read": "读取",
+      "write": "写入",
+      "files": "文件",
+      "grantRoot": "写入权限范围",
+      "showChanges": "查看改动",
+      "reviewReason": "审查意见",
+      "risk": "风险"
+    },
+    "risk": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "critical": "严重"
+    },
+    "actions": {
+      "allowOnce": "允许一次",
+      "allowSession": "本会话内允许",
+      "deny": "拒绝",
+      "allowAnyway": "仍然允许",
+      "keepDenied": "保持拒绝"
+    },
+    "reviewDenialHint": "“仍然允许”会告诉 Codex 你批准这个具体操作。它会在下一步看到；如果它已经结束，请再发一条消息（例如“再试一次”）。重试仍会经过审查。",
+    "review": {
+      "approved": "自动审查已批准：{{action}}",
+      "denied": "自动审查已拒绝：{{action}}",
+      "timedOut": "自动审查超时：{{action}}",
+      "aborted": "自动审查已中止：{{action}}",
+      "other": "自动审查：{{action}}"
+    }
   }
 }

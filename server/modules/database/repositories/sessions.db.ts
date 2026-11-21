@@ -82,6 +82,21 @@ function normalizeSessionRows(rows: SessionRow[]): SessionRow[] {
   return rows.map((row) => normalizeSessionRow(row) as SessionRow);
 }
 
+/** [local] Parses a stored `workspace_roots` value; anything unreadable is no roots. */
+function parseWorkspaceRoots(value: string | null | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function normalizeProjectPathForProvider(provider: string, projectPath: string): string {
   void provider;
   return normalizeProjectPath(projectPath);
@@ -234,6 +249,8 @@ export const sessionsDb = {
     forkedFromSessionId: string;
     model: string | null;
     effort: string | null;
+    /** [local] The source's extra workspace roots, carried over to the copy. */
+    workspaceRoots?: string[];
   }): string {
     const db = getConnection();
     const normalizedProjectPath = normalizeProjectPathForProvider(input.provider, input.projectPath);
@@ -247,8 +264,8 @@ export const sessionsDb = {
       db.prepare('DELETE FROM sessions WHERE session_id = ? AND session_id <> ?')
         .run(input.providerSessionId, input.sessionId);
       db.prepare(
-        `INSERT INTO sessions (session_id, provider, provider_session_id, custom_name, project_path, jsonl_path, model, effort, forked_from_session_id, isArchived, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        `INSERT INTO sessions (session_id, provider, provider_session_id, custom_name, project_path, jsonl_path, model, effort, forked_from_session_id, workspace_roots, isArchived, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
       ).run(
         input.sessionId,
         input.provider,
@@ -259,6 +276,8 @@ export const sessionsDb = {
         input.model,
         input.effort,
         input.forkedFromSessionId,
+        // [local] NULL lets the indexer read them from the copy's rollout.
+        input.workspaceRoots?.length ? JSON.stringify(input.workspaceRoots) : null,
       );
     })();
 
@@ -942,6 +961,57 @@ export const sessionsDb = {
    * Used by the session synchronizer to find rows whose transcript has been
    * deleted underneath the index.
    */
+  /**
+   * [local] Records a Codex conversation's extra workspace roots.
+   *
+   * Roots, once recorded, are only replaced by another non-empty list: a later
+   * rollout (an edit's fork, a turn run without them) that records none must
+   * not take them away. An empty list only marks a never-indexed row as done.
+   */
+  setSessionWorkspaceRoots(sessionId: string, roots: string[]): void {
+    const db = getConnection();
+    if (roots.length > 0) {
+      db.prepare('UPDATE sessions SET workspace_roots = ? WHERE session_id = ?')
+        .run(JSON.stringify(roots), sessionId);
+      return;
+    }
+    db.prepare(`UPDATE sessions SET workspace_roots = '[]' WHERE session_id = ? AND workspace_roots IS NULL`)
+      .run(sessionId);
+  },
+
+  /** [local] The extra workspace roots recorded for one session (empty when none). */
+  getSessionWorkspaceRoots(sessionId: string): string[] {
+    const row = getConnection()
+      .prepare('SELECT workspace_roots FROM sessions WHERE session_id = ? LIMIT 1')
+      .get(sessionId) as { workspace_roots: string | null } | undefined;
+    return parseWorkspaceRoots(row?.workspace_roots);
+  },
+
+  /** [local] Every session that has extra workspace roots, with its project path. */
+  listSessionsWithWorkspaceRoots(): Array<{ session_id: string; project_path: string | null; workspace_roots: string[] }> {
+    const rows = getConnection()
+      .prepare(
+        `SELECT session_id, project_path, workspace_roots
+         FROM sessions
+         WHERE workspace_roots IS NOT NULL AND workspace_roots <> '[]'`
+      )
+      .all() as Array<{ session_id: string; project_path: string | null; workspace_roots: string | null }>;
+    return rows
+      .map((row) => ({ ...row, workspace_roots: parseWorkspaceRoots(row.workspace_roots) }))
+      .filter((row) => row.workspace_roots.length > 0);
+  },
+
+  /** [local] Indexed rows of a provider whose workspace roots were never read. */
+  getSessionsMissingWorkspaceRoots(provider: string): Array<{ session_id: string; project_path: string | null; jsonl_path: string }> {
+    return getConnection()
+      .prepare(
+        `SELECT session_id, project_path, jsonl_path
+         FROM sessions
+         WHERE provider = ? AND workspace_roots IS NULL AND jsonl_path IS NOT NULL AND jsonl_path <> ''`
+      )
+      .all(provider) as Array<{ session_id: string; project_path: string | null; jsonl_path: string }>;
+  },
+
   getSessionsWithTranscriptPath(): Array<{ session_id: string; jsonl_path: string }> {
     const db = getConnection();
     return db

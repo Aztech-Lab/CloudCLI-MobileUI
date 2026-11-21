@@ -103,6 +103,14 @@
     "recentProjects": "最近的项目"
   },
   "fileTree": {
+    "folderNotFound": "文件夹不存在：{{path}}",
+    "roots": {
+      "switch": "工作区文件夹：{{name}}",
+      "position": "{{current}}/{{total}}",
+      "title": "工作区文件夹",
+      "primary": "工作目录",
+      "missing": "不存在"
+    },
     "loading": "正在加载文件...",
     "files": "文件",
     "simpleView": "简单视图",
@@ -126,6 +134,9 @@
     "newFolder": "新建文件夹 (Cmd+Shift+N)",
     "refresh": "刷新",
     "collapseAll": "全部折叠",
+    "showIgnoredFiles": "显示已忽略的文件",
+    "ignoredFilesShown": "已忽略的文件以淡色显示，点按可隐藏。",
+    "ignoredFilesHidden": "已隐藏已忽略的文件，点按可显示。",
     "context": {
       "rename": "重命名",
       "delete": "删除",
@@ -276,6 +287,8 @@
   "workflow": {
     "stopAllBackground": "停止全部后台任务",
     "stopAllBackgroundConfirm": "再点一次全部停止",
-    "stopAllBackgroundHint": "停止此会话的所有后台代理和命令。“停止”按钮只结束当前回复。"
+    "stopAllBackgroundHint": "停止此会话的所有后台代理和命令。“停止”按钮只结束当前回复。",
+    "stopAllBackgroundCommands": "停止全部后台命令",
+    "stopAllBackgroundCommandsHint": "停止此会话的所有后台命令。代理会继续运行：这里无法停止它们。“停止”按钮只结束当前回复。"
   }
 }

@@ -105,6 +105,14 @@
     "recentProjects": "Recent projects"
   },
   "fileTree": {
+    "folderNotFound": "Folder not found: {{path}}",
+    "roots": {
+      "switch": "Workspace folder: {{name}}",
+      "position": "{{current}}/{{total}}",
+      "title": "Workspace folders",
+      "primary": "working folder",
+      "missing": "not found"
+    },
     "loading": "Loading files...",
     "files": "Files",
     "simpleView": "Simple view",
@@ -129,6 +137,9 @@
     "newFolder": "New Folder (Cmd+Shift+N)",
     "refresh": "Refresh",
     "collapseAll": "Collapse All",
+    "showIgnoredFiles": "Show ignored files",
+    "ignoredFilesShown": "Ignored files are shown dimmed. Tap to hide them.",
+    "ignoredFilesHidden": "Ignored files are hidden. Tap to show them.",
     "context": {
       "rename": "Rename",
       "delete": "Delete",
@@ -399,7 +410,9 @@
     "taskOfAgent": "Launched by one of this session's agents",
     "stopAllBackground": "Stop all background work",
     "stopAllBackgroundConfirm": "Tap again to stop all",
-    "stopAllBackgroundHint": "Stops every background agent and command of this session. Stop only ends the current reply."
+    "stopAllBackgroundHint": "Stops every background agent and command of this session. Stop only ends the current reply.",
+    "stopAllBackgroundCommands": "Stop all background commands",
+    "stopAllBackgroundCommandsHint": "Stops every background command of this session. Agents keep running: they cannot be stopped from here. Stop only ends the current reply."
   },
   "cancel": "Cancel"
 }

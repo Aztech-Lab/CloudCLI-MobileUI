@@ -208,6 +208,7 @@ function WorkspaceMain({
             <div className="h-full overflow-hidden">
               <FileTree
                 selectedProject={selectedProject}
+                selectedSession={selectedSession}
                 onFileOpen={handleFileOpen}
                 revealDirectory={revealDirectory}
               />

@@ -56,7 +56,7 @@ test('over background work, a send that joins the process is a plain Send with t
   assert.equal(hintOf(send), '↵');
   // [local] Stage 4: Queue joins the running process too, once Claude is
   // free, and has no key there.
-  assert.match(items(menu)[0].textContent ?? '', /Send when Claude is free; the work keeps running/);
+  assert.match(items(menu)[0].textContent ?? '', /Send when no reply is being written; the work keeps running/);
   assert.doesNotMatch(items(menu)[0].textContent ?? '', /background work ends/);
   assert.equal(hintOf(items(menu)[0]), null);
 

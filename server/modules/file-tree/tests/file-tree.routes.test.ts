@@ -24,6 +24,7 @@ function createFakeServices(overrides: Partial<FileTreeServices> = {}): FileTree
     renameEntry: unexpectedOperation,
     deleteEntry: unexpectedOperation,
     storeUploadedFiles: unexpectedOperation,
+    listWorkspaceRoots: unexpectedOperation,
     ...overrides,
   };
 }
@@ -93,6 +94,29 @@ test('project files route requests gitignore filtering when explicitly enabled',
   });
 
   assert.deepEqual(inputs, [['project-1', { respectGitignore: true }]]);
+});
+
+// [local] Only callers that ask for them get gitignored entries back.
+test('project files route forwards includeIgnored only when requested', async () => {
+  const inputs: Parameters<FileTreeServices['listProjectFiles']>[] = [];
+  const services = createFakeServices({
+    listProjectFiles: async (...input) => {
+      inputs.push(input);
+      return [];
+    },
+  });
+
+  await withFileTreeServer(services, async (baseUrl) => {
+    for (const query of ['respectGitignore=true&includeIgnored=true', 'respectGitignore=true&includeIgnored=false']) {
+      const response = await fetch(`${baseUrl}/api/file-tree/projects/project-1/files?${query}`);
+      assert.equal(response.status, 200);
+    }
+  });
+
+  assert.deepEqual(inputs, [
+    ['project-1', { respectGitignore: true, includeIgnored: true }],
+    ['project-1', { respectGitignore: true }],
+  ]);
 });
 
 test('create route parses the transport payload before invoking the service', async () => {
