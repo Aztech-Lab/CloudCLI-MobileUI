@@ -63,6 +63,25 @@ type NotificationHandler = (method: string, params: unknown) => void;
  * lands in today's date directory, not next to the file it was copied from,
  * so deriving it from the source path would be wrong roughly every day.
  */
+/**
+ * [local] One entry of the app-server's `model/list` reply (Codex 0.169
+ * `v2/Model`), reduced to the fields CloudCLI reads. Everything is optional
+ * because it comes straight off the wire.
+ */
+export type CodexAppServerModel = {
+  id?: string;
+  model?: string;
+  displayName?: string;
+  description?: string;
+  hidden?: boolean;
+  isDefault?: boolean;
+  defaultReasoningEffort?: string;
+  supportedReasoningEfforts?: Array<{ reasoningEffort?: string; description?: string }>;
+};
+
+/** [local] Upper bound on `model/list` pages, against a cursor that never ends. */
+const MODEL_LIST_MAX_PAGES = 10;
+
 export type CodexThreadFork = {
   threadId: string;
   path: string;
@@ -238,7 +257,17 @@ async function withAppServer<T>(
   // once the handshake has returned, so a dismiss while `initialize` hangs
   // would otherwise leave the child up until REQUEST_TIMEOUT_MS. Killing it
   // fails that pending call through the exit handler above.
-  const killOnAbort = () => child.kill();
+  // [local] On Windows `kill` ends only the node launcher; closing stdin is
+  // what makes the native app-server itself exit (it stops at EOF).
+  const stopChild = () => {
+    try {
+      child.stdin?.end();
+    } catch {
+      // Already closed.
+    }
+    child.kill();
+  };
+  const killOnAbort = () => stopChild();
   signal?.addEventListener('abort', killOnAbort, { once: true });
 
   try {
@@ -263,7 +292,7 @@ async function withAppServer<T>(
   } finally {
     signal?.removeEventListener('abort', killOnAbort);
     reader.close();
-    child.kill();
+    stopChild();
   }
 }
 
@@ -303,6 +332,34 @@ export const codexAppServer = {
         statusCode: 501,
       });
     }
+  },
+
+  /**
+   * [local] The models the signed-in Codex account offers, exactly as the
+   * Codex app's own picker gets them: `model/list` on a short-lived
+   * app-server, so it works whichever runtime chats use. Codex merges its
+   * bundled catalog with the account's remote one and leaves out models it
+   * hides from pickers (`includeHidden: false`). Starts no thread and no turn.
+   */
+  async listModels(input: { signal?: AbortSignal } = {}): Promise<CodexAppServerModel[]> {
+    return withAppServer(async ({ call }) => {
+      const models: CodexAppServerModel[] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < MODEL_LIST_MAX_PAGES; page += 1) {
+        const result = await call('model/list', {
+          includeHidden: false,
+          ...(cursor ? { cursor } : {}),
+        }) as { data?: unknown; nextCursor?: unknown } | undefined;
+        if (Array.isArray(result?.data)) {
+          models.push(...result.data.filter((entry): entry is CodexAppServerModel => Boolean(entry) && typeof entry === 'object'));
+        }
+        cursor = typeof result?.nextCursor === 'string' && result.nextCursor ? result.nextCursor : null;
+        if (!cursor) {
+          break;
+        }
+      }
+      return models;
+    }, input.signal);
   },
 
   /**
