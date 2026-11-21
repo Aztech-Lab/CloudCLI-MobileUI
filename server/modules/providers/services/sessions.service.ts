@@ -9,6 +9,7 @@ import { backgroundWorkLedger } from '@/modules/providers/services/background-wo
 import { listBusyClaudeCliSessions } from '@/modules/providers/services/claude-cli-liveness.service.js';
 import { providerCapabilitiesService } from '@/modules/providers/services/provider-capabilities.service.js';
 import { sessionHistoryCache } from '@/modules/providers/services/session-history-cache.service.js';
+import { transcriptNotes } from '@/modules/providers/services/transcript-notes.service.js';
 import type {
   BackgroundTaskSummary,
   ClearedContextSegment,
@@ -198,7 +199,8 @@ async function readClearedContextSegment(
       loadFull,
     }) ?? await loadFull();
 
-  const messages: NormalizedMessage[] = (full?.messages ?? [])
+  // [local] With the rows CloudCLI kept for that transcript (Codex reports).
+  const messages: NormalizedMessage[] = transcriptNotes.withNotes(sessionId, segment.providerSessionId, full?.messages ?? [])
     .map((message) => ({ ...message, transcriptAnchorId: undefined }));
   messages.push(createNormalizedMessage({
     // Stable across reads, so the client can tell it already has this row.
@@ -268,14 +270,34 @@ async function readCurrentContextHistory(
   if (fullHistory) {
     // Providers slice with this same helper, so a cached page is identical
     // to what a direct `(limit, offset)` read would have returned.
-    // [local] With a notice where a restart ended the session's background work.
-    const messages = withRestartNotices
+    // [local] With a notice where a restart ended the session's background work,
+    // and the rows CloudCLI kept that the transcript does not record (notes).
+    const messages = transcriptNotes.withNotes(sessionId, providerSessionId, withRestartNotices
       ? backgroundWorkLedger.withLostNotices(sessionId, provider, fullHistory.messages)
-      : fullHistory.messages;
+      : fullHistory.messages);
     const { page, hasMore } = sliceTailPage(messages, requestedLimit, Math.max(0, requestedOffset));
     result = {
       ...fullHistory,
       ...(messages !== fullHistory.messages ? { total: messages.length } : {}),
+      messages: page,
+      hasMore,
+      offset: requestedOffset,
+      limit: requestedLimit,
+    };
+  } else if (transcriptNotes.has(sessionId, providerSessionId)) {
+    // [local] Notes are placed by time across the whole transcript, so the
+    // page is cut after they are in (only sessions with notes read it whole).
+    const full = await providerSessions.fetchHistory(sessionId, {
+      limit: null,
+      offset: 0,
+      projectPath,
+      providerSessionId,
+    });
+    const messages = transcriptNotes.withNotes(sessionId, providerSessionId, full.messages);
+    const { page, hasMore } = sliceTailPage(messages, requestedLimit, Math.max(0, requestedOffset));
+    result = {
+      ...full,
+      total: messages.length,
       messages: page,
       hasMore,
       offset: requestedOffset,
@@ -924,6 +946,8 @@ export const sessionsService = {
     }
 
     sessionsDb.clearSupersededProviderSessions(sessionId);
+    // [local] The rows CloudCLI kept for its transcripts go with it.
+    transcriptNotes.deleteSession(sessionId);
     const deleted = sessionsDb.deleteSessionById(sessionId);
     if (!deleted) {
       throw new AppError(`Session "${sessionId}" was not found.`, {

@@ -109,6 +109,8 @@ test('the methods the runtime uses are the reviewed set', () => {
       'subAgentActivity', 'agentThreadId', 'agentPath', 'processId',
     ],
     ThreadStartedNotification: ['agentNickname', 'parentThreadId'],
+    ItemStartedNotification: ['commandExecution', 'command', 'collabAgentToolCall', 'receiverThreadIds'],
+    ErrorNotification: ['error', 'message', 'willRetry'],
   });
 });
 

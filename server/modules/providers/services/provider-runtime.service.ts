@@ -2,6 +2,7 @@ import { errorMessage } from '@/shared/utils.js';
 import { providerRegistry } from '@/modules/providers/provider.registry.js';
 import { providerModelsService } from '@/modules/providers/services/provider-models.service.js';
 import { sessionsService } from '@/modules/providers/services/sessions.service.js';
+import { transcriptNotes } from '@/modules/providers/services/transcript-notes.service.js';
 import type { IProvider } from '@/shared/interfaces.js';
 import type {
   AnyRecord,
@@ -28,6 +29,8 @@ type ProviderRuntimeServiceDependencies = {
     requestedModel?: string | null,
   ): Promise<string | undefined>;
   getProviderModels: typeof providerModelsService.getProviderModels;
+  /** [local] See ProviderRuntimeContext.recordTranscriptNote. */
+  recordTranscriptNote: NonNullable<ProviderRuntimeContext['recordTranscriptNote']>;
   /**
    * Builds the SDK query for a side-question run. Production leaves this
    * unset so the runtime uses the SDK's own; tests supply a scripted stream.
@@ -43,6 +46,7 @@ const defaultDependencies: ProviderRuntimeServiceDependencies = {
   resolveResumeModel: (provider, sessionId, requestedModel) =>
     providerModelsService.resolveResumeModel(provider, sessionId, requestedModel),
   getProviderModels: (provider) => providerModelsService.getProviderModels(provider),
+  recordTranscriptNote: (note) => transcriptNotes.record(note),
 };
 
 /**
@@ -66,6 +70,7 @@ export function createProviderRuntimeService(
       dependencies.resolveResumeModel(provider.id, sessionId, requestedModel),
     getProviderModels: async () => dependencies.getProviderModels(provider.id),
     normalizeMessage: (raw, sessionId) => provider.sessions.normalizeMessage(raw, sessionId),
+    recordTranscriptNote: dependencies.recordTranscriptNote,
     async isProviderInstalled() {
       try {
         return (await provider.auth.getStatus()).installed;

@@ -141,3 +141,25 @@ test('a Codex send over background work joins the loaded thread only on the app-
     }
   }
 });
+
+// [local] Stage 5 of the Codex parity plan.
+test('only Codex on the app-server runtime shows that its thread is open in another program', () => {
+  const original = process.env.CLOUDCLI_CODEX_RUNTIME;
+  try {
+    delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    for (const provider of ['claude', 'codex', 'cursor', 'opencode'] as LLMProvider[]) {
+      assert.equal(providerCapabilitiesService.getProviderCapabilities(provider).showsThreadHeldElsewhere, false, provider);
+    }
+    process.env.CLOUDCLI_CODEX_RUNTIME = 'appserver';
+    assert.equal(providerCapabilitiesService.getProviderCapabilities('codex').showsThreadHeldElsewhere, true);
+    for (const provider of ['claude', 'cursor', 'opencode'] as LLMProvider[]) {
+      assert.equal(providerCapabilitiesService.getProviderCapabilities(provider).showsThreadHeldElsewhere, false, provider);
+    }
+  } finally {
+    if (original === undefined) {
+      delete process.env.CLOUDCLI_CODEX_RUNTIME;
+    } else {
+      process.env.CLOUDCLI_CODEX_RUNTIME = original;
+    }
+  }
+});

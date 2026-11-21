@@ -19,6 +19,8 @@ import {
   codexRuntime,
 } from '@/modules/providers/list/codex/codex-runtime.provider.js';
 import { CodexSessionsProvider } from '@/modules/providers/list/codex/codex-sessions.provider.js';
+import { summarizeActiveWork } from '@/modules/providers/services/background-work-ledger.service.js';
+import { chatRunRegistry } from '@/modules/websocket/index.js';
 import type { ProviderRuntimeContext } from '@/shared/index.js';
 
 /**
@@ -1264,7 +1266,10 @@ const collab = (id: string, tool: string, status: string, receivers: string[], s
 
 const backgroundSettings = { backgroundPollMs: 20, idleReleaseMs: 50, turnEndBackgroundReadMs: 1_000 };
 const tasksOf = (sessionId: string) => codexRuntime.listBackgroundWork().find((entry) => entry.sessionId === sessionId)?.tasks ?? [];
-const taskEvents = (sent: Sent[]) => sent.filter((message) => message.kind === 'task_status')
+// [local] Stage 5: the live work is announced again after a turn's end, under
+// the same ids (the client keeps one); each event is counted once here.
+const taskEvents = (sent: Sent[]) => sent.filter((message, index) => message.kind === 'task_status'
+  && sent.findIndex((other) => other.id === message.id) === index)
   .map((message) => [message.event, message.status, message.taskId, message.toolUseId]);
 
 test('a background terminal outlives its turn: listed before complete, keeps the thread, and its end is reported', async () => {
@@ -1441,7 +1446,7 @@ test('a subagent still running after the turn keeps the thread, has no stop, and
     assert.equal(card?.subagent?.status, 'completed');
     assert.equal(sent.filter((message) => message.kind === 'tool_result' && message.toolId === 's2').at(-1)?.content, 'B has 7 files.');
     // The status also travels as task events on the card, with no task id (no stop).
-    assert.deepEqual(sent.filter((message) => message.kind === 'task_status').map((message) => [message.event, message.status, message.toolUseId, message.taskId]), [
+    assert.deepEqual(taskEvents(sent).map(([event, status, taskId, toolUseId]) => [event, status, toolUseId, taskId]), [
       ['started', 'running', 's2', undefined],
       ['notification', 'completed', 's2', undefined],
     ]);
@@ -1532,4 +1537,230 @@ test('under exec there is no background work to list or stop', async () => {
     assert.equal(await codexRuntime.stopAllBackgroundWork('app-exec'), false);
     assert.deepEqual(await fake.pids(), []);
   }, null);
+});
+
+// ---------------------------------------------------------------------------
+// [local] Stage 5: reconnect, reload, kept rows, restart awareness
+
+type Note = { sessionId: string; providerSessionId: string; message: Sent };
+
+function noteSink() {
+  const notes: Note[] = [];
+  return { notes, recordTranscriptNote: (note: { sessionId: string; providerSessionId: string; message: unknown }) => notes.push(note as Note) };
+}
+
+/** A registry run, as `chat.send` starts one, so seqs, the replay floor and catch-up are the real ones. */
+function registryRun(appSessionId: string, providerSessionId: string) {
+  const run = chatRunRegistry.startRun({ appSessionId, provider: 'codex', providerSessionId, connection: null, userId: null });
+  assert.ok(run, 'the run is registered');
+  return run;
+}
+
+test('a page that reloads during the background phase is replayed the work, not the finished turn', async () => {
+  await withFake({
+    turns: [[
+      ...backgroundCommand('c1', '1001', 'npm run dev'),
+      ['agentStatus', 'child-r1', 'active'],
+      ['notify', 'item/completed', { item: collab('s1', 'spawnAgent', 'completed', ['child-r1'], { 'child-r1': { status: 'running', message: null } }, { prompt: 'Survey B' }) }],
+      agentMessage('m1', 'Both are running.'),
+      'complete',
+      ['sleep', 300],
+      ['terminalExit', '1001'],
+      ['agentStatus', 'child-r1', 'idle', 'B has 7 files.'],
+    ]],
+  }, async () => {
+    Object.assign(codexAppServerRuntime.settings, backgroundSettings);
+    const { notes, recordTranscriptNote } = noteSink();
+    const run = registryRun('app-r1', 'thread-r1');
+    try {
+      await codexRuntime.run('start both', { sessionId: 'app-r1', cwd: process.cwd() }, run.writer, makeContext({ providerSessionId: 'thread-r1', recordTranscriptNote }));
+      const sent = () => run.events as Sent[];
+      const turnText = sent().find((message) => message.kind === 'text' && message.content === 'Both are running.');
+      const complete = sent().find((message) => message.kind === 'complete');
+      assert.ok(turnText && complete);
+
+      // A reloaded page (lastSeq 0): only what came after the turn's end. The
+      // turn itself is in the rollout it reads over REST; the work's state is not.
+      const reload = chatRunRegistry.catchUpEvents('app-r1', 0) as Sent[];
+      assert.equal(reload.some((message) => message.seq <= complete.seq), false, 'nothing of the finished turn');
+      assert.ok(reload.some((message) => message.kind === 'task_status' && message.taskId === '1001' && message.status === 'running'), 'the terminal is still running');
+      const terminalCard = reload.find((message) => message.kind === 'tool_use' && message.toolId === 'c1');
+      assert.equal(terminalCard?.dedupeKey, 'bash:npm run dev', 'the command card, matched to the rollout by its command');
+      const agentCard = reload.find((message) => message.kind === 'tool_use' && message.toolId === 's1');
+      assert.equal(agentCard?.subagent?.status, 'running');
+      assert.equal(agentCard?.dedupeKey, 'agent:child-r1', 'the agent card, matched to the rollout by its thread');
+      assert.ok(reload.some((message) => message.kind === 'task_status' && message.toolUseId === 's1' && message.status === 'running'));
+      // A client that followed the turn up to its text gets the rest of it.
+      const followed = chatRunRegistry.catchUpEvents('app-r1', turnText.seq) as Sent[];
+      assert.ok(followed.some((message) => message.kind === 'complete'));
+
+      // Restart awareness: both are what a restart would end.
+      assert.deepEqual(summarizeActiveWork(chatRunRegistry.listRunningRuns(), codexRuntime.listBackgroundWork()), { turns: 0, backgroundSessions: 1, backgroundTasks: 2 });
+      assert.deepEqual(codexRuntime.listBackgroundWork().map((entry) => entry.sessionId), ['app-r1'], 'listed under the app session, as the ledger keys it');
+
+      await waitFor(() => sent().filter((message) => message.kind === 'task_notification').length === 2, 'both reports');
+      const reports = sent().filter((message) => message.kind === 'task_notification');
+      assert.deepEqual(reports.map((message) => message.notice), [
+        { code: 'codex_background_command_finished', params: { command: 'npm run dev' } },
+        { code: 'codex_agent_finished_result', params: { name: 'Survey B', result: 'B has 7 files.' } },
+      ]);
+      // Kept, since the rollout does not record them: for the app session and its thread.
+      assert.deepEqual(notes.map((note) => [note.sessionId, note.providerSessionId, note.message.id]), reports.map((message) => ['app-r1', 'thread-r1', message.id]));
+      assert.ok(notes.every((note) => note.message.kind === 'task_notification' && note.message.notice));
+      // And a page that reloads now is replayed them too.
+      const later = chatRunRegistry.catchUpEvents('app-r1', 0) as Sent[];
+      assert.deepEqual(later.filter((message) => message.kind === 'task_notification').map((message) => message.id), reports.map((message) => message.id));
+      assert.deepEqual(summarizeActiveWork([], codexRuntime.listBackgroundWork()), { turns: 0, backgroundSessions: 0, backgroundTasks: 0 });
+    } finally {
+      chatRunRegistry.clearAll();
+    }
+  });
+});
+
+test('a page that reloads mid-turn is replayed the turn and its waiting approval, and can answer it', async () => {
+  const { providerRuntimeService } = await import('@/modules/providers/services/provider-runtime.service.js');
+  await withFake({ turns: [[agentMessage('m1', 'Let me clean up.'), commandApproval('c1'), 'complete']] }, async (fake) => {
+    const run = registryRun('app-r2', 'thread-r2');
+    try {
+      const turn = codexRuntime.run('clean', { sessionId: 'app-r2', cwd: process.cwd() }, run.writer, makeContext({ providerSessionId: 'thread-r2' }));
+      await waitFor(() => (run.events as Sent[]).some((message) => message.kind === 'permission_request'), 'the approval');
+
+      const reload = chatRunRegistry.catchUpEvents('app-r2', 0) as Sent[];
+      assert.ok(reload.some((message) => message.kind === 'text' && message.content === 'Let me clean up.'), 'the turn so far');
+      const prompt = reload.find((message) => message.kind === 'permission_request');
+      // The subscribe ack lists the same prompt, and the reloaded page answers it.
+      const pending = providerRuntimeService.getPendingApprovalsForSession('app-r2') as Sent[];
+      assert.deepEqual(pending.map((entry) => entry.requestId), [prompt?.requestId]);
+      providerRuntimeService.resolveToolApproval(String(prompt?.requestId), { allow: true });
+      await turn;
+      assert.deepEqual((await answersTo(fake)).map((line) => line.result), [{ decision: 'accept' }]);
+      assert.ok((run.events as Sent[]).some((message) => message.kind === 'permission_resolved' && message.requestId === prompt?.requestId));
+    } finally {
+      chatRunRegistry.clearAll();
+    }
+  });
+});
+
+test('automatic review rows are kept for the history, as Codex does not record them', async () => {
+  await withFake({
+    turns: [[
+      review('rev-k1', 'approved', { type: 'applyPatch', cwd: '/p', files: ['/p/a.ts'] }, 'Edits inside the workspace'),
+      'complete',
+    ]],
+  }, async () => {
+    const { notes, recordTranscriptNote } = noteSink();
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('go', { sessionId: 'app-k1', cwd: process.cwd(), permissionMode: 'approveForMe' }, writer, makeContext({ providerSessionId: 'thread-k1', recordTranscriptNote }));
+
+    const rows = sent.filter((message) => String(message.toolId ?? '').startsWith('autoreview_'));
+    assert.equal(rows.length, 2);
+    assert.deepEqual(notes.map((note) => [note.sessionId, note.providerSessionId, note.message.id, note.message.kind]), [
+      ['app-k1', 'thread-k1', 'autoreview_rev-k1', 'tool_use'],
+      ['app-k1', 'thread-k1', 'autoreview_rev-k1_result', 'tool_result'],
+    ]);
+    // Nothing else of the turn is kept: the rollout has it.
+    assert.equal(notes.length, 2);
+  });
+});
+
+test('a send refused because the Codex app holds the thread is kept, so a reload still says so', async (t) => {
+  await withFake({ lockedThreads: ['thread-held'] }, async () => {
+    t.mock.method(console, 'error', () => {});
+    const { notes, recordTranscriptNote } = noteSink();
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('hi', { sessionId: 'app-held', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-held', recordTranscriptNote }));
+
+    const error = sent.find((message) => message.kind === 'error');
+    assert.equal(error?.errorCode, CODEX_THREAD_ACTIVE_WRITER_ERROR_CODE);
+    assert.deepEqual(notes.map((note) => [note.sessionId, note.providerSessionId, note.message.id, note.message.errorCode]), [
+      ['app-held', 'thread-held', error?.id, CODEX_THREAD_ACTIVE_WRITER_ERROR_CODE],
+    ]);
+  });
+});
+
+test('a live command card carries the key its rollout card is matched by; other rows do not', async () => {
+  await withFake({
+    turns: [[
+      ['notify', 'item/started', { item: { type: 'commandExecution', id: 'cmd-1', command: 'ls -la', cwd: '/', status: 'inProgress', aggregatedOutput: null, exitCode: null } }],
+      ['notify', 'item/completed', { item: { type: 'commandExecution', id: 'cmd-1', command: 'ls -la', cwd: '/', status: 'completed', aggregatedOutput: 'x\n', exitCode: 0 } }],
+      agentMessage('m1', 'Done.'),
+      'complete',
+    ]],
+  }, async () => {
+    const { notes, recordTranscriptNote } = noteSink();
+    const { sent, writer } = makeWriter();
+    await codexRuntime.run('list', { sessionId: 'app-k2', cwd: process.cwd() }, writer, makeContext({ providerSessionId: 'thread-k2', recordTranscriptNote }));
+    const cards = sent.filter((message) => message.kind === 'tool_use' && message.toolId === 'cmd-1');
+    assert.ok(cards.length >= 1);
+    assert.ok(cards.every((message) => message.dedupeKey === 'bash:ls -la'));
+    assert.equal(sent.filter((message) => message.kind !== 'tool_use' && message.dedupeKey).length, 0);
+    assert.deepEqual(notes, [], 'a plain turn keeps nothing: the rollout has all of it');
+  });
+});
+
+test('Stop during background work announces the live work again after its complete', async () => {
+  await withFake({ turns: [[...backgroundCommand('c5', '5005', 'python train.py'), 'wait']] }, async () => {
+    Object.assign(codexAppServerRuntime.settings, backgroundSettings);
+    const run = registryRun('app-r3', 'thread-r3');
+    try {
+      const turn = codexRuntime.run('train', { sessionId: 'app-r3', cwd: process.cwd() }, run.writer, makeContext({ providerSessionId: 'thread-r3' }));
+      await waitFor(() => tasksOf('app-r3').length === 1, 'the terminal');
+      assert.equal(await codexRuntime.abort('app-r3'), true);
+      await turn;
+      const reload = chatRunRegistry.catchUpEvents('app-r3', 0) as Sent[];
+      assert.deepEqual(reload.filter((message) => message.kind === 'task_status').map((message) => [message.taskId, message.status]), [['5005', 'running']]);
+      assert.equal(reload.some((message) => message.kind === 'complete'), false, 'the stopped turn itself is not replayed');
+    } finally {
+      chatRunRegistry.clearAll();
+    }
+  });
+});
+
+test('a server restart that ends Codex background terminals and agents leaves the restart notice', { concurrency: false }, async () => {
+  const { closeConnection, initializeDatabase } = await import('@/modules/database/index.js');
+  const { backgroundWorkLedger, BACKGROUND_WORK_LOST_ERROR_CODE } = await import('@/modules/providers/services/background-work-ledger.service.js');
+  const previousDatabasePath = process.env.DATABASE_PATH;
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'codex-restart-ledger-'));
+  closeConnection();
+  process.env.DATABASE_PATH = path.join(directory, 'auth.db');
+  await initializeDatabase();
+  backgroundWorkLedger.resetForTests();
+  try {
+    await withFake({
+      turns: [[
+        ...backgroundCommand('c10', '1010', 'npm run dev'),
+        ['agentStatus', 'child-l1', 'active'],
+        ['notify', 'item/completed', { item: collab('s10', 'spawnAgent', 'completed', ['child-l1'], { 'child-l1': { status: 'running', message: null } }, { prompt: 'Survey B' }) }],
+        'complete',
+      ]],
+    }, async () => {
+      Object.assign(codexAppServerRuntime.settings, backgroundSettings);
+      await codexRuntime.run('start both', { sessionId: 'app-l1', cwd: process.cwd() }, makeWriter().writer, makeContext({ providerSessionId: 'thread-l1' }));
+
+      // What the ledger's 2 s tick (and the shutdown handler, before it stops
+      // the app-server) records: the Codex session with its two tasks.
+      backgroundWorkLedger.record(codexRuntime.listBackgroundWork());
+      codexAppServerRuntime.shutdown();
+      assert.deepEqual(codexRuntime.listBackgroundWork(), []);
+
+      // The next server start.
+      backgroundWorkLedger.resetForTests();
+      const lostAt = new Date(Date.now() + 1000);
+      assert.deepEqual(backgroundWorkLedger.noteLostOnStart(lostAt), ['app-l1']);
+      assert.deepEqual(backgroundWorkLedger.getLost('app-l1'), [{ lostAt: lostAt.toISOString(), tasks: 2 }]);
+      const rows = backgroundWorkLedger.withLostNotices('app-l1', 'codex', []);
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].errorCode, BACKGROUND_WORK_LOST_ERROR_CODE);
+      assert.equal(rows[0].provider, 'codex');
+    });
+  } finally {
+    backgroundWorkLedger.resetForTests();
+    closeConnection();
+    if (previousDatabasePath === undefined) {
+      delete process.env.DATABASE_PATH;
+    } else {
+      process.env.DATABASE_PATH = previousDatabasePath;
+    }
+    await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
 });

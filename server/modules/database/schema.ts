@@ -269,6 +269,28 @@ CREATE TABLE IF NOT EXISTS superseded_provider_sessions (
 );
 `;
 
+/**
+ * [local] Transcript rows a provider's own transcript does not record, kept so
+ * a reload still shows them: Codex's reports of background commands and
+ * agents that finished after their turn, its automatic review decisions, and
+ * the row saying the thread was open in another program. Each belongs to one
+ * app session and to the provider session (transcript) it was shown in, and
+ * is placed by `created_at` among that transcript's rows when the history is
+ * read. `message_json` is the normalized row as it was sent live.
+ */
+export const SESSION_TRANSCRIPT_NOTES_TABLE_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS session_transcript_notes (
+    session_id TEXT NOT NULL,
+    provider_session_id TEXT NOT NULL,
+    note_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    message_json TEXT NOT NULL,
+    PRIMARY KEY (session_id, provider_session_id, note_id)
+);
+CREATE INDEX IF NOT EXISTS idx_session_transcript_notes_session
+ON session_transcript_notes(session_id, provider_session_id, created_at);
+`;
+
 export const INIT_SCHEMA_SQL = `
 -- Initialize authentication database
 PRAGMA foreign_keys = ON;
@@ -322,4 +344,6 @@ ${USER_PREFERENCES_TABLE_SCHEMA_SQL}
 ${SESSION_DRAFTS_TABLE_SCHEMA_SQL}
 
 ${SUPERSEDED_PROVIDER_SESSIONS_TABLE_SCHEMA_SQL}
+
+${SESSION_TRANSCRIPT_NOTES_TABLE_SCHEMA_SQL}
 `;

@@ -15,6 +15,10 @@
  *   the shape the history reader builds from the rollout;
  * - work that ends while no turn runs adds a `task_notification` row, the
  *   "report back" a finished background task gives on the Claude side.
+ *   [local] Stage 5: the row carries a translatable `notice` and is kept in
+ *   CloudCLI's database (`sink.recordNote`), since Codex's rollout does not
+ *   record it; the live cards carry a `dedupeKey`, so a reload that brings
+ *   back the rollout's card under another id does not show the card twice.
  *
  * The level signal is Codex's own: `thread/backgroundTerminals/list` for the
  * terminals and `thread/read` (thread status) for the subagents, polled while
@@ -63,6 +67,8 @@ export type CodexBackgroundSink = {
   rowSessionId: string | null;
   writer: ProviderRuntimeWriter;
   normalize: (raw: AnyRecord, sessionId: string | null) => NormalizedMessage[];
+  /** [local] Stage 5: keeps a row the rollout does not record (the report rows). */
+  recordNote?: (message: NormalizedMessage) => void;
 };
 
 export type CodexBackgroundDeps = {
@@ -143,6 +149,8 @@ export function codexSubagentCardRows(agent: CodexSubagent, sessionId: string | 
     id: agent.toolId,
     kind: 'tool_use',
     toolName: 'Task',
+    // [local] Stage 5: the history card names the agent by its thread too.
+    ...(agent.threadId ? { dedupeKey: codexAgentDedupeKey(agent.threadId) } : {}),
     toolInput: {
       description: agent.description,
       ...(agent.prompt ? { prompt: agent.prompt } : {}),
@@ -170,6 +178,20 @@ export function codexSubagentCardRows(agent: CodexSubagent, sessionId: string | 
     }));
   }
   return rows;
+}
+
+/**
+ * [local] Stage 5: the key a live card is matched against the history card
+ * by, when their ids differ. The client builds the same key from the history
+ * card (`subagent.id`, the agent's thread; a Bash card's command).
+ */
+export function codexAgentDedupeKey(agentThreadId: string): string {
+  return `agent:${agentThreadId}`;
+}
+
+export function codexCommandDedupeKey(command: unknown): string | undefined {
+  const text = typeof command === 'string' ? command.trim() : '';
+  return text ? `bash:${text}` : undefined;
 }
 
 /** One lifecycle event of a background terminal, folded onto its command's card by the client. */
@@ -216,16 +238,71 @@ export function codexSubagentTaskStatus(agent: CodexSubagent, sessionId: string 
   });
 }
 
-/** A row in the transcript for work that ended after its turn: the "report back". */
-function reportRow(id: string, summary: string, status: 'completed' | 'failed' | 'stopped', sessionId: string | null): NormalizedMessage {
+/**
+ * A row in the transcript for work that ended after its turn: the "report
+ * back". `summary` is the English text; [local] stage 5: `notice` is what the
+ * client translates it from.
+ */
+function reportRow(
+  id: string,
+  summary: string,
+  status: 'completed' | 'failed' | 'stopped',
+  sessionId: string | null,
+  notice: { code: string; params: Record<string, string> },
+): NormalizedMessage {
   return createNormalizedMessage({
     id,
     kind: 'task_notification',
     status,
     summary,
+    notice,
     sessionId,
     provider: 'codex',
   });
+}
+
+/** [local] Stage 5: the report row of a subagent that settled after its turn. */
+export function codexAgentReportRow(
+  agent: Pick<CodexSubagent, 'toolId' | 'name' | 'description' | 'result'>,
+  status: Exclude<CodexSubagentStatus, 'running'>,
+  sessionId: string | null,
+): NormalizedMessage {
+  const label = agent.name ?? agent.description;
+  const result = agent.result ? shorten(agent.result) : '';
+  if (status === 'completed') {
+    return reportRow(
+      `bgagent_${agent.toolId}_${status}`,
+      `Agent finished: ${label}${result ? ` — ${result}` : ''}`,
+      status,
+      sessionId,
+      result
+        ? { code: 'codex_agent_finished_result', params: { name: label, result } }
+        : { code: 'codex_agent_finished', params: { name: label } },
+    );
+  }
+  return reportRow(
+    `bgagent_${agent.toolId}_${status}`,
+    status === 'failed' ? `Agent failed: ${label}` : `Agent stopped: ${label}`,
+    status,
+    sessionId,
+    { code: status === 'failed' ? 'codex_agent_failed' : 'codex_agent_stopped', params: { name: label } },
+  );
+}
+
+/** [local] Stage 5: the report row of a background command that ended after its turn. */
+export function codexCommandReportRow(
+  terminal: Pick<CodexBackgroundTerminal, 'processId' | 'command'>,
+  status: 'completed' | 'stopped',
+  sessionId: string | null,
+): NormalizedMessage {
+  const command = shorten(terminal.command);
+  return reportRow(
+    `bgterm_${terminal.processId}_report`,
+    `Background command finished: ${command}`,
+    status,
+    sessionId,
+    { code: 'codex_background_command_finished', params: { command } },
+  );
 }
 
 function shorten(text: string, max = 120): string {
@@ -324,8 +401,60 @@ export class CodexThreadBackground {
     }
   }
 
+  /** [local] Stage 5: a report row is shown, and kept, since the rollout has no entry for it. */
+  private sendReport(row: NormalizedMessage): void {
+    if (this.sink && !this.disposed) {
+      sendMessage(this.sink.writer, row);
+      this.sink.recordNote?.(row);
+    }
+  }
+
+  /**
+   * [local] Stage 5: the live work's state again, after the turn's
+   * `complete`. A page that reloads from here on is replayed only what came
+   * after that `complete` (what came before is in the rollout it reads), but
+   * the rollout does not say a command still runs or what state an agent is
+   * in. Same ids as the first report, so a client that has them keeps one.
+   */
+  reannounce(): void {
+    for (const terminal of this.terminals.values()) {
+      // The card too: the status needs a card to fold onto, and its
+      // `dedupeKey` finds the rollout's card if that has another id.
+      if (!this.completedCommands.has(terminal.itemId)) {
+        this.send(this.terminalCard(terminal, 'in_progress'));
+      }
+      this.send(codexTerminalTaskStatus(terminal, 'started', 'running', this.rowSessionId));
+    }
+    for (const agent of this.agents.values()) {
+      if (agent.status === 'running') {
+        this.sendAgentCard(agent);
+        this.sendAgentStatus(agent);
+      }
+    }
+  }
+
   private get rowSessionId(): string | null {
     return this.sink?.rowSessionId ?? this.threadId;
+  }
+
+  /**
+   * A background command's card, as the turn first showed it. Stamped with
+   * when the command was first listed, so it sorts with its turn and is
+   * matched to the rollout's card by time as well as by command.
+   */
+  private terminalCard(terminal: CodexBackgroundTerminal, status: 'in_progress' | 'completed'): NormalizedMessage {
+    return createNormalizedMessage({
+      id: terminal.itemId,
+      kind: 'tool_use',
+      toolName: 'Bash',
+      toolInput: { command: terminal.command },
+      toolId: terminal.itemId,
+      dedupeKey: codexCommandDedupeKey(terminal.command),
+      status,
+      timestamp: new Date(terminal.startedAt).toISOString(),
+      sessionId: this.rowSessionId,
+      provider: 'codex',
+    });
   }
 
   noteCommandCompleted(itemId: string): void {
@@ -382,17 +511,7 @@ export class CodexThreadBackground {
     this.sendAgentCard(agent);
     this.sendAgentStatus(agent);
     if (!this.deps.isTurnRunning(this.threadId)) {
-      const label = agent.name ?? agent.description;
-      this.send(reportRow(
-        `bgagent_${agent.toolId}_${status}`,
-        status === 'completed'
-          ? `Agent finished: ${label}${agent.result ? ` — ${shorten(agent.result)}` : ''}`
-          : status === 'failed'
-            ? `Agent failed: ${label}`
-            : `Agent stopped: ${label}`,
-        status,
-        this.rowSessionId,
-      ));
+      this.sendReport(codexAgentReportRow(agent, status, this.rowSessionId));
     }
   }
 
@@ -725,24 +844,10 @@ export class CodexThreadBackground {
     if (!this.completedCommands.has(terminal.itemId)) {
       // Codex did not report the command's end on the stream: the card stops
       // spinning here; its output is in the rollout, which a reload reads.
-      this.send(createNormalizedMessage({
-        id: terminal.itemId,
-        kind: 'tool_use',
-        toolName: 'Bash',
-        toolInput: { command: terminal.command },
-        toolId: terminal.itemId,
-        status: 'completed',
-        sessionId: this.rowSessionId,
-        provider: 'codex',
-      }));
+      this.send(this.terminalCard(terminal, 'completed'));
     }
     if (!stoppedHere && !this.deps.isTurnRunning(this.threadId)) {
-      this.send(reportRow(
-        `bgterm_${terminal.processId}_report`,
-        `Background command finished: ${shorten(terminal.command)}`,
-        status,
-        this.rowSessionId,
-      ));
+      this.sendReport(codexCommandReportRow(terminal, status, this.rowSessionId));
     }
   }
 

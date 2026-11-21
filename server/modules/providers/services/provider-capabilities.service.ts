@@ -87,6 +87,12 @@ type ProviderCapabilities = {
    * longer points at, and an indexer that leaves such a transcript alone.
    */
   supportsContextClearing: boolean;
+  /**
+   * [local] Whether the chat shows that the conversation's thread is open in
+   * another program (the Codex app holds its single writer), read from the
+   * last refused send's row. Codex on the app-server runtime only (stage 5).
+   */
+  showsThreadHeldElsewhere: boolean;
 };
 
 /**
@@ -125,6 +131,7 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     // (see the Claude runtime's adoption entry point) instead of replacing it.
     supportsBackgroundAdoption: true,
     supportsContextClearing: true,
+    showsThreadHeldElsewhere: false,
   },
   cursor: {
     provider: 'cursor',
@@ -146,6 +153,7 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsMoveToBackground: false,
     supportsBackgroundAdoption: false,
     supportsContextClearing: false,
+    showsThreadHeldElsewhere: false,
   },
   codex: {
     provider: 'codex',
@@ -176,6 +184,7 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsMoveToBackground: false,
     supportsBackgroundAdoption: false,
     supportsContextClearing: false,
+    showsThreadHeldElsewhere: false,
   },
   opencode: {
     provider: 'opencode',
@@ -204,6 +213,7 @@ const PROVIDER_CAPABILITIES: Record<LLMProvider, ProviderCapabilities> = {
     supportsMoveToBackground: false,
     supportsBackgroundAdoption: false,
     supportsContextClearing: false,
+    showsThreadHeldElsewhere: false,
   },
 };
 
@@ -234,6 +244,8 @@ function withRuntimeCapabilities(capabilities: ProviderCapabilities): ProviderCa
     sendNowInterruptsTurn: true,
     supportsPermissionRequests: true,
     supportsBackgroundAdoption: true,
+    // [local] Stage 5: the refused send's row is kept with the history.
+    showsThreadHeldElsewhere: true,
   };
 }
 

@@ -546,6 +546,19 @@ export type NormalizedMessage = {
    * of showing `content` (which stays the English fallback).
    */
   errorCode?: string;
+  /**
+   * [local] On a `task_notification` row, a stable code and its values the
+   * client can translate instead of showing `summary` (which stays the
+   * English fallback).
+   */
+  notice?: { code: string; params?: Record<string, string> };
+  /**
+   * [local] On a live tool card whose id may differ from the one its
+   * persisted transcript gives it (Codex on the app-server runtime), the key
+   * the client matches it against the history card by, so a reload never
+   * shows the card twice: `agent:<agent thread id>` or `bash:<command>`.
+   */
+  dedupeKey?: string;
   text?: string;
   tokens?: number;
   canInterrupt?: boolean;
@@ -828,6 +841,15 @@ export type ProviderRuntimeContext = {
    * it out, which means none.
    */
   getSessionWorkspaceRoots?(sessionId: string | null | undefined): string[];
+  /**
+   * [local] Keeps a transcript row the provider's own transcript does not
+   * record (Codex: a background command or agent reporting back, an automatic
+   * review's decision), so a reload still shows it. Stored in CloudCLI's
+   * database for the app session and the provider session it belongs to, and
+   * placed by time when the history is read. Optional: tests and callers
+   * without a database leave it out, which keeps such rows live only.
+   */
+  recordTranscriptNote?(note: { sessionId: string; providerSessionId: string; message: NormalizedMessage }): void;
   /**
    * Builds the SDK query for a run. Production leaves this unset and the
    * runtime uses the SDK's own; tests supply a scripted stream so the hold

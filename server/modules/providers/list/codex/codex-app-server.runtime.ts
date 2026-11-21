@@ -33,6 +33,15 @@
  * own on a thread CloudCLI holds (a report of finished background work) is
  * followed like a turn of the user's.
  *
+ * Stage 5: reconnect and reload. The chat run registry replays what a client
+ * missed (this runtime writes every row through the run's writer); after a
+ * turn's `complete` the live background work is announced again, so a page
+ * that reloads during the background phase gets its state. Rows Codex's
+ * rollout does not record (report rows, automatic review decisions, the
+ * thread being open in another program) are kept in CloudCLI's database
+ * (`context.recordTranscriptNote`) and come back with the history. Live cards
+ * carry a `dedupeKey`, so a history card under another id replaces them.
+ *
  * Threads are released after a short idle period (`thread/unsubscribe`) so the
  * Codex desktop app can take them over; when no thread is left the child
  * itself is stopped, which frees the writer lock at once (measured against
@@ -72,7 +81,7 @@ import {
   toGuardianAssessmentEvent,
 } from './codex-app-server.approvals.js';
 import type { CodexInteractiveServerRequest } from './codex-app-server.approvals.js';
-import { CodexThreadBackground } from './codex-app-server.background.js';
+import { CodexThreadBackground, codexCommandDedupeKey } from './codex-app-server.background.js';
 import { codexAppServer } from './codex-app-server.client.js';
 import {
   CODEX_APP_SERVER_NO_REPLY,
@@ -153,6 +162,11 @@ export const CODEX_APP_SERVER_PROTOCOL_USAGE = {
       'subAgentActivity', 'agentThreadId', 'agentPath', 'processId',
     ],
     ThreadStartedNotification: ['agentNickname', 'parentThreadId'],
+    // [local] Stage 5: a live card's `dedupeKey` (a command's text, an
+    // agent's thread), built when the item starts.
+    ItemStartedNotification: ['commandExecution', 'command', 'collabAgentToolCall', 'receiverThreadIds'],
+    // The send refused because another program holds the thread (its text).
+    ErrorNotification: ['error', 'message', 'willRetry'],
   },
   /** Client → server notifications. */
   clientNotifications: ['initialized'],
@@ -378,6 +392,34 @@ const threadLoadParams = new Map<string, AnyRecord>();
 const backgroundByThread = new Map<string, CodexThreadBackground>();
 /** [local] Stage 4: the latest turn's setup per thread, for a turn Codex starts on its own. */
 const lastTurnSetup = new Map<string, ReportTurnSetup>();
+
+/**
+ * [local] Stage 5: keeps a row Codex's rollout does not record, for the app
+ * session and the thread it was shown in. A no-op without an app session or
+ * without a store (tests, callers outside the chat).
+ */
+function noteRecorder(context: ProviderRuntimeContext, sessionId: unknown, threadId: string): (message: AnyRecord) => void {
+  const record = context.recordTranscriptNote;
+  if (typeof sessionId !== 'string' || !sessionId || !record) {
+    return () => {};
+  }
+  return (message) => {
+    if (message && typeof message.id === 'string') {
+      record({ sessionId, providerSessionId: threadId, message: message as never });
+    }
+  };
+}
+
+/** [local] Stage 5: a live Bash card carries the key its history card is matched by. */
+function withCommandDedupeKey(message: AnyRecord): AnyRecord {
+  if (message?.kind === 'tool_use' && message.toolName === 'Bash' && !message.parentToolUseId) {
+    const key = codexCommandDedupeKey((message.toolInput as AnyRecord | undefined)?.command);
+    if (key) {
+      return { ...message, dedupeKey: key };
+    }
+  }
+  return message;
+}
 
 function backgroundFor(threadId: string): CodexThreadBackground {
   let tracker = backgroundByThread.get(threadId);
@@ -925,11 +967,17 @@ async function runAppServerTurnInner(
     sendMessage(ws, message);
   };
 
-  const failRun = (sessionForRow: string | null, error: unknown) => {
+  const failRun = (sessionForRow: string | null, error: unknown, heldThreadId?: string | null) => {
     const runError = error instanceof Error ? error : new Error(String(error));
     console.error('[Codex] app-server error:', runError.message);
     if (isCodexThreadActiveWriterError(runError.message)) {
-      send(createCodexActiveWriterErrorMessage(sessionForRow));
+      const row = createCodexActiveWriterErrorMessage(sessionForRow);
+      send(row);
+      // [local] Stage 5: kept, so a reload still says why nothing ran (and
+      // the chat can show that the thread is open in another program).
+      if (heldThreadId) {
+        noteRecorder(context, sessionId, heldThreadId)(row as AnyRecord);
+      }
     } else {
       send(createNormalizedMessage({ kind: 'error', content: runError.message, sessionId: sessionForRow, provider: 'codex' }));
     }
@@ -978,7 +1026,7 @@ async function runAppServerTurnInner(
       }
       // Includes the active-writer conflict: the desktop app (or another
       // client) holds this thread. Never retried; the user decides.
-      failRun(threadId || sessionId || null, error);
+      failRun(threadId || sessionId || null, error, threadId);
       return;
     }
     const loadedId = typeof result?.thread?.id === 'string' ? result.thread.id : threadId;
@@ -1022,7 +1070,13 @@ async function runAppServerTurnInner(
     ...(thread.sandboxMode !== sandboxMode ? { sandboxPolicy: sandboxPolicyFor(sandboxMode) } : {}),
   };
   const background = backgroundFor(loadedThreadId);
-  background.attach({ sessionKey, rowSessionId, writer: ws, normalize: (raw, sid) => context.normalizeMessage(raw, sid) });
+  background.attach({
+    sessionKey,
+    rowSessionId,
+    writer: ws,
+    normalize: (raw, sid) => context.normalizeMessage(raw, sid),
+    recordNote: noteRecorder(context, sessionId, loadedThreadId),
+  });
   const { input: _input, ...turnDefaults } = turnParams;
   lastTurnSetup.set(loadedThreadId, { ws, context, sessionId, sessionSummary, sessionKey, rowSessionId, cwd: workingDirectory, turnParams: turnDefaults });
 
@@ -1063,7 +1117,7 @@ type DriveTurnInput = {
   start: { kind: 'new'; isNewThread: boolean } | { kind: 'report'; turnId: string };
   send: (message: unknown) => void;
   wroteToClient: () => boolean;
-  failRun: (sessionForRow: string | null, error: unknown) => void;
+  failRun: (sessionForRow: string | null, error: unknown, heldThreadId?: string | null) => void;
   markPrepared: () => void;
 };
 
@@ -1072,6 +1126,8 @@ async function driveTurn(d: DriveTurnInput): Promise<void> {
   const loadedThreadId = thread.threadId;
   const isNewThread = d.start.kind === 'new' && d.start.isNewThread;
   const background = backgroundFor(loadedThreadId);
+  // [local] Stage 5: rows the rollout does not record are kept.
+  const recordNote = noteRecorder(context, sessionId, loadedThreadId);
 
   // A Stop ends the chat run at once, but its turn ends only when Codex
   // confirms the interrupt (bounded by interruptTimeoutMs). A message sent in
@@ -1235,24 +1291,31 @@ async function driveTurn(d: DriveTurnInput): Promise<void> {
       return;
     }
     const toolId = `autoreview_${review.reviewId}`;
-    send(createNormalizedMessage({
-      id: toolId,
-      kind: 'tool_use',
-      toolName: CODEX_AUTO_REVIEW_TOOL_NAME,
-      toolInput: review,
-      toolId,
-      sessionId: rowSessionId,
-      provider: 'codex',
-    }));
-    send(createNormalizedMessage({
-      id: `${toolId}_result`,
-      kind: 'tool_result',
-      toolId,
-      content: review.rationale ?? '',
-      isError: review.status !== 'approved',
-      sessionId: rowSessionId,
-      provider: 'codex',
-    }));
+    const reviewRows = [
+      createNormalizedMessage({
+        id: toolId,
+        kind: 'tool_use',
+        toolName: CODEX_AUTO_REVIEW_TOOL_NAME,
+        toolInput: review,
+        toolId,
+        sessionId: rowSessionId,
+        provider: 'codex',
+      }),
+      createNormalizedMessage({
+        id: `${toolId}_result`,
+        kind: 'tool_result',
+        toolId,
+        content: review.rationale ?? '',
+        isError: review.status !== 'approved',
+        sessionId: rowSessionId,
+        provider: 'codex',
+      }),
+    ];
+    for (const row of reviewRows) {
+      send(row);
+      // [local] Stage 5: Codex's rollout does not record reviews; kept here.
+      recordNote(row as AnyRecord);
+    }
     if (review.status !== 'denied') {
       return;
     }
@@ -1293,7 +1356,7 @@ async function driveTurn(d: DriveTurnInput): Promise<void> {
 
   const forward = (event: AnyRecord) => {
     for (const message of context.normalizeMessage(event, rowSessionId)) {
-      send(message);
+      send(withCommandDedupeKey(message as AnyRecord));
     }
   };
 
@@ -1421,7 +1484,9 @@ async function driveTurn(d: DriveTurnInput): Promise<void> {
         lastErrorMessage = message ?? lastErrorMessage;
         if (isCodexThreadActiveWriterError(message) && !writerConflictShown) {
           writerConflictShown = true;
-          send(createCodexActiveWriterErrorMessage(rowSessionId));
+          const row = createCodexActiveWriterErrorMessage(rowSessionId);
+          send(row);
+          recordNote(row as AnyRecord);
         }
         return;
       }
@@ -1511,7 +1576,7 @@ async function driveTurn(d: DriveTurnInput): Promise<void> {
         }
         throw new CodexAppServerFallbackError(error instanceof Error ? error.message : String(error));
       }
-      failRun(rowSessionId, error);
+      failRun(rowSessionId, error, loadedThreadId);
       scheduleRelease(loadedThreadId);
       return;
     }
@@ -1597,7 +1662,9 @@ async function driveTurn(d: DriveTurnInput): Promise<void> {
       const message = outcome.message || 'Turn failed';
       if (isCodexThreadActiveWriterError(message)) {
         if (!writerConflictShown) {
-          send(createCodexActiveWriterErrorMessage(rowSessionId));
+          const row = createCodexActiveWriterErrorMessage(rowSessionId);
+          send(row);
+          recordNote(row as AnyRecord);
         }
       } else {
         forward({ type: 'turn_failed', error: { message } });
@@ -1628,6 +1695,12 @@ async function driveTurn(d: DriveTurnInput): Promise<void> {
       break;
     }
     default:
+  }
+  // [local] Stage 5: what still runs is announced again after the turn's end,
+  // where a page that reloads from now on is replayed from.
+  // (A Stop of ours announced it with its own `complete`.)
+  if (outcome.kind !== 'lost' && !run.aborted) {
+    background.reannounce();
   }
 
   scheduleRelease(loadedThreadId);
@@ -1810,6 +1883,8 @@ function abortAppServerRun(sessionId: string): boolean {
     backgroundContinues: Boolean(tracker?.hasLiveWork()),
     ...(stillPending.length > 0 ? { pendingPermissions: stillPending } : {}),
   });
+  // [local] Stage 5: as after any turn's end (see driveTurn).
+  tracker?.reannounce();
   return true;
 }
 
