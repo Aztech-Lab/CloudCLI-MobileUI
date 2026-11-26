@@ -1,0 +1,62 @@
+// Settings for running CloudCLI-MobileUI on THIS machine, read by every script in
+// scripts/server/. setup creates the real file (by default _server/config.json in the
+// clone, which git ignores) from this template. Never commit the real file: it holds
+// machine-specific values (addresses, networks, local paths).
+//
+// Comments and trailing commas are allowed. In values, a leading ~ is your home folder and
+// ${NAME} is an environment variable (%NAME% works too on Windows).
+// After editing: restart the server; after changing a port or the networks, run firewall first.
+{
+  // Port of the web UI.
+  "port": 3001,
+
+  // Address to listen on. "127.0.0.1" = this machine only. "0.0.0.0" = reachable from the
+  // network; the firewall rules made from firewallAllow decide who may connect.
+  "listenAddress": "127.0.0.1",
+
+  // IPv4 networks allowed to reach the port when listening on the network, for example
+  // ["192.168.1.0/24", "10.8.0.0/24"] (home network, VPN). Everything else is blocked.
+  // Applied by the firewall script (Windows Firewall; ufw on Linux; macOS: printed advice).
+  "firewallAllow": [],
+
+  // Optional test portal: a second port that runs a separately deployed build with its
+  // own copy of the login database, for trying a build before it goes live. null = none.
+  "stagingPort": null,
+
+  // Environment for the server process. An empty value removes an inherited variable.
+  "env": {
+    // Claude Code executable to use; empty = "claude" from PATH.
+    "CLAUDE_CLI_PATH": "",
+    // Unanswered tool-approval prompts are denied after this many ms (default 55 s).
+    // "CLAUDE_TOOL_APPROVAL_TIMEOUT_MS": "86400000",
+    // Extra READ-ONLY folders the in-chat file viewer may open, separated by ";".
+    // "CLOUDCLI_EXTRA_READ_ROOTS": "",
+    // File-tree entry cap for very large projects (default 10000).
+    // "CLOUDCLI_FILE_TREE_MAX_ENTRIES": "30000",
+    // Login database location (default ~/.cloudcli/auth.db).
+    // "DATABASE_PATH": "",
+  },
+
+  // Extra environment for the test portal only, applied on top of env. Use it to try a
+  // feature switch there without touching the live server.
+  "stagingEnv": {
+    // "CLOUDCLI_CODEX_RUNTIME": "appserver",
+  },
+
+  // Where the running build, the test portal, logs and old builds live. Relative paths are
+  // resolved against the clone (the folder with package.json); _server/ is git-ignored.
+  // They may point anywhere, e.g. to keep the runtime outside the clone.
+  "paths": {
+    "runtime": "_server/runtime",
+    "staging": "_server/staging",
+    "logs": "_server/logs",
+    "backups": "_server/backup",
+  },
+
+  // Old builds kept in the backups folder after a deploy.
+  "backupsToKeep": 3,
+
+  // Name of the start-at-login entry (Windows: Run key value, shown in Task Manager >
+  // Startup apps; macOS: LaunchAgent label suffix; Linux: systemd user unit name).
+  "autostartName": "CloudCLI-MobileUI",
+}
