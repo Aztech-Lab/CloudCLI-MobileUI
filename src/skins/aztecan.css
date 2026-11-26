@@ -1,0 +1,273 @@
+/* [local] Aztecan skin — the look of the Aztech Labs website, https://aztecan.net/
+   (styles.bundle.css: shared/design.css + styles.css): near-black with a white halo, glass
+   panels behind hairlines, a cyan signal with mint and violet beside it, Inter, soft 8px
+   corners and pill-shaped controls, a fine 80px grid that fades out at the edges.
+
+   The site is dark only. Its design system says the sister portal is white with the same
+   shape and type, so the light mode here is derived: the same neutrals inverted, the
+   site's silver (--accent #e8edf7) as the hover tint, and the cyan pulled down to tones
+   that carry text at WCAG AA. See themes/aztecan/.
+
+   Applied by `data-skin="aztecan"` on <html> (src/shared/skin.ts); `.dark` is the app's
+   normal dark mode. Everything here is a token override (docs/fork/THEMING.md) plus a
+   handful of signature rules on stable hooks. The default skin is untouched. */
+
+/* ---- tokens: light (derived) ------------------------------------------------------ */
+:root[data-skin="aztecan"] {
+  --background: 240 11% 96%;        /* #f5f5f7: the site's --text, as the light base */
+  --foreground: 240 15% 5%;         /* #0b0b0f */
+  --card: 0 0% 100%;
+  --card-foreground: 240 15% 5%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 15% 5%;
+  --primary: 240 8% 7%;             /* #111114: the site's white pill, inverted */
+  --primary-foreground: 240 11% 96%;
+  --secondary: 240 11% 93%;         /* #ebebef */
+  --secondary-foreground: 240 15% 5%;
+  --muted: 240 11% 93%;
+  --muted-foreground: 240 5% 39%;   /* #5f5f69, 5.3:1 on --secondary */
+  --accent: 220 48% 94%;            /* #e8edf7: the site's --accent (silver) as a hover tint */
+  --accent-foreground: 240 15% 5%;
+  --destructive: 0 66% 47%;         /* #c62828 */
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 9% 87%;             /* #dcdce2 */
+  --input: 240 8% 83%;              /* #d1d1d8 */
+  --ring: 198 88% 33%;              /* #0a6f9c: cyan, text-safe */
+
+  --nav-glass-bg: 0 0% 100% / 0.72;
+  --nav-glass-blur: 24px;           /* .topbar: blur(24px) saturate(140%) */
+  --nav-glass-saturate: 1.4;
+  --nav-tab-glow: 198 88% 33% / 0.14;
+  --nav-tab-ring: 198 88% 33% / 0.1;
+  --nav-float-shadow: 240 25% 10% / 0.1;
+  --nav-float-ring: 240 9% 87% / 0.7;
+  --nav-divider-color: 240 9% 87% / 0.7;
+  --nav-input-bg: 240 11% 93% / 0.6;
+  --nav-input-focus-ring: 198 88% 33% / 0.2;
+
+  /* Blue accents become the site's cyan (#76d8ff). Light: 400 is the site value itself
+     (for strokes and marks), 500–700 are the same hue at text-safe depths (>= 4.9:1 on
+     white, and under white letters), 50–300 are pale cyan tints. */
+  --palette-blue-50: 239 250 255;
+  --palette-blue-100: 220 243 253;
+  --palette-blue-200: 181 230 251;
+  --palette-blue-300: 159 224 251;
+  --palette-blue-400: 118 216 255;
+  --palette-blue-500: 10 120 168;
+  --palette-blue-600: 10 111 156;
+  --palette-blue-700: 7 90 128;
+  --palette-blue-800: 6 74 105;
+  --palette-blue-900: 5 60 85;
+  --palette-blue-950: 3 38 52;
+  /* Cool zinc neutrals: the site's #a1a1aa (--muted) and #72727c (--soft) sit at 400/500. */
+  --palette-gray-50: 249 249 251;
+  --palette-gray-100: 242 242 245;
+  --palette-gray-200: 229 229 234;
+  --palette-gray-300: 210 210 217;
+  --palette-gray-400: 161 161 170;
+  --palette-gray-500: 107 107 116;
+  --palette-gray-600: 82 82 91;
+  --palette-gray-700: 63 63 70;
+  --palette-gray-800: 39 39 42;
+  --palette-gray-900: 24 24 27;
+  --palette-gray-950: 9 9 13;
+  /* The site's mint (--green #94f0c3), deepened for text on white. */
+  --palette-green-500: 15 130 86;
+  --palette-green-600: 13 122 79;
+  --palette-green-700: 10 99 64;
+  --palette-emerald-500: 15 130 86;
+  --palette-emerald-600: 13 122 79;
+  --palette-emerald-700: 10 99 64;
+
+  /* Corners: 8px panels (.panel, .feature), 12px cards, 18px floating cards
+     (.update-card), 22px dialogs (.reader-panel, --radius-lg). */
+  --radius: 0.5rem;
+  --radius-base: 0.375rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1.125rem;
+  --radius-3xl: 1.375rem;
+
+  /* Inter (OFL, loaded from Google Fonts in index.html) with the site's own fallbacks,
+     plus CJK system faces; mono is the site's .console-bar stack (system fonts). */
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-serif: var(--font-sans);
+  --font-mono: "SF Mono", ui-monospace, Consolas, "Cascadia Mono", Menlo, monospace;
+
+  --app-theme-color-light: #f5f5f7;
+  --app-theme-color-dark: #030305;
+
+  /* skin-private */
+  --aztecan-grid: rgba(11, 11, 15, 0.06);
+  --aztecan-grid-2: rgba(11, 11, 15, 0.045);
+  --aztecan-halo: rgba(118, 216, 255, 0.14);
+  --aztecan-shadow: 0 24px 64px rgba(11, 11, 15, 0.14);
+}
+
+/* ---- tokens: dark (the site) ---------------------------------------------------------- */
+:root[data-skin="aztecan"].dark {
+  /* Site :root: --bg #030305, --text #f5f5f7, --muted #a1a1aa, --soft #72727c,
+     --line rgba(255,255,255,.11), --line-bright .22, --panel rgba(18,18,22,.72),
+     --accent #e8edf7, --cyan #76d8ff, --green #94f0c3, --violet #b9a8ff. */
+  --background: 240 25% 2%;         /* --bg #030305 */
+  --foreground: 240 11% 96%;        /* --text #f5f5f7 */
+  --card: 240 13% 6%;               /* --panel flattened on --bg: #0e0e12 */
+  --card-foreground: 240 11% 96%;
+  --popover: 230 19% 6%;            /* the mobile menu, rgba(13,14,19,.97): #0d0e13 */
+  --popover-foreground: 240 11% 96%;
+  --primary: 220 48% 94%;           /* --accent #e8edf7: the white .primary-action pill */
+  --primary-foreground: 240 17% 2%; /* its label, #050507 */
+  --secondary: 240 7% 8%;           /* white 4.5% on --bg (.secondary-action): #141417 */
+  --secondary-foreground: 240 11% 96%;
+  --muted: 240 7% 8%;
+  --muted-foreground: 240 5% 65%;   /* --muted #a1a1aa */
+  --accent: 240 5% 11%;             /* .nav a:hover, white 8% on --bg: #1b1b1e */
+  --accent-foreground: 240 11% 96%;
+  --destructive: 0 100% 77%;        /* #ff8a8a, between the site's error #ffb4b4 and red */
+  --destructive-foreground: 240 17% 2%;
+  --border: 240 5% 13%;             /* --line on --bg: #1f1f22 */
+  --input: 240 2% 23%;              /* --line-bright on --bg: #3a3a3c */
+  --ring: 197 100% 73%;             /* --cyan: the site's focus outline */
+
+  --nav-glass-bg: 240 10% 8% / 0.72; /* --panel */
+  --nav-tab-glow: 197 100% 73% / 0.2;
+  --nav-tab-ring: 197 100% 73% / 0.14;
+  --nav-float-shadow: 0 0% 0% / 0.52;
+  --nav-float-ring: 0 0% 100% / 0.11;
+  --nav-divider-color: 0 0% 100% / 0.11;
+  --nav-input-bg: 0 0% 100% / 0.045;
+  --nav-input-focus-ring: 197 100% 73% / 0.25;
+
+  /* Dark cyan: the site value at 400–600, a paler step at 300 and 700 (so a hover
+     brightens, like .update-card:hover), deep cyan-black for tinted areas. Letters on
+     these fills are turned dark by the rule at the end of this file. */
+  --palette-blue-300: 166 230 255;
+  --palette-blue-400: 118 216 255;
+  --palette-blue-500: 118 216 255;
+  --palette-blue-600: 118 216 255;
+  --palette-blue-700: 166 230 255;
+  --palette-blue-800: 18 57 76;
+  --palette-blue-900: 11 38 51;
+  --palette-blue-950: 6 20 28;
+  --palette-gray-500: 130 130 140;  /* --soft #72727c lifted to 4.8:1 on the panels */
+  --palette-gray-700: 38 38 43;
+  --palette-gray-800: 20 20 24;
+  --palette-gray-900: 11 11 15;
+  --palette-gray-950: 3 3 5;
+  --palette-green-300: 184 245 215;
+  --palette-green-400: 148 240 195; /* --green #94f0c3 */
+  --palette-green-500: 148 240 195;
+  --palette-green-600: 148 240 195;
+  --palette-green-700: 184 245 215;
+  --palette-emerald-400: 148 240 195;
+  --palette-emerald-500: 148 240 195;
+  --palette-emerald-600: 148 240 195;
+  --palette-emerald-700: 184 245 215;
+  --palette-red-300: 255 180 180;   /* the site's error text #ffb4b4 */
+  --palette-red-400: 255 138 138;
+  --palette-purple-300: 211 200 255;
+  --palette-purple-400: 185 168 255; /* --violet #b9a8ff */
+  --palette-violet-300: 211 200 255;
+  --palette-violet-400: 185 168 255;
+
+  --dark-surface: 3 3 5;
+  --dark-option-bg: 13 14 19;
+  --dark-option-fg: 245 245 247;
+
+  --terminal-dark-background: #030305;
+  --terminal-dark-foreground: #f5f5f7;
+  --terminal-dark-cursor: #76d8ff;
+  --terminal-dark-selection-background: #12394c;
+  --terminal-dark-blue: #76d8ff;
+  --terminal-dark-bright-blue: #a6e6ff;
+  --terminal-dark-green: #94f0c3;
+  --terminal-dark-magenta: #b9a8ff;
+
+  --aztecan-grid: rgba(255, 255, 255, 0.035);   /* body::before, as the site */
+  --aztecan-grid-2: rgba(255, 255, 255, 0.025);
+  --aztecan-halo: rgba(255, 255, 255, 0.12);    /* body: radial-gradient at 50% 0% */
+  --aztecan-shadow: 0 32px 90px rgba(0, 0, 0, 0.52); /* --shadow */
+}
+
+:root[data-skin="aztecan"]:not(.dark) {
+  --terminal-light-background: #f5f5f7;
+  --terminal-light-foreground: #0b0b0f;
+  --terminal-light-cursor: #0a6f9c;
+  --terminal-light-selection-background: #b5e6fb;
+  --terminal-light-blue: #0a6f9c;
+  --terminal-light-bright-blue: #0a78a8;
+}
+
+/* ---- signature rules -------------------------------------------------------------- */
+
+/* Each signature element below is a skin option (src/shared/skinOptions.ts), read from
+   `data-skin-<option>` on <html>. A missing attribute means the option's default, so
+   the selectors are written to match the default too. */
+
+/* The site's fine grid (80px hairlines) behind the transcript, fading out at the top and
+   the bottom as the site's mask does, with its white halo at the top (option: halo).
+   The fade is painted in the page colour over the grid, because a mask would fade the
+   messages too. Option: grid (off | faint | normal); normal is the site's strength. */
+[data-skin="aztecan"] .chat-messages-pane {
+  --aztecan-fade: linear-gradient(to bottom, hsl(var(--background)) 0%, hsl(var(--background) / 0) 18%, hsl(var(--background) / 0) 68%, hsl(var(--background)) 100%);
+  --aztecan-halo-layer: radial-gradient(circle at 50% 0%, var(--aztecan-halo), transparent 27rem);
+  background-size: 100% 100%, 100% 100%, 80px 80px, 80px 80px;
+  background-position: 0 0, 0 0, center top, center top;
+}
+/* The halo is 27rem wide on the site; on a phone that is the whole screen, so it is
+   narrowed to keep the top of the transcript from greying out. */
+@media (max-width: 640px) {
+  [data-skin="aztecan"] .chat-messages-pane {
+    --aztecan-halo-layer: radial-gradient(circle at 50% 0%, var(--aztecan-halo), transparent 16rem);
+  }
+}
+[data-skin="aztecan"][data-skin-halo="false"] .chat-messages-pane {
+  --aztecan-halo-layer: linear-gradient(transparent, transparent);
+}
+[data-skin="aztecan"][data-skin-grid="faint"] .chat-messages-pane {
+  --aztecan-grid: rgba(127, 127, 135, 0.05);
+  --aztecan-grid-2: rgba(127, 127, 135, 0.035);
+}
+[data-skin="aztecan"]:not([data-skin-grid="off"]) .chat-messages-pane {
+  background-image:
+    var(--aztecan-halo-layer),
+    var(--aztecan-fade),
+    linear-gradient(var(--aztecan-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--aztecan-grid-2) 1px, transparent 1px);
+}
+[data-skin="aztecan"][data-skin-grid="off"] .chat-messages-pane {
+  background-image: var(--aztecan-halo-layer);
+}
+
+/* Small status dots glow in their own colour, as the site's .review-list i does
+   (box-shadow 0 0 18px of the dot colour at 55%). Dark only: a glow on white is a smudge.
+   Option: halo. */
+[data-skin="aztecan"].dark:not([data-skin-halo="false"]) :is(.rounded-full.h-2.w-2, .rounded-full.h-1\.5.w-1\.5, .rounded-full.h-2\.5.w-2\.5):is(.bg-green-400, .bg-green-500, .bg-emerald-400, .bg-emerald-500) {
+  box-shadow: 0 0 12px rgba(148, 240, 195, 0.55);
+}
+[data-skin="aztecan"].dark:not([data-skin-halo="false"]) :is(.rounded-full.h-2.w-2, .rounded-full.h-1\.5.w-1\.5, .rounded-full.h-2\.5.w-2\.5):is(.bg-blue-400, .bg-blue-500) {
+  box-shadow: 0 0 12px rgba(118, 216, 255, 0.55);
+}
+
+/* Pill tab strips, as the site's top navigation (.nav: a 999px track with 999px links).
+   Only strips that are drawn as rounded tracks (PillBar); underline tab rows stay as
+   they are. Option: pillTabs. */
+[data-skin="aztecan"]:not([data-skin-pill-tabs="false"]) [role="tablist"].rounded-lg,
+[data-skin="aztecan"]:not([data-skin-pill-tabs="false"]) [role="tablist"].rounded-lg [role="tab"] {
+  border-radius: 9999px;
+}
+
+/* Elevation: floating layers take the site's one deep shadow (--shadow); small shadows
+   stay as the app has them. */
+[data-skin="aztecan"] .shadow-lg,
+[data-skin="aztecan"] .shadow-xl,
+[data-skin="aztecan"] .shadow-2xl {
+  box-shadow: var(--aztecan-shadow);
+}
+
+/* The dark cyan and mint are pale, so the site puts dark letters on light fills (its
+   primary pill is #050507 on white). Components here put white on bg-blue-500/600 and
+   bg-green-500 directly; keep the site colour and swap the letters. */
+[data-skin="aztecan"].dark :is(.bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-green-500, .bg-green-600, .bg-emerald-500, .bg-emerald-600):is(.text-white, .text-primary-foreground),
+[data-skin="aztecan"].dark :is(.bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-green-500, .bg-green-600, .bg-emerald-500, .bg-emerald-600) :is(.text-white, .text-primary-foreground) {
+  color: #050507;
+}

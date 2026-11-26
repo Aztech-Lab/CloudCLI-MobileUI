@@ -245,7 +245,8 @@
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",
       "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners"
+      "otsr": "OTSR — lab white, copper, square corners",
+      "aztecan": "Aztecan — near-black, cyan, glass"
     },
     "skinOptions": {
       "otsr": {
@@ -268,6 +269,23 @@
         "squareMarks": {
           "label": "Square status marks",
           "description": "Square instead of round status indicators"
+        }
+      },
+      "aztecan": {
+        "grid": {
+          "label": "Background grid",
+          "description": "The fine grid behind the conversation",
+          "off": "Off",
+          "faint": "Faint",
+          "normal": "Normal"
+        },
+        "halo": {
+          "label": "Halo and glow",
+          "description": "A soft light at the top of the conversation, and glowing status dots in dark mode"
+        },
+        "pillTabs": {
+          "label": "Pill tabs",
+          "description": "Fully rounded tab strips, like the navigation of the website"
         }
       }
     },

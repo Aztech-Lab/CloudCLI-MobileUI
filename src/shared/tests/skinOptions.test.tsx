@@ -46,6 +46,12 @@ describe('skin option declarations', () => {
     expect(defaultSkinOptions('otsr')).toEqual({ dotField: 'faint', chamfers: true, monoLabels: true, squareMarks: true });
   });
 
+  it('declares the Aztecan options', () => {
+    expect(SKIN_OPTIONS.aztecan.map((option) => option.id)).toEqual(['grid', 'halo', 'pillTabs']);
+    expect(defaultSkinOptions('aztecan')).toEqual({ grid: 'normal', halo: true, pillTabs: true });
+    expect(skinOptionAttribute('pillTabs')).toBe('data-skin-pill-tabs');
+  });
+
   it('maps option ids to kebab-case data attributes', () => {
     expect(skinOptionAttribute('dotField')).toBe('data-skin-dot-field');
     expect(skinOptionAttribute('chamfers')).toBe('data-skin-chamfers');
@@ -88,6 +94,16 @@ describe('applySkinOptions', () => {
     expect(html().getAttribute('data-skin-mono-labels')).toBe('true');
 
     applySkinOptions('default', {});
+    expect(html().hasAttribute('data-skin-dot-field')).toBe(false);
+    expect(html().hasAttribute('data-skin-chamfers')).toBe(false);
+  });
+
+  it('replaces the option attributes of the previous skin', () => {
+    applySkinOptions('otsr', defaultSkinOptions('otsr'));
+    applySkinOptions('aztecan', { grid: 'faint', halo: false, pillTabs: true });
+    expect(html().getAttribute('data-skin-grid')).toBe('faint');
+    expect(html().getAttribute('data-skin-halo')).toBe('false');
+    expect(html().getAttribute('data-skin-pill-tabs')).toBe('true');
     expect(html().hasAttribute('data-skin-dot-field')).toBe(false);
     expect(html().hasAttribute('data-skin-chamfers')).toBe(false);
   });

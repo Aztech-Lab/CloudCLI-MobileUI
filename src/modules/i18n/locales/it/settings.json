@@ -212,7 +212,8 @@
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",
       "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners"
+      "otsr": "OTSR — lab white, copper, square corners",
+      "aztecan": "Aztecan — quasi nero, ciano, vetro"
     },
     "skinOptions": {
       "otsr": {
@@ -235,6 +236,23 @@
         "squareMarks": {
           "label": "Square status marks",
           "description": "Square instead of round status indicators"
+        }
+      },
+      "aztecan": {
+        "grid": {
+          "label": "Griglia di sfondo",
+          "description": "La griglia sottile dietro la conversazione",
+          "off": "Disattivata",
+          "faint": "Tenue",
+          "normal": "Normale"
+        },
+        "halo": {
+          "label": "Alone e bagliore",
+          "description": "Una luce morbida in cima alla conversazione e punti di stato luminosi in modalità scura"
+        },
+        "pillTabs": {
+          "label": "Schede a pillola",
+          "description": "Barre delle schede completamente arrotondate, come la navigazione del sito web"
         }
       }
     },

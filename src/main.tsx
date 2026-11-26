@@ -6,6 +6,7 @@ import App from '@/App'
 import '@/index.css'
 // [local] Skins override the design tokens; they must come after index.css.
 import '@/skins/otsr.css'
+import '@/skins/aztecan.css'
 import 'katex/dist/katex.min.css'
 
 // Initialize i18n

@@ -238,7 +238,8 @@
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",
       "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners"
+      "otsr": "OTSR — lab white, copper, square corners",
+      "aztecan": "Aztecan — 짙은 검정, 시안, 유리"
     },
     "skinOptions": {
       "otsr": {
@@ -261,6 +262,23 @@
         "squareMarks": {
           "label": "Square status marks",
           "description": "Square instead of round status indicators"
+        }
+      },
+      "aztecan": {
+        "grid": {
+          "label": "배경 격자",
+          "description": "대화 뒤의 가는 격자",
+          "off": "끄기",
+          "faint": "희미하게",
+          "normal": "보통"
+        },
+        "halo": {
+          "label": "헤일로와 광채",
+          "description": "대화 상단의 부드러운 빛과 다크 모드에서 빛나는 상태 점"
+        },
+        "pillTabs": {
+          "label": "알약형 탭",
+          "description": "웹사이트 내비게이션처럼 탭 줄을 완전히 둥글게 표시합니다"
         }
       }
     },

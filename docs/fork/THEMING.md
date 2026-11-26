@@ -64,6 +64,17 @@ The stylesheet keys on the attribute, with the app's normal `.dark` class for da
 
 `src/skins/otsr.css` is the complete worked example.
 
+The skins, and the designs they come from:
+
+| id | look | source | design package |
+|---|---|---|---|
+| `otsr` | lab white and near-black, copper, square corners | the [OTSR](https://github.com/Aztech-Lab/OTSR) application (`src/tokens.css`) | [`themes/otsr`](../../themes/otsr/README.md) |
+| `aztecan` | near-black with a halo, glass, cyan, Inter, pill tabs, a fading grid | the [Aztech Labs website](https://aztecan.net/) (`styles.bundle.css`); dark only on the site, light derived | [`themes/aztecan`](../../themes/aztecan/README.md) |
+
+A skin may need a web font. Load it from Google Fonts in the existing `<link>` in `index.html`
+(the Aztecan skin adds Inter there): the browser downloads a face only when a rule uses it, so
+the other skins are unaffected. Use only freely licensed fonts (OFL or similar).
+
 ### Skin options
 
 A skin can expose dials for its own signature elements (how strong a background texture is, whether edges are

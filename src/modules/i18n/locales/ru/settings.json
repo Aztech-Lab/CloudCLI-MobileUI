@@ -212,7 +212,8 @@
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",
       "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners"
+      "otsr": "OTSR — lab white, copper, square corners",
+      "aztecan": "Aztecan — почти чёрный, циан, стекло"
     },
     "skinOptions": {
       "otsr": {
@@ -235,6 +236,23 @@
         "squareMarks": {
           "label": "Square status marks",
           "description": "Square instead of round status indicators"
+        }
+      },
+      "aztecan": {
+        "grid": {
+          "label": "Фоновая сетка",
+          "description": "Тонкая сетка за разговором",
+          "off": "Выкл.",
+          "faint": "Слабая",
+          "normal": "Обычная"
+        },
+        "halo": {
+          "label": "Ореол и свечение",
+          "description": "Мягкий свет в верхней части разговора и светящиеся точки статуса в тёмной теме"
+        },
+        "pillTabs": {
+          "label": "Вкладки-капсулы",
+          "description": "Полностью скруглённые полосы вкладок, как в навигации сайта"
         }
       }
     },

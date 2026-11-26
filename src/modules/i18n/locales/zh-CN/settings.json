@@ -245,7 +245,8 @@
       "label": "皮肤",
       "description": "界面的视觉风格；浅色和深色对每种皮肤都适用",
       "default": "默认",
-      "otsr": "OTSR — 实验室白、铜色、直角"
+      "otsr": "OTSR — 实验室白、铜色、直角",
+      "aztecan": "Aztecan — 近黑、青色、玻璃"
     },
     "skinOptions": {
       "otsr": {
@@ -268,6 +269,23 @@
         "squareMarks": {
           "label": "方形状态标记",
           "description": "状态指示用方块代替圆点"
+        }
+      },
+      "aztecan": {
+        "grid": {
+          "label": "背景网格",
+          "description": "对话区域背后的细网格",
+          "off": "关闭",
+          "faint": "淡",
+          "normal": "正常"
+        },
+        "halo": {
+          "label": "光晕",
+          "description": "对话区域顶部的柔光，以及深色模式下发光的状态圆点"
+        },
+        "pillTabs": {
+          "label": "胶囊标签",
+          "description": "标签条使用全圆角，和官网导航一样"
         }
       }
     },

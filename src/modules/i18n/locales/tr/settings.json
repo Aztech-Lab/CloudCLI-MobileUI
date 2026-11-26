@@ -239,7 +239,8 @@
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",
       "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners"
+      "otsr": "OTSR — lab white, copper, square corners",
+      "aztecan": "Aztecan — neredeyse siyah, camgöbeği, cam"
     },
     "skinOptions": {
       "otsr": {
@@ -262,6 +263,23 @@
         "squareMarks": {
           "label": "Square status marks",
           "description": "Square instead of round status indicators"
+        }
+      },
+      "aztecan": {
+        "grid": {
+          "label": "Arka plan ızgarası",
+          "description": "Sohbetin arkasındaki ince ızgara",
+          "off": "Kapalı",
+          "faint": "Soluk",
+          "normal": "Normal"
+        },
+        "halo": {
+          "label": "Hale ve parıltı",
+          "description": "Sohbetin üstünde yumuşak bir ışık ve karanlık modda parlayan durum noktaları"
+        },
+        "pillTabs": {
+          "label": "Hap sekmeler",
+          "description": "Web sitesinin gezinmesi gibi tamamen yuvarlatılmış sekme şeritleri"
         }
       }
     },

@@ -38,10 +38,17 @@ const OTSR_OPTIONS: readonly SkinOptionDefinition[] = [
   { id: 'squareMarks', kind: 'toggle', default: true },
 ];
 
+const AZTECAN_OPTIONS: readonly SkinOptionDefinition[] = [
+  { id: 'grid', kind: 'select', default: 'normal', choices: [{ value: 'off' }, { value: 'faint' }, { value: 'normal' }] },
+  { id: 'halo', kind: 'toggle', default: true },
+  { id: 'pillTabs', kind: 'toggle', default: true },
+];
+
 /** The options each skin declares. The default skin has none, so its section hides. */
 export const SKIN_OPTIONS: Record<SkinId, readonly SkinOptionDefinition[]> = {
   default: [],
   otsr: OTSR_OPTIONS,
+  aztecan: AZTECAN_OPTIONS,
 };
 
 function isValidValue(definition: SkinOptionDefinition, value: unknown): value is SkinOptionValue {

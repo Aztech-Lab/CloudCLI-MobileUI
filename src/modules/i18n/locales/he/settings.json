@@ -239,7 +239,8 @@
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",
       "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners"
+      "otsr": "OTSR — lab white, copper, square corners",
+      "aztecan": "Aztecan — כמעט שחור, ציאן, זכוכית"
     },
     "skinOptions": {
       "otsr": {
@@ -262,6 +263,23 @@
         "squareMarks": {
           "label": "Square status marks",
           "description": "Square instead of round status indicators"
+        }
+      },
+      "aztecan": {
+        "grid": {
+          "label": "רשת רקע",
+          "description": "הרשת הדקה מאחורי השיחה",
+          "off": "כבוי",
+          "faint": "עדין",
+          "normal": "רגיל"
+        },
+        "halo": {
+          "label": "הילה וזוהר",
+          "description": "אור רך בראש השיחה ונקודות סטטוס זוהרות במצב כהה"
+        },
+        "pillTabs": {
+          "label": "לשוניות גלולה",
+          "description": "פסי לשוניות מעוגלים לחלוטין, כמו הניווט באתר"
         }
       }
     },

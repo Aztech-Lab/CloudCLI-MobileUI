@@ -220,7 +220,8 @@
       "label": "外觀皮膚",
       "description": "介面的視覺風格；淺色與深色對每種皮膚都適用",
       "default": "預設",
-      "otsr": "OTSR — 實驗室白、銅色、直角"
+      "otsr": "OTSR — 實驗室白、銅色、直角",
+      "aztecan": "Aztecan — 近黑、青色、玻璃"
     },
     "skinOptions": {
       "otsr": {
@@ -243,6 +244,23 @@
         "squareMarks": {
           "label": "方形狀態標記",
           "description": "狀態指示用方塊代替圓點"
+        }
+      },
+      "aztecan": {
+        "grid": {
+          "label": "背景網格",
+          "description": "對話區域背後的細網格",
+          "off": "關閉",
+          "faint": "淡",
+          "normal": "正常"
+        },
+        "halo": {
+          "label": "光暈",
+          "description": "對話區域頂部的柔光，以及深色模式下發光的狀態圓點"
+        },
+        "pillTabs": {
+          "label": "膠囊標籤",
+          "description": "標籤列使用全圓角，和官網導覽一樣"
         }
       }
     },
