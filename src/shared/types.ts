@@ -1545,7 +1545,39 @@ export type AgentContext = {
 };
 
 /** Identifier of a top-level section in the settings dialog; use it whenever a tab is stored, compared or requested so deep links, the sidebar and the command palette all agree on the same set of names. */
-export type SettingsMainTab = 'agents' | 'appearance' | 'git' | 'api' | 'voice' | 'tasks' | 'browser' | 'notifications' | 'plugins' | 'about';
+// [local] 'server' is shown only when the server was started by scripts/server/.
+export type SettingsMainTab = 'agents' | 'appearance' | 'git' | 'api' | 'voice' | 'tasks' | 'browser' | 'notifications' | 'plugins' | 'server' | 'about';
+
+/** Branch, commit and build time of a deployed server build (its .build.json); shown by Settings > Server for the running and the prepared build. */
+export type ServerBuildInfo = {
+  branch: string;
+  commit: string;
+  dirty: boolean;
+  builtAt: string;
+};
+
+/** Work a restart or stop would end, as counts from /health; Settings > Server shows it and asks before restarting or stopping while any is above 0. */
+export type ServerActiveWork = {
+  turns: number;
+  backgroundSessions: number;
+  backgroundTasks: number;
+};
+
+/** Status of a server started by scripts/server/ (GET /api/server-control/status), used by the settings module's server hook and tab. */
+export type ServerControlStatus = {
+  instance: 'live' | 'staging';
+  port: number;
+  listenAddress: string;
+  running: boolean;
+  pid: number | null;
+  version: string | null;
+  activeWork: ServerActiveWork | null;
+  build: ServerBuildInfo | null;
+  pendingBuild: ServerBuildInfo | null;
+  // on | off | disabled (switched off by the OS, e.g. Task Manager) | unsupported | n/a (test portal) | unknown
+  autostart: string;
+  autostartName: string;
+};
 
 /** The coding-agent CLI a settings screen is configuring, aliasing LLMProvider so agent-scoped settings read as being about an agent rather than a chat model. */
 export type AgentProvider = LLMProvider;

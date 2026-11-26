@@ -667,6 +667,15 @@ export const api = {
   system: {
     update: () => post('/api/system/update'),
   },
+
+  // [local] Settings > Server: a server started by scripts/server/.
+  serverControl: {
+    availability: () => get('/api/server-control'),
+    status: () => get('/api/server-control/status'),
+    setAutostart: (enabled: boolean) => put('/api/server-control/autostart', { enabled }),
+    restart: (deploy: boolean) => post('/api/server-control/restart', { deploy }),
+    stop: () => post('/api/server-control/stop'),
+  },
 };
 
 // ---------------------------

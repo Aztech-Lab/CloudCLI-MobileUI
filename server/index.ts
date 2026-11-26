@@ -46,6 +46,8 @@ import {
 import providerRoutes from './modules/providers/provider.routes.js';
 import { codexAppServerRuntime } from './modules/providers/list/codex/codex-app-server.runtime.js';
 import { voiceRoutes } from './modules/voice/index.js';
+// [local] Settings > Server: control of a server started by scripts/server/.
+import { serverControlRoutes } from './modules/server-control/index.js';
 import {
     closeScheduledMessageDispatcher,
     initializeScheduledMessageDispatcher,
@@ -212,6 +214,9 @@ app.use('/api/scheduled-messages', authenticateToken, scheduledMessagesRoutes);
 app.use('/api/agent', agentRoutes);
 
 app.use('/api/voice', authenticateToken, voiceRoutes);
+
+// [local] Server status, autostart, restart and stop (protected; Settings > Server)
+app.use('/api/server-control', authenticateToken, serverControlRoutes);
 
 // Serve public files (like api-docs.html)
 app.use(express.static(path.join(APP_ROOT, 'public')));
