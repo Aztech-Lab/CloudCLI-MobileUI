@@ -247,16 +247,23 @@
         }
       },
       "aztecan": {
+        "stars": {
+          "label": "星空背景",
+          "description": "玻璃面板背後緩緩漂移的星點",
+          "off": "關閉",
+          "still": "靜止",
+          "animated": "動態"
+        },
         "grid": {
           "label": "背景網格",
-          "description": "對話區域背後的細網格",
+          "description": "背景中的細網格",
           "off": "關閉",
           "faint": "淡",
           "normal": "正常"
         },
         "halo": {
           "label": "光暈",
-          "description": "對話區域頂部的柔光，以及深色模式下發光的狀態圓點"
+          "description": "螢幕頂部的柔光，以及深色模式下發光的狀態圓點"
         },
         "pillTabs": {
           "label": "膠囊標籤",

@@ -239,16 +239,23 @@
         }
       },
       "aztecan": {
+        "stars": {
+          "label": "Campo stellato",
+          "description": "Stelle che scorrono dietro i pannelli di vetro",
+          "off": "Disattivato",
+          "still": "Fermo",
+          "animated": "Animato"
+        },
         "grid": {
           "label": "Griglia di sfondo",
-          "description": "La griglia sottile dietro la conversazione",
+          "description": "La griglia sottile sullo sfondo",
           "off": "Disattivata",
           "faint": "Tenue",
           "normal": "Normale"
         },
         "halo": {
           "label": "Alone e bagliore",
-          "description": "Una luce morbida in cima alla conversazione e punti di stato luminosi in modalità scura"
+          "description": "Una luce morbida dall’alto dello schermo e punti di stato luminosi in modalità scura"
         },
         "pillTabs": {
           "label": "Schede a pillola",

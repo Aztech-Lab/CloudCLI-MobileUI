@@ -7,9 +7,9 @@ the app was made token-ready.
 
 ## Shape of the change
 
-Token override only, keyed on `html[data-skin="aztecan"]` with the app's `.dark` class. Three
-signature rules, each a skin option (`src/shared/skinOptions.ts`), plus two always-on rules
-(shadows, dark letters on pale fills). One addition outside the skin file: `Inter` is added
+Token override keyed on `html[data-skin="aztecan"]` with the app's `.dark` class, plus
+signature rules: the backdrop and starfield on `<body>`, glass on the large containers, and
+the options in `src/shared/skinOptions.ts` (stars, grid, halo, pill tabs). One addition outside the skin file: `Inter` is added
 to the Google Fonts link in `index.html`, beside the app's own Encode Sans and Merriweather.
 A browser downloads a face only when a rule uses it, so the default and OTSR skins do not
 download Inter.
@@ -77,17 +77,54 @@ placeholder tone (2.6:1 on white in light mode, the same as the app's default).
 
 ## Signature rules
 
+A first version recoloured the tokens and kept the app's opaque surfaces. Review: "flat
+black, the starlight is gone". The site is a scene (stars, a halo, glass floating over
+them), and without the scene the palette alone reads as a generic dark theme. The second
+version rebuilds the scene behind the app and turns the large surfaces into glass.
+
 | rule | hook | option |
 |---|---|---|
-| 80px grid, faded at top and bottom | `.chat-messages-pane` background | grid: off / faint / **normal** (the site's strength) |
-| white halo at the top (cyan tint in light), narrower on phones | same | halo |
+| backdrop: the site's gradient, white halo (cyan in light), two faint console glows, the 80px grid with its top and bottom fade | `body` background | grid: off / faint / **normal**; halo |
+| starfield: three tiled `radial-gradient` dot layers (223, 367 and 509px tiles, about one dot per 10,000 px²), drift and twinkle | `body::before`, `body::after` (fixed, `z-index: -1`) | stars: off / still / **animated** |
+| app shell, mobile drawer and quick-settings body made transparent | `[data-surface="app-shell"]`, `"sidebar-drawer"`, `"quick-settings-body"` | always |
+| frosted glass: translucent fill, a top sheen, `backdrop-filter: blur(20px) saturate(160%)` (180% light), hairline edge | `[data-surface="sidebar"]`, `.pwa-header-safe`, the composer form, `[data-surface="quick-settings"]`, the settings dialog (`.modal-backdrop > [role="dialog"]`), `.bg-popover` | always |
+| floating: lit top edge (`inset 0 1px 0`) and a soft two-step shadow | composer, quick settings, settings dialog, popovers | always |
+| translucent cards without blur | `.bg-card` in the sidebar and transcript, the solid agent bubble, the user bubble | always |
 | glowing status dots, dark only | `.rounded-full.h-2.w-2` etc. with a green or blue fill | halo |
 | pill tab tracks | `[role="tablist"].rounded-lg` and its `[role="tab"]` (the PillBar) | pillTabs |
 | deep float shadow | `.shadow-lg/-xl/-2xl` | always |
 | dark letters on pale cyan and mint, dark | `.bg-blue-*`/`.bg-green-*` with `.text-white` | always |
 
-The fade is painted in `hsl(var(--background))` above the grid rather than masked, because
-the pane is the scroll container and a mask would fade the messages too.
+The `data-surface` attributes were added to five containers for this skin; they carry no
+style of their own.
+
+### Performance choices
+
+- **No canvas, no script.** The site's particles are a `<canvas>` redrawn every frame with
+  an O(n²) check for connecting lines; here they are static gradients on two
+  pseudo-elements, moved only by `transform` and `opacity` animations, which the
+  compositor runs without layout or paint.
+- **Blur on a handful of large containers only**: sidebar, header, composer, quick
+  settings, settings dialog, open popovers. Messages, list rows and cards are translucent
+  without blur, so scrolling a long transcript adds no filter work.
+- **Phones (640px and narrower):** a moving field makes every glass bar above it re-blur
+  each frame, so the drift stops and the twinkle advances in `steps(8)` over 9s (about one
+  change a second). The halo shrinks to 16rem.
+- **`prefers-reduced-motion: reduce`:** no animation at all. The *still* option does the
+  same for everyone who picks it.
+- Left out: the canvas's faint connecting lines between nearby particles, and the pointer
+  attraction; both need script.
+
+### Contrast over the field
+
+Glass panels are blurred, so behind them the field averages out to the base colour and the
+contrast table above holds. Without blur, a card over a star's core is the worst case, so
+dark cards are 82% opaque: muted text stays at 4.7:1 and body text at 11:1 even there (68%
+gave 3.1:1). Light cards (66% white) keep muted text at 5.0:1 over the brightest
+light-mode particle. Text that sits directly on the field (timestamps, tool rows) is 5.9:1
+or better against the field itself; only the 1 to 2px core of a star under a glyph is
+lower, as on the site, where text also sits over the particle canvas. The agent bubble's
+*translucent* setting keeps the app's own 55% fill, because the user chose it.
 
 ## Verification
 
@@ -95,11 +132,13 @@ the pane is the scroll container and a mask would fade the messages too.
   stripped the same way, through `scripts/check-theme-equivalence.mjs`: `EQUIVALENT`.
 - `src/shared/tests/skin.test.tsx`, `skinOptions.test.tsx` and the settings tests green.
 - Screenshots of chat, sidebar and Settings › Appearance at 390px and 1440px in both modes,
-  on a throwaway server with a copy of the database.
+  on a throwaway server with a copy of the database and demo projects.
+- Computed styles checked in the browser: drift and twinkle on desktop, stepped twinkle only
+  at 390px, no animation with `prefers-reduced-motion: reduce`.
 
 ## Not done / left as the host had it
 
-The particle canvas (animated; not worth the battery on a phone), hover lifts on cards (the
-skin changes no layout or motion), the site's glass gradient on individual cards, and the
-amber/yellow families (the site has no warning colour; the host's stay). Syntax highlighting
-and the code editor theme are not themeable yet (`docs/fork/THEMING.md`).
+The particle canvas's connecting lines and pointer attraction (script), hover lifts on
+cards (the skin changes no layout or motion), and the amber/yellow families (the site has
+no warning colour; the host's stay). Syntax highlighting and the code editor theme are
+not themeable yet (`docs/fork/THEMING.md`).

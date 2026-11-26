@@ -239,16 +239,23 @@
         }
       },
       "aztecan": {
+        "stars": {
+          "label": "星空",
+          "description": "ガラスパネルの背後でゆっくり漂う星",
+          "off": "オフ",
+          "still": "静止",
+          "animated": "アニメーション"
+        },
         "grid": {
           "label": "背景グリッド",
-          "description": "会話の背後にある細いグリッド",
+          "description": "背景の細いグリッド",
           "off": "オフ",
           "faint": "淡い",
           "normal": "標準"
         },
         "halo": {
           "label": "ハローとグロー",
-          "description": "会話上部の柔らかな光と、ダークモードで光るステータスドット"
+          "description": "画面上部の柔らかな光と、ダークモードで光るステータスドット"
         },
         "pillTabs": {
           "label": "ピル型タブ",

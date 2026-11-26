@@ -265,16 +265,23 @@
         }
       },
       "aztecan": {
+        "stars": {
+          "label": "Bidang bintang",
+          "description": "Bintang yang melayang di balik panel kaca",
+          "off": "Mati",
+          "still": "Diam",
+          "animated": "Bergerak"
+        },
         "grid": {
           "label": "Kisi latar",
-          "description": "Kisi halus di belakang percakapan",
+          "description": "Kisi halus di latar belakang",
           "off": "Mati",
           "faint": "Samar",
           "normal": "Normal"
         },
         "halo": {
           "label": "Halo dan pendar",
-          "description": "Cahaya lembut di bagian atas percakapan dan titik status yang berpendar di mode gelap"
+          "description": "Cahaya lembut dari bagian atas layar dan titik status yang berpendar di mode gelap"
         },
         "pillTabs": {
           "label": "Tab pil",

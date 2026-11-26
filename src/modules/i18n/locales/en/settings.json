@@ -272,16 +272,23 @@
         }
       },
       "aztecan": {
+        "stars": {
+          "label": "Starfield",
+          "description": "Drifting stars behind the glass panels",
+          "off": "Off",
+          "still": "Still",
+          "animated": "Animated"
+        },
         "grid": {
           "label": "Background grid",
-          "description": "The fine grid behind the conversation",
+          "description": "The fine grid in the background",
           "off": "Off",
           "faint": "Faint",
           "normal": "Normal"
         },
         "halo": {
           "label": "Halo and glow",
-          "description": "A soft light at the top of the conversation, and glowing status dots in dark mode"
+          "description": "A soft light from the top of the screen, and glowing status dots in dark mode"
         },
         "pillTabs": {
           "label": "Pill tabs",

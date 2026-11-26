@@ -239,16 +239,23 @@
         }
       },
       "aztecan": {
+        "stars": {
+          "label": "Sternenfeld",
+          "description": "Langsam treibende Sterne hinter den Glasflächen",
+          "off": "Aus",
+          "still": "Still",
+          "animated": "Animiert"
+        },
         "grid": {
           "label": "Hintergrundraster",
-          "description": "Das feine Raster hinter der Unterhaltung",
+          "description": "Das feine Raster im Hintergrund",
           "off": "Aus",
           "faint": "Schwach",
           "normal": "Normal"
         },
         "halo": {
           "label": "Lichtschein",
-          "description": "Ein weiches Licht oben in der Unterhaltung und leuchtende Statuspunkte im dunklen Modus"
+          "description": "Ein weiches Licht vom oberen Bildschirmrand und leuchtende Statuspunkte im dunklen Modus"
         },
         "pillTabs": {
           "label": "Pillen-Tabs",

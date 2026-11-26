@@ -69,7 +69,14 @@ The skins, and the designs they come from:
 | id | look | source | design package |
 |---|---|---|---|
 | `otsr` | lab white and near-black, copper, square corners | the [OTSR](https://github.com/Aztech-Lab/OTSR) application (`src/tokens.css`) | [`themes/otsr`](../../themes/otsr/README.md) |
-| `aztecan` | near-black with a halo, glass, cyan, Inter, pill tabs, a fading grid | the [Aztech Labs website](https://aztecan.net/) (`styles.bundle.css`); dark only on the site, light derived | [`themes/aztecan`](../../themes/aztecan/README.md) |
+| `aztecan` | a starfield and halo behind frosted glass panels, cyan, Inter, pill tabs | the [Aztech Labs website](https://aztecan.net/) (`styles.bundle.css`); dark only on the site, light derived | [`themes/aztecan`](../../themes/aztecan/README.md) |
+
+A skin that puts something *behind* the app (the Aztecan starfield) needs the large
+containers to be see-through. They carry `data-surface` hooks for that, with no style of
+their own: `app-shell` (the root container), `sidebar`, `sidebar-drawer` (the mobile
+drawer), `quick-settings` and `quick-settings-body`. The header (`.pwa-header-safe`), the
+composer form and the settings dialog (`.modal-backdrop > [role="dialog"]`) already had
+stable hooks.
 
 A skin may need a web font. Load it from Google Fonts in the existing `<link>` in `index.html`
 (the Aztecan skin adds Inter there): the browser downloads a face only when a rule uses it, so

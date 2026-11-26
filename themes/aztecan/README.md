@@ -11,7 +11,8 @@ Read this file first; `theme.json` has the values, `apply.md` the procedure.
 ## In one paragraph
 
 Near-black (`#030305`, a hair of blue in it) with a soft **white halo** at the top of the
-page and a **fine 80px grid** that fades out towards the top and the bottom. Text is
+page, a **field of slowly drifting white particles** like stars, and a **fine 80px grid**
+that fades out towards the top and the bottom. Everything else **floats** over that scene. Text is
 `#f5f5f7`, secondary text zinc `#a1a1aa`. Panels are **glass**: a translucent dark fill
 (`rgba(18,18,22,.72)`) behind a 1px white-at-11% hairline, with backdrop blur. The primary
 action is a **white pill** with near-black letters; everything else that points somewhere is
@@ -23,27 +24,32 @@ action is a **white pill** with near-black letters; everything else that points 
 
 1. **Light comes from above.** One radial white halo at the top of the stage, and deep
    shadows under floating things. No light from the sides, no coloured gradients over content.
-2. **Glass over hairline.** A panel is a translucent fill plus a 1px light edge; it is never
-   a solid grey block with a dark border. Elevation is blur and a deep, soft shadow.
-3. **Cyan points, white acts.** The primary action is white (dark mode) or near-black (light
+2. **Glass over the scene.** A panel is frosted glass: a translucent fill with backdrop
+   blur and saturation, a 1px light edge with a lit top, a soft deep shadow. It is never a
+   solid block: the stars and glows must be felt through it. Light mode is the same idea in
+   white glass (Apple-style), not flat white.
+3. **The stars are part of the page.** Take away the particle field and the design collapses
+   into "a dark theme". Keep it faint (a dot every 100px or so) and slow.
+4. **Cyan points, white acts.** The primary action is white (dark mode) or near-black (light
    mode), not cyan. Cyan marks what is focused, linked, selected or live. Mint is only for
    *ok/running*; violet only for a third category. Red exists only as error text and fills.
-4. **Neutrals are cool zinc.** `#a1a1aa`, `#72727c`, `#f5f5f7`: no warm greys.
-5. **Soft containers, pill controls.** 8px panels, 10 to 12px cards, 18 to 22px floating
+5. **Neutrals are cool zinc.** `#a1a1aa`, `#72727c`, `#f5f5f7`: no warm greys.
+6. **Soft containers, pill controls.** 8px panels, 10 to 12px cards, 18 to 22px floating
    cards and dialogs. Buttons, navigation tracks and their items, chips: fully rounded.
    Icon badges sit in a ringed circle.
-6. **The grid is felt, not seen.** 1px lines at 2.5 to 3.5% white, 80px apart, masked off at
+7. **The grid is felt, not seen.** 1px lines at 2.5 to 3.5% white, 80px apart, masked off at
    the edges. Never a dense grid, never behind body text at full strength.
-7. **Glow belongs to the dark.** Status dots and the primary pill glow in their own colour in
+8. **Glow belongs to the dark.** Status dots and the primary pill glow in their own colour in
    dark mode. In light mode a glow is a smudge, so it is dropped.
-8. **Motion eases out.** 160ms for colour; 520ms `cubic-bezier(0.22, 1, 0.36, 1)` for rises
+9. **Motion eases out.** 160ms for colour; 520ms `cubic-bezier(0.22, 1, 0.36, 1)` for rises
    and lifts; hover lifts cards by 2 to 8px.
 
 ## What it is not
 
 - Not "dark mode with blue": cyan is a signal, not a surface. Large cyan fills are wrong.
 - Not neon or cyberpunk: the glows are wide and faint (12 to 16% white), the accents pastel.
-- Not flat: removing the halo, the glass and the deep shadow loses most of the character.
+- Not flat: removing the stars, the halo, the glass and the deep shadow loses most of the
+  character. (The first application here did exactly that and was rejected as "flat black".)
 
 ## Where the values come from
 
@@ -57,4 +63,5 @@ in its role note.
 
 Fonts: the site names Inter first but does not load it (no `@font-face`), so the face a visitor
 sees is usually their system UI font. Inter is under the SIL Open Font License and is on Google
-Fonts. No logo, image or particle animation is part of this package.
+Fonts. No logo or image is part of this package; the particle field is described by its
+parameters and redrawn, not copied.

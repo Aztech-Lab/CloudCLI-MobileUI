@@ -266,16 +266,23 @@
         }
       },
       "aztecan": {
+        "stars": {
+          "label": "Campo de estrellas",
+          "description": "Estrellas que se desplazan detrás de los paneles de cristal",
+          "off": "Desactivado",
+          "still": "Quieto",
+          "animated": "Animado"
+        },
         "grid": {
           "label": "Cuadrícula de fondo",
-          "description": "La cuadrícula fina detrás de la conversación",
+          "description": "La cuadrícula fina del fondo",
           "off": "Desactivada",
           "faint": "Tenue",
           "normal": "Normal"
         },
         "halo": {
           "label": "Halo y brillo",
-          "description": "Una luz suave en la parte superior de la conversación y puntos de estado brillantes en modo oscuro"
+          "description": "Una luz suave desde la parte superior de la pantalla y puntos de estado brillantes en modo oscuro"
         },
         "pillTabs": {
           "label": "Pestañas de píldora",

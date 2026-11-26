@@ -38,15 +38,20 @@ different for Aztecan. The worked example is [`examples/cloudcli.md`](examples/c
 
 ## Signature rules
 
-1. **Grid and halo** behind the main content area: two 1px linear gradients at 80px, with a
-   fade to the page colour above them (top 0 to 18%, bottom 68 to 100%) instead of a mask,
-   because a mask would fade the content too. On a phone, shrink the halo from 27rem to about
-   16rem, or it covers the whole screen.
-2. **Pill tab tracks**: a segmented tab strip drawn as a rounded track becomes a 999px pill,
+1. **The scene behind everything**: the gradient, halo, glows and the 80px grid (with a fade
+   to the page colour above it instead of a mask, because a mask would fade the content
+   too) on the page itself, and the starfield on fixed layers behind the app. Then make the
+   app's root container transparent. On a phone, shrink the halo from 27rem to about 16rem.
+2. **Starfield in CSS**: tiled `radial-gradient` dots in two or three layers with different
+   tile sizes, moved only by `transform` and `opacity` animations; stop the drift on phones
+   and under `prefers-reduced-motion`. Do not port the canvas.
+3. **Glass on the large containers** (side panel, top bar, composer, dialogs, menus): a
+   translucent fill, `backdrop-filter`, a top sheen and a lit edge. Cards and messages inside
+   get translucency without blur; make them opaque enough that muted text passes over a
+   star's core.
+4. **Pill tab tracks**: a segmented tab strip drawn as a rounded track becomes a 999px pill,
    as the site's navigation. Underline-style tabs stay.
-3. **Glowing status dots** in dark mode only.
-4. **Deep shadow** on floating layers.
-5. **Glass bars**: wherever the host already has a translucent bar, give it the site's blur
-   and saturation (24px, 140%); do not add glass to panels that are opaque in the host.
-
-Leave out the particle canvas: it is animated, costs battery on phones and competes with text.
+5. **Glowing status dots** in dark mode only.
+6. **Deep shadow** on floating layers.
+Blur is expensive on phones when the field behind it moves: keep it to a handful of large
+containers, never on every row or message.

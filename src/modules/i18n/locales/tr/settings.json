@@ -266,16 +266,23 @@
         }
       },
       "aztecan": {
+        "stars": {
+          "label": "Yıldız alanı",
+          "description": "Cam panellerin arkasında süzülen yıldızlar",
+          "off": "Kapalı",
+          "still": "Sabit",
+          "animated": "Hareketli"
+        },
         "grid": {
           "label": "Arka plan ızgarası",
-          "description": "Sohbetin arkasındaki ince ızgara",
+          "description": "Arka plandaki ince ızgara",
           "off": "Kapalı",
           "faint": "Soluk",
           "normal": "Normal"
         },
         "halo": {
           "label": "Hale ve parıltı",
-          "description": "Sohbetin üstünde yumuşak bir ışık ve karanlık modda parlayan durum noktaları"
+          "description": "Ekranın üstünden gelen yumuşak bir ışık ve karanlık modda parlayan durum noktaları"
         },
         "pillTabs": {
           "label": "Hap sekmeler",

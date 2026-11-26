@@ -272,16 +272,23 @@
         }
       },
       "aztecan": {
+        "stars": {
+          "label": "星空背景",
+          "description": "玻璃面板背后缓缓漂移的星点",
+          "off": "关闭",
+          "still": "静止",
+          "animated": "动态"
+        },
         "grid": {
           "label": "背景网格",
-          "description": "对话区域背后的细网格",
+          "description": "背景中的细网格",
           "off": "关闭",
           "faint": "淡",
           "normal": "正常"
         },
         "halo": {
           "label": "光晕",
-          "description": "对话区域顶部的柔光，以及深色模式下发光的状态圆点"
+          "description": "屏幕顶部的柔光，以及深色模式下发光的状态圆点"
         },
         "pillTabs": {
           "label": "胶囊标签",

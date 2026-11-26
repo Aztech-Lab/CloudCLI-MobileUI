@@ -1,7 +1,8 @@
 /* [local] Aztecan skin — the look of the Aztech Labs website, https://aztecan.net/
-   (styles.bundle.css: shared/design.css + styles.css): near-black with a white halo, glass
-   panels behind hairlines, a cyan signal with mint and violet beside it, Inter, soft 8px
-   corners and pill-shaped controls, a fine 80px grid that fades out at the edges.
+   (styles.bundle.css: shared/design.css + styles.css; shared/particles.js): a starfield
+   under a white halo, frosted glass panels floating over it with lit hairline edges, a
+   cyan signal with mint and violet beside it, Inter, soft 8px corners and pill-shaped
+   controls, a fine 80px grid that fades out at the edges.
 
    The site is dark only. Its design system says the sister portal is white with the same
    shape and type, so the light mode here is derived: the same neutrals inverted, the
@@ -9,8 +10,10 @@
    that carry text at WCAG AA. See themes/aztecan/.
 
    Applied by `data-skin="aztecan"` on <html> (src/shared/skin.ts); `.dark` is the app's
-   normal dark mode. Everything here is a token override (docs/fork/THEMING.md) plus a
-   handful of signature rules on stable hooks. The default skin is untouched. */
+   normal dark mode. Everything here is a token override (docs/fork/THEMING.md) plus
+   signature rules on stable hooks (`data-surface` on the app shell, sidebar and quick
+   settings; `.pwa-header-safe`, the composer form, the settings dialog). The default
+   skin is untouched. */
 
 /* ---- tokens: light (derived) ------------------------------------------------------ */
 :root[data-skin="aztecan"] {
@@ -96,11 +99,31 @@
   --app-theme-color-light: #f5f5f7;
   --app-theme-color-dark: #030305;
 
-  /* skin-private */
-  --aztecan-grid: rgba(11, 11, 15, 0.06);
-  --aztecan-grid-2: rgba(11, 11, 15, 0.045);
-  --aztecan-halo: rgba(118, 216, 255, 0.14);
-  --aztecan-shadow: 0 24px 64px rgba(11, 11, 15, 0.14);
+  /* skin-private: the backdrop. Light is derived: Apple-style light glass over a soft
+     cool gradient, with faint ink-blue particles in place of the white stars. */
+  --aztecan-base: linear-gradient(180deg, #eef0f5 0%, #f6f6f9 45%, #eceef4 100%);
+  --aztecan-fade-top: #eef0f5;
+  --aztecan-fade-bottom: #eceef4;
+  --aztecan-halo: rgba(118, 216, 255, 0.24);
+  --aztecan-glow-1: rgba(118, 216, 255, 0.16);
+  --aztecan-glow-2: rgba(185, 168, 255, 0.13);
+  --aztecan-grid: rgba(11, 11, 15, 0.05);
+  --aztecan-grid-2: rgba(11, 11, 15, 0.035);
+  --aztecan-star: rgba(48, 60, 100, 0.34);
+  --aztecan-star-dim: rgba(48, 60, 100, 0.2);
+  --aztecan-star-bright: rgba(10, 111, 156, 0.45);
+  --aztecan-halo-size: 27rem;
+  /* skin-private: glass */
+  --aztecan-glass: rgba(255, 255, 255, 0.55);
+  --aztecan-glass-strong: rgba(255, 255, 255, 0.74);
+  --aztecan-glass-card: rgba(255, 255, 255, 0.66);
+  --aztecan-glass-sticky: rgba(246, 246, 249, 0.82);
+  --aztecan-glass-edge: rgba(11, 11, 15, 0.08);
+  --aztecan-glass-highlight: rgba(255, 255, 255, 0.9);
+  --aztecan-glass-filter: blur(20px) saturate(180%);
+  --aztecan-glass-sheen: rgba(255, 255, 255, 0.5);
+  --aztecan-float: 0 18px 48px rgba(30, 40, 70, 0.12), 0 2px 6px rgba(30, 40, 70, 0.06);
+  --aztecan-shadow: 0 24px 64px rgba(30, 40, 70, 0.16);
 }
 
 /* ---- tokens: dark (the site) ---------------------------------------------------------- */
@@ -182,10 +205,31 @@
   --terminal-dark-green: #94f0c3;
   --terminal-dark-magenta: #b9a8ff;
 
-  --aztecan-grid: rgba(255, 255, 255, 0.035);   /* body::before, as the site */
+  /* The site's body: linear-gradient(180deg, #09090d 0%, var(--bg) 42%, #050507 100%)
+     under a white radial at 50% 0%, the 80px grid (body::before) and the particle canvas
+     (#field: white dots of 0.4-2px at 0.42 alpha, the canvas at 58% opacity). */
+  --aztecan-base: linear-gradient(180deg, #09090d 0%, #030305 42%, #050507 100%);
+  --aztecan-fade-top: #09090d;
+  --aztecan-fade-bottom: #050507;
+  --aztecan-halo: rgba(255, 255, 255, 0.12);
+  --aztecan-glow-1: rgba(118, 216, 255, 0.12);   /* .console::before: cyan .16 at 70% 16% */
+  --aztecan-glow-2: rgba(148, 240, 195, 0.05);   /* and mint at 22% 76% */
+  --aztecan-grid: rgba(255, 255, 255, 0.035);
   --aztecan-grid-2: rgba(255, 255, 255, 0.025);
-  --aztecan-halo: rgba(255, 255, 255, 0.12);    /* body: radial-gradient at 50% 0% */
-  --aztecan-shadow: 0 32px 90px rgba(0, 0, 0, 0.52); /* --shadow */
+  --aztecan-star: rgba(255, 255, 255, 0.5);
+  --aztecan-star-dim: rgba(255, 255, 255, 0.3);
+  --aztecan-star-bright: rgba(255, 255, 255, 0.82);
+  /* Glass: --panel rgba(18,18,22,.72) on the site; thinner here so the stars show. */
+  --aztecan-glass: rgba(16, 16, 20, 0.5);
+  --aztecan-glass-strong: rgba(16, 16, 22, 0.74);
+  --aztecan-glass-card: rgba(20, 20, 26, 0.82);              /* >= 4.5:1 muted text even over a star core */
+  --aztecan-glass-sticky: rgba(8, 8, 11, 0.8);
+  --aztecan-glass-edge: rgba(255, 255, 255, 0.11);           /* --line */
+  --aztecan-glass-highlight: rgba(255, 255, 255, 0.1);       /* .reader-panel inset top */
+  --aztecan-glass-filter: blur(20px) saturate(160%);         /* .topbar, .reader-panel */
+  --aztecan-glass-sheen: rgba(255, 255, 255, 0.06);          /* .console: white .09 to 34% */
+  --aztecan-float: 0 18px 50px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --aztecan-shadow: 0 32px 90px rgba(0, 0, 0, 0.52);         /* --shadow */
 }
 
 :root[data-skin="aztecan"]:not(.dark) {
@@ -203,39 +247,170 @@
    `data-skin-<option>` on <html>. A missing attribute means the option's default, so
    the selectors are written to match the default too. */
 
-/* The site's fine grid (80px hairlines) behind the transcript, fading out at the top and
-   the bottom as the site's mask does, with its white halo at the top (option: halo).
-   The fade is painted in the page colour over the grid, because a mask would fade the
-   messages too. Option: grid (off | faint | normal); normal is the site's strength. */
-[data-skin="aztecan"] .chat-messages-pane {
-  --aztecan-fade: linear-gradient(to bottom, hsl(var(--background)) 0%, hsl(var(--background) / 0) 18%, hsl(var(--background) / 0) 68%, hsl(var(--background)) 100%);
-  --aztecan-halo-layer: radial-gradient(circle at 50% 0%, var(--aztecan-halo), transparent 27rem);
-  background-size: 100% 100%, 100% 100%, 80px 80px, 80px 80px;
-  background-position: 0 0, 0 0, center top, center top;
+/* 1. The backdrop. The site's page is not a colour but a scene: a dark gradient, a white
+   halo from above, an 80px grid faded out at the top and bottom, and a field of drifting
+   white particles. All of it lives on <body>, behind the app; the app shell is made
+   transparent (rule 3) so the panels float over it. Background layers, top first:
+   halo, two faint colour glows (the site's console glows), the grid's fade, the grid
+   (two layers), the gradient. */
+:root[data-skin="aztecan"] {
+  --aztecan-halo-layer: radial-gradient(circle at 50% 0%, var(--aztecan-halo), transparent var(--aztecan-halo-size));
+  --aztecan-glow-layer: radial-gradient(circle at 82% 14%, var(--aztecan-glow-1), transparent 34rem), radial-gradient(circle at 12% 88%, var(--aztecan-glow-2), transparent 30rem);
+  --aztecan-fade: linear-gradient(to bottom, var(--aztecan-fade-top) 0%, transparent 18%, transparent 68%, var(--aztecan-fade-bottom) 100%);
 }
-/* The halo is 27rem wide on the site; on a phone that is the whole screen, so it is
-   narrowed to keep the top of the transcript from greying out. */
 @media (max-width: 640px) {
-  [data-skin="aztecan"] .chat-messages-pane {
-    --aztecan-halo-layer: radial-gradient(circle at 50% 0%, var(--aztecan-halo), transparent 16rem);
+  /* 27rem is the whole width of a phone; a narrower halo keeps the top from greying. */
+  :root[data-skin="aztecan"] {
+    --aztecan-halo-size: 16rem;
   }
 }
-[data-skin="aztecan"][data-skin-halo="false"] .chat-messages-pane {
-  --aztecan-halo-layer: linear-gradient(transparent, transparent);
+/* Option: halo (also the dot glow, below). */
+:root[data-skin="aztecan"][data-skin-halo="false"] {
+  --aztecan-halo: transparent;
+  --aztecan-glow-1: transparent;
+  --aztecan-glow-2: transparent;
 }
-[data-skin="aztecan"][data-skin-grid="faint"] .chat-messages-pane {
-  --aztecan-grid: rgba(127, 127, 135, 0.05);
-  --aztecan-grid-2: rgba(127, 127, 135, 0.035);
+/* Option: grid (off | faint | normal); normal is the site's strength. */
+:root[data-skin="aztecan"][data-skin-grid="faint"] {
+  --aztecan-grid: rgba(127, 127, 135, 0.04);
+  --aztecan-grid-2: rgba(127, 127, 135, 0.028);
 }
-[data-skin="aztecan"]:not([data-skin-grid="off"]) .chat-messages-pane {
+:root[data-skin="aztecan"][data-skin-grid="off"] {
+  --aztecan-grid: transparent;
+  --aztecan-grid-2: transparent;
+}
+[data-skin="aztecan"] body {
+  background-color: hsl(var(--background));
   background-image:
     var(--aztecan-halo-layer),
+    var(--aztecan-glow-layer),
     var(--aztecan-fade),
     linear-gradient(var(--aztecan-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--aztecan-grid-2) 1px, transparent 1px);
+    linear-gradient(90deg, var(--aztecan-grid-2) 1px, transparent 1px),
+    var(--aztecan-base);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 80px 80px, 80px 80px, 100% 100%;
+  background-position: 0 0, 0 0, 0 0, 0 0, center top, center top, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat, no-repeat;
 }
-[data-skin="aztecan"][data-skin-grid="off"] .chat-messages-pane {
-  background-image: var(--aztecan-halo-layer);
+
+/* 2. The starfield: the site's particle canvas, redrawn in CSS. Three tiled layers of
+   radial-gradient dots on two fixed pseudo-elements behind the app: small and dim (a
+   223px tile, 3 dots), medium (367px, 3 dots) and bright (509px, 2 dots), about one dot
+   per 10,000 px^2, like the canvas's width/18 particles. Motion is transform and opacity
+   only, so it runs on the compositor: the field drifts a few dozen pixels over minutes
+   and the bright layer twinkles. No canvas, no script. The canvas's faint connecting
+   lines are left out. Option: stars (off | still | animated). */
+[data-skin="aztecan"]:not([data-skin-stars="off"]) body::before,
+[data-skin="aztecan"]:not([data-skin-stars="off"]) body::after {
+  content: "";
+  position: fixed;
+  inset: -64px;
+  z-index: -1;
+  pointer-events: none;
+  background-repeat: repeat;
+}
+[data-skin="aztecan"]:not([data-skin-stars="off"]) body::before {
+  background-image:
+    radial-gradient(circle at 37px 61px, var(--aztecan-star-dim) 0.7px, transparent 1.3px),
+    radial-gradient(circle at 168px 143px, var(--aztecan-star-dim) 0.6px, transparent 1.2px),
+    radial-gradient(circle at 96px 201px, var(--aztecan-star) 0.8px, transparent 1.4px),
+    radial-gradient(circle at 211px 47px, var(--aztecan-star) 0.9px, transparent 1.6px),
+    radial-gradient(circle at 59px 281px, var(--aztecan-star-dim) 1px, transparent 1.7px),
+    radial-gradient(circle at 300px 190px, var(--aztecan-star) 0.7px, transparent 1.3px);
+  background-size: 223px 223px, 223px 223px, 223px 223px, 367px 367px, 367px 367px, 367px 367px;
+}
+[data-skin="aztecan"]:not([data-skin-stars="off"]) body::after {
+  background-image:
+    radial-gradient(circle at 127px 389px, var(--aztecan-star-bright) 1.1px, transparent 2.4px),
+    radial-gradient(circle at 431px 102px, var(--aztecan-star-bright) 0.9px, transparent 2px);
+  background-size: 509px 509px, 509px 509px;
+}
+[data-skin="aztecan"]:not([data-skin-stars]) body::before,
+[data-skin="aztecan"][data-skin-stars="animated"] body::before {
+  animation: aztecan-drift 160s ease-in-out infinite alternate;
+  will-change: transform;
+}
+[data-skin="aztecan"]:not([data-skin-stars]) body::after,
+[data-skin="aztecan"][data-skin-stars="animated"] body::after {
+  animation: aztecan-twinkle 7s ease-in-out infinite, aztecan-drift 110s ease-in-out infinite alternate-reverse;
+  will-change: transform, opacity;
+}
+/* Phones: the glass bars above the field re-blur whenever it moves, so the drift stops
+   and the twinkle changes in steps (about once a second) instead of every frame. */
+@media (max-width: 640px) {
+  [data-skin="aztecan"]:not([data-skin-stars]) body::before,
+  [data-skin="aztecan"][data-skin-stars="animated"] body::before {
+    animation: none;
+  }
+  [data-skin="aztecan"]:not([data-skin-stars]) body::after,
+  [data-skin="aztecan"][data-skin-stars="animated"] body::after {
+    animation: aztecan-twinkle 9s steps(8) infinite;
+    will-change: opacity;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-skin="aztecan"] body::before,
+  [data-skin="aztecan"] body::after {
+    animation: none !important;
+  }
+}
+@keyframes aztecan-drift {
+  to { transform: translate3d(44px, 30px, 0); }
+}
+@keyframes aztecan-twinkle {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* 3. Glass. The app shell is transparent; the large containers are frosted glass over
+   the field: a translucent fill, backdrop blur and saturation (the site's .topbar and
+   .reader-panel), a hairline edge with a lit top, and a soft float shadow. Blur is
+   only on a handful of big containers (sidebar, header, composer, quick settings,
+   the settings dialog, open menus); list rows, cards and messages are translucent
+   without blur, so a long transcript costs nothing extra to scroll. */
+[data-skin="aztecan"] :is([data-surface="app-shell"], [data-surface="sidebar-drawer"], [data-surface="quick-settings-body"]) {
+  background-color: transparent;
+}
+[data-skin="aztecan"] :is([data-surface="sidebar"], .pwa-header-safe, .chat-composer-shell form[data-slot="prompt-input"], [data-surface="quick-settings"], .modal-backdrop > [role="dialog"], .bg-popover) {
+  background-color: var(--aztecan-glass);
+  background-image: linear-gradient(180deg, var(--aztecan-glass-sheen), transparent 40%);
+  -webkit-backdrop-filter: var(--aztecan-glass-filter);
+  backdrop-filter: var(--aztecan-glass-filter);
+}
+[data-skin="aztecan"] :is([data-surface="quick-settings"], .modal-backdrop > [role="dialog"], .bg-popover) {
+  background-color: var(--aztecan-glass-strong);
+}
+[data-skin="aztecan"] :is(.chat-composer-shell form[data-slot="prompt-input"], [data-surface="quick-settings"], .modal-backdrop > [role="dialog"], .bg-popover) {
+  box-shadow: inset 0 1px 0 var(--aztecan-glass-highlight), var(--aztecan-float);
+}
+[data-skin="aztecan"] :is(.chat-composer-shell form[data-slot="prompt-input"]:not(:focus-within), [data-surface="quick-settings"], .modal-backdrop > [role="dialog"], [data-surface="sidebar-drawer"], .pwa-header-safe) {
+  border-color: var(--aztecan-glass-edge);
+}
+[data-skin="aztecan"] [data-surface="sidebar"] {
+  box-shadow: inset -1px 0 0 var(--aztecan-glass-edge);
+}
+/* Let the field show behind an open dialog too, softened by the existing blur. */
+[data-skin="aztecan"] .modal-backdrop {
+  background-color: hsl(var(--background) / 0.35);
+}
+/* Cards and messages inside the glass: translucent, no blur of their own. Dark cards
+   are 82% opaque so muted text stays >= 4.5:1 even over a bright star's core. The agent
+   bubble's own setting wins: translucent and off keep their look from index.css. */
+[data-skin="aztecan"] [data-surface="sidebar"] .bg-card,
+[data-skin="aztecan"] .chat-messages-pane .bg-card:not(.chat-assistant-bubble),
+[data-skin="aztecan"]:not([data-assistant-bubble]) .chat-assistant-bubble,
+[data-skin="aztecan"] .chat-message.user > div > div > div.rounded-2xl {
+  background-color: var(--aztecan-glass-card);
+}
+/* Sticky project headers in the sidebar must still hide the rows scrolling under them:
+   the desktop row button gets a near-opaque tint; on phones the full-width wrapper is
+   clear (a tinted band reads as a stripe) and the card inside it takes the tint. */
+[data-skin="aztecan"] [data-surface="sidebar"] .sticky.bg-background,
+[data-skin="aztecan"] [data-surface="sidebar"] .sticky > .bg-background > .bg-card {
+  background-color: var(--aztecan-glass-sticky);
+}
+[data-skin="aztecan"] [data-surface="sidebar"] .sticky > .bg-background {
+  background-color: transparent;
 }
 
 /* Small status dots glow in their own colour, as the site's .review-list i does
@@ -256,8 +431,7 @@
   border-radius: 9999px;
 }
 
-/* Elevation: floating layers take the site's one deep shadow (--shadow); small shadows
-   stay as the app has them. */
+/* Elevation: other floating layers take the site's one deep shadow (--shadow). */
 [data-skin="aztecan"] .shadow-lg,
 [data-skin="aztecan"] .shadow-xl,
 [data-skin="aztecan"] .shadow-2xl {

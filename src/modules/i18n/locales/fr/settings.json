@@ -239,16 +239,23 @@
         }
       },
       "aztecan": {
+        "stars": {
+          "label": "Champ d’étoiles",
+          "description": "Des étoiles qui dérivent derrière les panneaux de verre",
+          "off": "Désactivé",
+          "still": "Fixe",
+          "animated": "Animé"
+        },
         "grid": {
           "label": "Grille de fond",
-          "description": "La grille fine derrière la conversation",
+          "description": "La grille fine en arrière-plan",
           "off": "Désactivée",
           "faint": "Légère",
           "normal": "Normale"
         },
         "halo": {
           "label": "Halo et lueur",
-          "description": "Une lumière douce en haut de la conversation et des points d’état lumineux en mode sombre"
+          "description": "Une lumière douce venue du haut de l’écran et des points d’état lumineux en mode sombre"
         },
         "pillTabs": {
           "label": "Onglets en pilule",
