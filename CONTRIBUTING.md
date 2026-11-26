@@ -60,6 +60,7 @@ The repository keeps the original CloudCLI layout, so that upstream releases mer
 | Translations | `src/modules/i18n/locales/<language>/`. |
 | Docs about this project | `docs/fork/`. Pictures for the README: `docs/assets/` (generated, see [MAINTAINING.md](docs/fork/MAINTAINING.md)). |
 | Deployment guide for agents | `AGENTS_DEPLOY.md` (top level, so agents find it). |
+| Scripts that install and run the server on a machine (setup, start, stop, restart, status, autostart, firewall, deploy) | `scripts/server/`: Windows PowerShell (`.ps1`, compatible with Windows PowerShell 5.1) and POSIX sh (`.sh`) side by side, with the shared logic in `scripts/server/lib/serverctl.mjs` (Node built-ins only) and its tests in `scripts/server/tests/` (`node --test scripts/server/tests/serverctl.test.mjs`). The machine config they create lives in `_server/` and is git-ignored; only the commented template `scripts/server/config.template.jsonc` is committed. |
 | Your working copy | Outside the repository, e.g. `../worktrees/<branch-name>` (see below). Never inside it. |
 | Scratch notes, hand-offs, local scripts | Not in the repository. |
 
