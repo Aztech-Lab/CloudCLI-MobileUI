@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { showStarfield, unmountStarfield } from '@/shared/aztecanStarfield';
 import { applySkin, readStoredSkin, writeSkin, type SkinId } from '@/shared/skin';
 import {
   applySkinOptions,
@@ -53,6 +54,19 @@ export const SkinProvider = ({ children }: { children: ReactNode }) => {
     applySkin(skin);
     applySkinOptions(skin, skinOptions);
   }, [skin, skinOptions]);
+
+  // The Aztecan skin's starfield: generated once per load (a new random sky each
+  // time) and again when the skin or the stars option changes. CSS animates it.
+  const starsOption = skin === 'aztecan' ? skinOptions.stars : undefined;
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    if (skin !== 'aztecan' || starsOption === 'off') {
+      unmountStarfield(document);
+      return undefined;
+    }
+    showStarfield(document);
+    return () => unmountStarfield(document);
+  }, [skin, starsOption]);
 
   const setSkin = useCallback((next: SkinId) => {
     writeSkin(next);

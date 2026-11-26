@@ -78,6 +78,11 @@ drawer), `quick-settings` and `quick-settings-body`. The header (`.pwa-header-sa
 composer form and the settings dialog (`.modal-backdrop > [role="dialog"]`) already had
 stable hooks.
 
+A skin that needs generated content keeps it to one run per page load and lets CSS do the
+animating: the Aztecan sky is drawn by `src/shared/aztecanStarfield.ts` (seeded, tested in
+`src/shared/tests/aztecanStarfield.test.ts`) into `#aztecan-starfield`, which `SkinProvider` mounts
+while that skin is active and its stars option is not off.
+
 A skin may need a web font. Load it from Google Fonts in the existing `<link>` in `index.html`
 (the Aztecan skin adds Inter there): the browser downloads a face only when a rule uses it, so
 the other skins are unaffected. Use only freely licensed fonts (OFL or similar).

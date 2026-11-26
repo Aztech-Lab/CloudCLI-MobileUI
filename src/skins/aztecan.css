@@ -28,13 +28,13 @@
   --secondary: 240 11% 93%;         /* #ebebef */
   --secondary-foreground: 240 15% 5%;
   --muted: 240 11% 93%;
-  --muted-foreground: 240 5% 39%;   /* #5f5f69, 5.3:1 on --secondary */
+  --muted-foreground: 236 5% 33%;   /* #4f4f58: >= 6.9:1, APCA Lc >= 77 on every surface */
   --accent: 220 48% 94%;            /* #e8edf7: the site's --accent (silver) as a hover tint */
   --accent-foreground: 240 15% 5%;
   --destructive: 0 66% 47%;         /* #c62828 */
   --destructive-foreground: 0 0% 100%;
   --border: 240 9% 87%;             /* #dcdce2 */
-  --input: 240 8% 83%;              /* #d1d1d8 */
+  --input: 236 4% 56%;              /* #8a8a94: input, toggle and composer edges >= 3:1 */
   --ring: 198 88% 33%;              /* #0a6f9c: cyan, text-safe */
 
   --nav-glass-bg: 0 0% 100% / 0.72;
@@ -67,9 +67,9 @@
   --palette-gray-100: 242 242 245;
   --palette-gray-200: 229 229 234;
   --palette-gray-300: 210 210 217;
-  --palette-gray-400: 161 161 170;
-  --palette-gray-500: 107 107 116;
-  --palette-gray-600: 82 82 91;
+  --palette-gray-400: 106 106 116;  /* placeholders and icons: >= 5:1 (was #a1a1aa, 2.4:1) */
+  --palette-gray-500: 92 92 102;
+  --palette-gray-600: 74 74 82;
   --palette-gray-700: 63 63 70;
   --palette-gray-800: 39 39 42;
   --palette-gray-900: 24 24 27;
@@ -97,7 +97,7 @@
   --font-mono: "SF Mono", ui-monospace, Consolas, "Cascadia Mono", Menlo, monospace;
 
   --app-theme-color-light: #f5f5f7;
-  --app-theme-color-dark: #030305;
+  --app-theme-color-dark: #08080b;
 
   /* skin-private: the backdrop. Light is derived: Apple-style light glass over a soft
      cool gradient, with faint ink-blue particles in place of the white stars. */
@@ -105,24 +105,30 @@
   --aztecan-fade-top: #eef0f5;
   --aztecan-fade-bottom: #eceef4;
   --aztecan-halo: rgba(118, 216, 255, 0.24);
-  --aztecan-glow-1: rgba(118, 216, 255, 0.16);
-  --aztecan-glow-2: rgba(185, 168, 255, 0.13);
+  --aztecan-glow-1: rgba(118, 216, 255, 0.3);
+  --aztecan-glow-2: rgba(185, 168, 255, 0.26);
+  --aztecan-glow-3: rgba(148, 240, 195, 0.24);
   --aztecan-grid: rgba(11, 11, 15, 0.05);
   --aztecan-grid-2: rgba(11, 11, 15, 0.035);
-  --aztecan-star: rgba(48, 60, 100, 0.34);
-  --aztecan-star-dim: rgba(48, 60, 100, 0.2);
-  --aztecan-star-bright: rgba(10, 111, 156, 0.45);
+  --aztecan-star-color: rgba(48, 60, 100, 0.42);
+  --aztecan-star-color-bright: rgba(10, 111, 156, 0.5);
+  --aztecan-text-halo: #f6f6f9;
   --aztecan-halo-size: 27rem;
   /* skin-private: glass */
-  --aztecan-glass: rgba(255, 255, 255, 0.55);
-  --aztecan-glass-strong: rgba(255, 255, 255, 0.74);
-  --aztecan-glass-card: rgba(255, 255, 255, 0.66);
-  --aztecan-glass-sticky: rgba(246, 246, 249, 0.82);
-  --aztecan-glass-edge: rgba(11, 11, 15, 0.08);
-  --aztecan-glass-highlight: rgba(255, 255, 255, 0.9);
-  --aztecan-glass-filter: blur(20px) saturate(180%);
-  --aztecan-glass-sheen: rgba(255, 255, 255, 0.5);
-  --aztecan-float: 0 18px 48px rgba(30, 40, 70, 0.12), 0 2px 6px rgba(30, 40, 70, 0.06);
+  --aztecan-glass: rgba(255, 255, 255, 0.6);
+  --aztecan-glass-strong: rgba(255, 255, 255, 0.72);
+  --aztecan-glass-card: rgba(255, 255, 255, 0.62);
+  --aztecan-glass-sticky: rgba(255, 255, 255, 0.72);
+  --aztecan-glass-edge: rgba(255, 255, 255, 0.85);
+  --aztecan-glass-highlight: rgba(255, 255, 255, 1);
+  --aztecan-glass-glow: rgba(255, 255, 255, 0.45);
+  --aztecan-glass-filter: blur(32px) saturate(180%);
+  --aztecan-glass-filter-strong: blur(40px) saturate(180%);
+  --aztecan-glass-filter-tile: blur(24px) saturate(180%);
+  --aztecan-glass-sheen: rgba(255, 255, 255, 0.55);
+  --aztecan-float: 0 0 0 1px rgba(20, 28, 56, 0.08), 0 1px 2px rgba(20, 30, 60, 0.08), 0 10px 30px rgba(20, 30, 60, 0.1), 0 30px 70px rgba(20, 30, 60, 0.12);
+  --aztecan-tile-shadow: 0 0 0 1px rgba(20, 28, 56, 0.07), 0 1px 2px rgba(20, 30, 60, 0.06), 0 8px 24px rgba(20, 30, 60, 0.08);
+  --aztecan-bar-shadow: rgba(20, 30, 60, 0.08);
   --aztecan-shadow: 0 24px 64px rgba(30, 40, 70, 0.16);
 }
 
@@ -131,24 +137,24 @@
   /* Site :root: --bg #030305, --text #f5f5f7, --muted #a1a1aa, --soft #72727c,
      --line rgba(255,255,255,.11), --line-bright .22, --panel rgba(18,18,22,.72),
      --accent #e8edf7, --cyan #76d8ff, --green #94f0c3, --violet #b9a8ff. */
-  --background: 240 25% 2%;         /* --bg #030305 */
-  --foreground: 240 11% 96%;        /* --text #f5f5f7 */
+  --background: 240 16% 4%;         /* #08080b: the site's --bg #030305 lifted off pure black */
+  --foreground: 240 10% 93%;        /* #ebebef: the site's --text #f5f5f7 capped against halation */
   --card: 240 13% 6%;               /* --panel flattened on --bg: #0e0e12 */
-  --card-foreground: 240 11% 96%;
+  --card-foreground: 240 10% 93%;
   --popover: 230 19% 6%;            /* the mobile menu, rgba(13,14,19,.97): #0d0e13 */
-  --popover-foreground: 240 11% 96%;
+  --popover-foreground: 240 10% 93%;
   --primary: 220 48% 94%;           /* --accent #e8edf7: the white .primary-action pill */
   --primary-foreground: 240 17% 2%; /* its label, #050507 */
   --secondary: 240 7% 8%;           /* white 4.5% on --bg (.secondary-action): #141417 */
-  --secondary-foreground: 240 11% 96%;
+  --secondary-foreground: 240 10% 93%;
   --muted: 240 7% 8%;
-  --muted-foreground: 240 5% 65%;   /* --muted #a1a1aa */
+  --muted-foreground: 240 6% 79%;   /* #c6c6ce: the site's --muted #a1a1aa raised to APCA Lc >= 60 on the glass */
   --accent: 240 5% 11%;             /* .nav a:hover, white 8% on --bg: #1b1b1e */
-  --accent-foreground: 240 11% 96%;
+  --accent-foreground: 240 10% 93%;
   --destructive: 0 100% 77%;        /* #ff8a8a, between the site's error #ffb4b4 and red */
   --destructive-foreground: 240 17% 2%;
   --border: 240 5% 13%;             /* --line on --bg: #1f1f22 */
-  --input: 240 2% 23%;              /* --line-bright on --bg: #3a3a3c */
+  --input: 236 4% 56%;              /* #8a8a94: input, toggle and composer edges >= 3:1 on the glass (was 1.6:1) */
   --ring: 197 100% 73%;             /* --cyan: the site's focus outline */
 
   --nav-glass-bg: 240 10% 8% / 0.72; /* --panel */
@@ -171,11 +177,19 @@
   --palette-blue-800: 18 57 76;
   --palette-blue-900: 11 38 51;
   --palette-blue-950: 6 20 28;
-  --palette-gray-500: 130 130 140;  /* --soft #72727c lifted to 4.8:1 on the panels */
+  /* Halation: no pure white text on near-black. White and the palest greys are capped at
+     #f0f0f3 (text-white, dark:text-gray-100 headings, white thumbs and marks). */
+  --palette-white: 240 240 243;
+  --palette-gray-50: 240 240 243;
+  --palette-gray-100: 235 235 239;
+  --palette-gray-200: 224 224 230;
+  --palette-gray-300: 212 212 218;
+  --palette-gray-400: 198 198 206;  /* = muted-foreground */
+  --palette-gray-500: 180 180 190;  /* fine print: the site's --soft #72727c raised to >= 5:1, Lc >= 49 */
   --palette-gray-700: 38 38 43;
   --palette-gray-800: 20 20 24;
   --palette-gray-900: 11 11 15;
-  --palette-gray-950: 3 3 5;
+  --palette-gray-950: 8 8 11;
   --palette-green-300: 184 245 215;
   --palette-green-400: 148 240 195; /* --green #94f0c3 */
   --palette-green-500: 148 240 195;
@@ -192,12 +206,12 @@
   --palette-violet-300: 211 200 255;
   --palette-violet-400: 185 168 255;
 
-  --dark-surface: 3 3 5;
+  --dark-surface: 8 8 11;
   --dark-option-bg: 13 14 19;
-  --dark-option-fg: 245 245 247;
+  --dark-option-fg: 235 235 239;
 
-  --terminal-dark-background: #030305;
-  --terminal-dark-foreground: #f5f5f7;
+  --terminal-dark-background: #08080b;
+  --terminal-dark-foreground: #ebebef;
   --terminal-dark-cursor: #76d8ff;
   --terminal-dark-selection-background: #12394c;
   --terminal-dark-blue: #76d8ff;
@@ -208,27 +222,37 @@
   /* The site's body: linear-gradient(180deg, #09090d 0%, var(--bg) 42%, #050507 100%)
      under a white radial at 50% 0%, the 80px grid (body::before) and the particle canvas
      (#field: white dots of 0.4-2px at 0.42 alpha, the canvas at 58% opacity). */
-  --aztecan-base: linear-gradient(180deg, #09090d 0%, #030305 42%, #050507 100%);
-  --aztecan-fade-top: #09090d;
-  --aztecan-fade-bottom: #050507;
+  --aztecan-base: linear-gradient(180deg, #0d0d12 0%, #08080b 42%, #0a0a0d 100%);
+  --aztecan-fade-top: #0d0d12;
+  --aztecan-fade-bottom: #0a0a0d;
   --aztecan-halo: rgba(255, 255, 255, 0.12);
-  --aztecan-glow-1: rgba(118, 216, 255, 0.12);   /* .console::before: cyan .16 at 70% 16% */
-  --aztecan-glow-2: rgba(148, 240, 195, 0.05);   /* and mint at 22% 76% */
+  /* Nebula: the site's cyan, violet and mint as large soft blobs (its .console::before
+     glows, cyan .16 and mint .08). They give the glass something to frost. */
+  --aztecan-glow-1: rgba(118, 216, 255, 0.26);
+  --aztecan-glow-2: rgba(185, 168, 255, 0.24);
+  --aztecan-glow-3: rgba(148, 240, 195, 0.18);
   --aztecan-grid: rgba(255, 255, 255, 0.035);
   --aztecan-grid-2: rgba(255, 255, 255, 0.025);
-  --aztecan-star: rgba(255, 255, 255, 0.5);
-  --aztecan-star-dim: rgba(255, 255, 255, 0.3);
-  --aztecan-star-bright: rgba(255, 255, 255, 0.82);
+  --aztecan-star-color: rgba(223, 230, 242, 0.92);          /* blue-white, never pure white */
+  --aztecan-star-color-bright: rgba(232, 238, 248, 0.95);
+  --aztecan-text-halo: #08080b;
   /* Glass: --panel rgba(18,18,22,.72) on the site; thinner here so the stars show. */
-  --aztecan-glass: rgba(16, 16, 20, 0.5);
-  --aztecan-glass-strong: rgba(16, 16, 22, 0.74);
-  --aztecan-glass-card: rgba(20, 20, 26, 0.82);              /* >= 4.5:1 muted text even over a star core */
-  --aztecan-glass-sticky: rgba(8, 8, 11, 0.8);
-  --aztecan-glass-edge: rgba(255, 255, 255, 0.11);           /* --line */
-  --aztecan-glass-highlight: rgba(255, 255, 255, 0.1);       /* .reader-panel inset top */
-  --aztecan-glass-filter: blur(20px) saturate(160%);         /* .topbar, .reader-panel */
+  /* Glass: a light tint over a blurred, saturated and dimmed backdrop (the dim keeps
+     muted text at APCA Lc >= 60 over the brightest nebula; see themes/aztecan). */
+  --aztecan-glass: rgba(255, 255, 255, 0.07);
+  --aztecan-glass-strong: rgba(255, 255, 255, 0.08);
+  --aztecan-glass-card: rgba(255, 255, 255, 0.07);
+  --aztecan-glass-sticky: rgba(255, 255, 255, 0.06);
+  --aztecan-glass-edge: rgba(255, 255, 255, 0.16);           /* --line-bright, a little brighter */
+  --aztecan-glass-highlight: rgba(255, 255, 255, 0.26);      /* .update-card inset top .26 */
+  --aztecan-glass-glow: rgba(255, 255, 255, 0.04);
+  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(0.55);
+  --aztecan-glass-filter-strong: blur(40px) saturate(160%) brightness(0.45);
+  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(0.55);
   --aztecan-glass-sheen: rgba(255, 255, 255, 0.06);          /* .console: white .09 to 34% */
-  --aztecan-float: 0 18px 50px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --aztecan-float: 0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 28px rgba(0, 0, 0, 0.38), 0 28px 72px rgba(0, 0, 0, 0.5);
+  --aztecan-tile-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.32);
+  --aztecan-bar-shadow: rgba(0, 0, 0, 0.32);
   --aztecan-shadow: 0 32px 90px rgba(0, 0, 0, 0.52);         /* --shadow */
 }
 
@@ -251,11 +275,11 @@
    halo from above, an 80px grid faded out at the top and bottom, and a field of drifting
    white particles. All of it lives on <body>, behind the app; the app shell is made
    transparent (rule 3) so the panels float over it. Background layers, top first:
-   halo, two faint colour glows (the site's console glows), the grid's fade, the grid
-   (two layers), the gradient. */
+   halo, three nebula blobs in the site's cyan, violet and mint, the grid's fade, the
+   grid (two layers), the gradient. */
 :root[data-skin="aztecan"] {
   --aztecan-halo-layer: radial-gradient(circle at 50% 0%, var(--aztecan-halo), transparent var(--aztecan-halo-size));
-  --aztecan-glow-layer: radial-gradient(circle at 82% 14%, var(--aztecan-glow-1), transparent 34rem), radial-gradient(circle at 12% 88%, var(--aztecan-glow-2), transparent 30rem);
+  --aztecan-glow-layer: radial-gradient(30rem 24rem at 14% 42%, var(--aztecan-glow-1), transparent 70%), radial-gradient(32rem 26rem at 80% 60%, var(--aztecan-glow-2), transparent 70%), radial-gradient(28rem 20rem at 46% 104%, var(--aztecan-glow-3), transparent 70%);
   --aztecan-fade: linear-gradient(to bottom, var(--aztecan-fade-top) 0%, transparent 18%, transparent 68%, var(--aztecan-fade-bottom) 100%);
 }
 @media (max-width: 640px) {
@@ -269,6 +293,7 @@
   --aztecan-halo: transparent;
   --aztecan-glow-1: transparent;
   --aztecan-glow-2: transparent;
+  --aztecan-glow-3: transparent;
 }
 /* Option: grid (off | faint | normal); normal is the site's strength. */
 :root[data-skin="aztecan"][data-skin-grid="faint"] {
@@ -288,69 +313,95 @@
     linear-gradient(var(--aztecan-grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--aztecan-grid-2) 1px, transparent 1px),
     var(--aztecan-base);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 80px 80px, 80px 80px, 100% 100%;
-  background-position: 0 0, 0 0, 0 0, 0 0, center top, center top, 0 0;
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat, no-repeat;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 80px 80px, 80px 80px, 100% 100%;
+  background-position: 0 0, 0 0, 0 0, 0 0, 0 0, center top, center top, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat, no-repeat;
 }
 
-/* 2. The starfield: the site's particle canvas, redrawn in CSS. Three tiled layers of
-   radial-gradient dots on two fixed pseudo-elements behind the app: small and dim (a
-   223px tile, 3 dots), medium (367px, 3 dots) and bright (509px, 2 dots), about one dot
-   per 10,000 px^2, like the canvas's width/18 particles. Motion is transform and opacity
-   only, so it runs on the compositor: the field drifts a few dozen pixels over minutes
-   and the bright layer twinkles. No canvas, no script. The canvas's faint connecting
-   lines are left out. Option: stars (off | still | animated). */
-[data-skin="aztecan"]:not([data-skin-stars="off"]) body::before,
-[data-skin="aztecan"]:not([data-skin-stars="off"]) body::after {
-  content: "";
+/* 2. The starfield: the site's particle canvas, as a random sky. src/shared/aztecanStarfield.ts
+   draws a new one on every page load (and when the skin or the stars option changes):
+   about one star per 3,400 px² on a desktop and 4,200 px² on a phone (2.5 to 3 times
+   the first version), in four tiers from dust to a few bright stars with a soft glow,
+   rendered into SVG masks on a handful of elements:
+
+     #aztecan-starfield            fixed, behind the app
+       .aztecan-stars-drift        the whole sky drifts a few dozen px (transform)
+         .aztecan-stars-base       dust, small and some medium stars, still
+         .aztecan-stars-twinkle    3 to 6 groups of brighter stars, each its own speed
+                                   and phase (opacity), so they do not pulse together
+       .aztecan-shooting-star      a rare streak, once every 26 to 48 s (transform)
+
+   The colour comes from CSS through the masks. Nothing runs per frame in script.
+   Option: stars (off | still | animated). Off removes the element (SkinProvider). */
+[data-skin="aztecan"] #aztecan-starfield {
   position: fixed;
-  inset: -64px;
+  inset: 0;
   z-index: -1;
+  overflow: hidden;
   pointer-events: none;
-  background-repeat: repeat;
+  contain: strict;
 }
-[data-skin="aztecan"]:not([data-skin-stars="off"]) body::before {
-  background-image:
-    radial-gradient(circle at 37px 61px, var(--aztecan-star-dim) 0.7px, transparent 1.3px),
-    radial-gradient(circle at 168px 143px, var(--aztecan-star-dim) 0.6px, transparent 1.2px),
-    radial-gradient(circle at 96px 201px, var(--aztecan-star) 0.8px, transparent 1.4px),
-    radial-gradient(circle at 211px 47px, var(--aztecan-star) 0.9px, transparent 1.6px),
-    radial-gradient(circle at 59px 281px, var(--aztecan-star-dim) 1px, transparent 1.7px),
-    radial-gradient(circle at 300px 190px, var(--aztecan-star) 0.7px, transparent 1.3px);
-  background-size: 223px 223px, 223px 223px, 223px 223px, 367px 367px, 367px 367px, 367px 367px;
+[data-skin="aztecan"] #aztecan-starfield .aztecan-stars-drift {
+  position: absolute;
+  inset: -64px;
 }
-[data-skin="aztecan"]:not([data-skin-stars="off"]) body::after {
-  background-image:
-    radial-gradient(circle at 127px 389px, var(--aztecan-star-bright) 1.1px, transparent 2.4px),
-    radial-gradient(circle at 431px 102px, var(--aztecan-star-bright) 0.9px, transparent 2px);
-  background-size: 509px 509px, 509px 509px;
+[data-skin="aztecan"] #aztecan-starfield .aztecan-stars-layer {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  background-color: var(--aztecan-star-color);
 }
-[data-skin="aztecan"]:not([data-skin-stars]) body::before,
-[data-skin="aztecan"][data-skin-stars="animated"] body::before {
+[data-skin="aztecan"] #aztecan-starfield .aztecan-stars-twinkle {
+  background-color: var(--aztecan-star-color-bright);
+  opacity: 0.8;
+}
+[data-skin="aztecan"] #aztecan-starfield .aztecan-shooting-star {
+  position: absolute;
+  left: var(--aztecan-shoot-x);
+  top: var(--aztecan-shoot-y);
+  width: 140px;
+  height: 1.5px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, var(--aztecan-star-color-bright));
+  opacity: 0;
+  transform-origin: 100% 50%;
+  transform: rotate(var(--aztecan-shoot-angle));
+}
+[data-skin="aztecan"]:not([data-skin-stars]) #aztecan-starfield .aztecan-stars-drift,
+[data-skin="aztecan"][data-skin-stars="animated"] #aztecan-starfield .aztecan-stars-drift {
   animation: aztecan-drift 160s ease-in-out infinite alternate;
   will-change: transform;
 }
-[data-skin="aztecan"]:not([data-skin-stars]) body::after,
-[data-skin="aztecan"][data-skin-stars="animated"] body::after {
-  animation: aztecan-twinkle 7s ease-in-out infinite, aztecan-drift 110s ease-in-out infinite alternate-reverse;
-  will-change: transform, opacity;
+[data-skin="aztecan"]:not([data-skin-stars]) #aztecan-starfield .aztecan-stars-twinkle,
+[data-skin="aztecan"][data-skin-stars="animated"] #aztecan-starfield .aztecan-stars-twinkle {
+  animation: aztecan-twinkle var(--aztecan-twinkle-duration, 7s) ease-in-out var(--aztecan-twinkle-delay, 0s) infinite;
+  will-change: opacity;
 }
-/* Phones: the glass bars above the field re-blur whenever it moves, so the drift stops
-   and the twinkle changes in steps (about once a second) instead of every frame. */
+[data-skin="aztecan"]:not([data-skin-stars]) #aztecan-starfield .aztecan-shooting-star,
+[data-skin="aztecan"][data-skin-stars="animated"] #aztecan-starfield .aztecan-shooting-star {
+  animation: aztecan-shoot var(--aztecan-shoot-cycle, 36s) linear var(--aztecan-shoot-delay, 8s) infinite;
+}
+/* Phones: the glass above the sky re-blurs whenever the sky changes, so the drift
+   stops, each twinkle group changes in steps (about once a second) instead of every
+   frame, and there is no shooting star. */
 @media (max-width: 640px) {
-  [data-skin="aztecan"]:not([data-skin-stars]) body::before,
-  [data-skin="aztecan"][data-skin-stars="animated"] body::before {
-    animation: none;
+  [data-skin="aztecan"] #aztecan-starfield .aztecan-stars-drift {
+    animation: none !important;
+    will-change: auto;
   }
-  [data-skin="aztecan"]:not([data-skin-stars]) body::after,
-  [data-skin="aztecan"][data-skin-stars="animated"] body::after {
-    animation: aztecan-twinkle 9s steps(8) infinite;
-    will-change: opacity;
+  [data-skin="aztecan"]:not([data-skin-stars]) #aztecan-starfield .aztecan-stars-twinkle,
+  [data-skin="aztecan"][data-skin-stars="animated"] #aztecan-starfield .aztecan-stars-twinkle {
+    animation-timing-function: steps(6);
+  }
+  /* A running animation, even at opacity 0, keeps the compositor producing frames,
+     and every frame re-blurs the glass above it: no shooting star on phones. */
+  [data-skin="aztecan"] #aztecan-starfield .aztecan-shooting-star {
+    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  [data-skin="aztecan"] body::before,
-  [data-skin="aztecan"] body::after {
+  [data-skin="aztecan"] #aztecan-starfield * {
     animation: none !important;
   }
 }
@@ -358,16 +409,47 @@
   to { transform: translate3d(44px, 30px, 0); }
 }
 @keyframes aztecan-twinkle {
-  0%, 100% { opacity: 0.5; }
+  0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
 }
+/* The streak crosses about 320px in the first 3% of the cycle (about a second), then
+   the sky is still until the next one: a movement, never a flash. */
+@keyframes aztecan-shoot {
+  0% { opacity: 0; transform: rotate(var(--aztecan-shoot-angle)) translateX(0); }
+  0.5% { opacity: 0.9; }
+  3% { opacity: 0; transform: rotate(var(--aztecan-shoot-angle)) translateX(320px); }
+  100% { opacity: 0; transform: rotate(var(--aztecan-shoot-angle)) translateX(320px); }
+}
 
-/* 3. Glass. The app shell is transparent; the large containers are frosted glass over
-   the field: a translucent fill, backdrop blur and saturation (the site's .topbar and
-   .reader-panel), a hairline edge with a lit top, and a soft float shadow. Blur is
-   only on a handful of big containers (sidebar, header, composer, quick settings,
-   the settings dialog, open menus); list rows, cards and messages are translucent
-   without blur, so a long transcript costs nothing extra to scroll. */
+/* Text that sits straight on the sky (timestamps, tool rows, labels between bubbles)
+   gets a 2px outline in the page colour painted under the letters (text-stroke with
+   paint-order: stroke fill), so a star or a nebula passing under a glyph can never lower
+   its contrast: measured on real pixels over a carpet of the brightest stars, see
+   themes/aztecan/README.md. A text-shadow halo was tried first and was too thin to help.
+   Bubbles and code are glass or opaque and keep their letters as they are. */
+[data-skin="aztecan"] .chat-messages-pane {
+  -webkit-text-stroke: 4px var(--aztecan-text-halo);
+  paint-order: stroke fill;
+}
+[data-skin="aztecan"] .chat-messages-pane :is(pre, code, .bg-card, .chat-assistant-bubble, [class*="rounded-2xl"], input, textarea) {
+  -webkit-text-stroke: 0;
+}
+
+/* 3. Glass, visionOS / macOS style. The app shell is transparent; the large containers
+   and the message bubbles are frosted glass over the sky:
+
+   - the backdrop is blurred hard (32px), saturated (180%) so the nebula colours come
+     through, and in dark mode dimmed (brightness .6) so text on it keeps its contrast;
+   - over it a light tint (dark: white 7%, light: white 60%) with a specular sheen on the
+     top 40%;
+   - a bright 1px edge, a lit top edge and a faint inner glow (inset shadows);
+   - layered soft drop shadows, so the panel floats.
+
+   Checked in the browser: the computed backdrop-filter is live on every surface below
+   and nothing above them creates a backdrop root (no filter, opacity, mask, clip-path
+   or will-change on an ancestor; the shell is transparent). The first version did blur,
+   but over a nearly uniform black there was nothing to see: the nebula blobs in the
+   backdrop (rule 1) are what make the frosting visible. */
 [data-skin="aztecan"] :is([data-surface="app-shell"], [data-surface="sidebar-drawer"], [data-surface="quick-settings-body"]) {
   background-color: transparent;
 }
@@ -377,37 +459,66 @@
   -webkit-backdrop-filter: var(--aztecan-glass-filter);
   backdrop-filter: var(--aztecan-glass-filter);
 }
+/* Dialogs, menus and the quick-settings panel float over the app itself, which is
+   busier than the sky: a stronger blur and a deeper dim. */
 [data-skin="aztecan"] :is([data-surface="quick-settings"], .modal-backdrop > [role="dialog"], .bg-popover) {
   background-color: var(--aztecan-glass-strong);
+  -webkit-backdrop-filter: var(--aztecan-glass-filter-strong);
+  backdrop-filter: var(--aztecan-glass-filter-strong);
 }
 [data-skin="aztecan"] :is(.chat-composer-shell form[data-slot="prompt-input"], [data-surface="quick-settings"], .modal-backdrop > [role="dialog"], .bg-popover) {
-  box-shadow: inset 0 1px 0 var(--aztecan-glass-highlight), var(--aztecan-float);
+  box-shadow:
+    inset 0 1px 0 var(--aztecan-glass-highlight),
+    inset 0 0 0 1px var(--aztecan-glass-glow),
+    inset 0 0 24px var(--aztecan-glass-glow),
+    var(--aztecan-float);
 }
-[data-skin="aztecan"] :is(.chat-composer-shell form[data-slot="prompt-input"]:not(:focus-within), [data-surface="quick-settings"], .modal-backdrop > [role="dialog"], [data-surface="sidebar-drawer"], .pwa-header-safe) {
+[data-skin="aztecan"] :is([data-surface="quick-settings"], .modal-backdrop > [role="dialog"], [data-surface="sidebar-drawer"], .pwa-header-safe) {
   border-color: var(--aztecan-glass-edge);
 }
-[data-skin="aztecan"] [data-surface="sidebar"] {
-  box-shadow: inset -1px 0 0 var(--aztecan-glass-edge);
+/* The header and the sidebar span the screen edge to edge; they float by their shadow
+   and a lit inner edge rather than by moving away from the edge (no layout change). */
+[data-skin="aztecan"] .pwa-header-safe {
+  box-shadow: inset 0 1px 0 var(--aztecan-glass-highlight), 0 10px 30px var(--aztecan-bar-shadow);
 }
-/* Let the field show behind an open dialog too, softened by the existing blur. */
+[data-skin="aztecan"] [data-surface="sidebar"] {
+  box-shadow: inset -1px 0 0 var(--aztecan-glass-edge), inset 0 1px 0 var(--aztecan-glass-highlight), 12px 0 40px var(--aztecan-bar-shadow);
+}
+/* Controls get an edge of at least 3:1 (WCAG 1.4.11): the composer, and toggles when off. */
+[data-skin="aztecan"] :is(.chat-composer-shell form[data-slot="prompt-input"]:not(:focus-within), [role="switch"].border-border) {
+  border-color: hsl(var(--input));
+}
+/* Let the sky show behind an open dialog too, softened by the existing blur. */
 [data-skin="aztecan"] .modal-backdrop {
   background-color: hsl(var(--background) / 0.35);
 }
-/* Cards and messages inside the glass: translucent, no blur of their own. Dark cards
-   are 82% opaque so muted text stays >= 4.5:1 even over a bright star's core. The agent
-   bubble's own setting wins: translucent and off keep their look from index.css. */
-[data-skin="aztecan"] [data-surface="sidebar"] .bg-card,
+
+/* Glass tiles: the message bubbles and the cards in the transcript are frosted too, with
+   their own blur (measured at 390px with a 4x CPU slowdown, see themes/aztecan), a bright
+   edge, a lit top and a small shadow. The agent bubble's own setting wins: translucent
+   and off keep their look from index.css. */
 [data-skin="aztecan"] .chat-messages-pane .bg-card:not(.chat-assistant-bubble),
 [data-skin="aztecan"]:not([data-assistant-bubble]) .chat-assistant-bubble,
 [data-skin="aztecan"] .chat-message.user > div > div > div.rounded-2xl {
+  border-color: var(--aztecan-glass-edge);
   background-color: var(--aztecan-glass-card);
+  background-image: linear-gradient(180deg, var(--aztecan-glass-sheen), transparent 40%);
+  -webkit-backdrop-filter: var(--aztecan-glass-filter-tile);
+  backdrop-filter: var(--aztecan-glass-filter-tile);
+  box-shadow:
+    inset 0 1px 0 var(--aztecan-glass-highlight),
+    inset 0 0 0 1px var(--aztecan-glass-glow),
+    var(--aztecan-tile-shadow);
 }
-/* Sticky project headers in the sidebar must still hide the rows scrolling under them:
-   the desktop row button gets a near-opaque tint; on phones the full-width wrapper is
-   clear (a tinted band reads as a stripe) and the card inside it takes the tint. */
-[data-skin="aztecan"] [data-surface="sidebar"] .sticky.bg-background,
-[data-skin="aztecan"] [data-surface="sidebar"] .sticky > .bg-background > .bg-card {
+/* Sidebar cards are tiles on the sidebar's glass: tinted and edged, and blurred so the
+   rows scrolling under a sticky project header stay unreadable behind it. */
+[data-skin="aztecan"] [data-surface="sidebar"] .bg-card,
+[data-skin="aztecan"] [data-surface="sidebar"] .sticky.bg-background {
+  border-color: var(--aztecan-glass-edge);
   background-color: var(--aztecan-glass-sticky);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 var(--aztecan-glass-highlight);
 }
 [data-skin="aztecan"] [data-surface="sidebar"] .sticky > .bg-background {
   background-color: transparent;

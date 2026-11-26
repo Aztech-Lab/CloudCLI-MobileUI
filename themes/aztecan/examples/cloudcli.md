@@ -85,11 +85,13 @@ version rebuilds the scene behind the app and turns the large surfaces into glas
 | rule | hook | option |
 |---|---|---|
 | backdrop: the site's gradient, white halo (cyan in light), two faint console glows, the 80px grid with its top and bottom fade | `body` background | grid: off / faint / **normal**; halo |
-| starfield: three tiled `radial-gradient` dot layers (223, 367 and 509px tiles, about one dot per 10,000 px²), drift and twinkle | `body::before`, `body::after` (fixed, `z-index: -1`) | stars: off / still / **animated** |
+| starfield: a random sky on every load (`src/shared/aztecanStarfield.ts`): about one star per 3,400 px² (4,200 on phones), four tiers from dust to bright stars with a glow, drawn into SVG masks on one base layer and 3–6 twinkle groups with their own speed and phase, plus a rare shooting star; CSS animates `transform` and `opacity` only | `#aztecan-starfield` (fixed, `z-index: -1`), mounted by `SkinProvider` | stars: off / still / **animated** |
 | app shell, mobile drawer and quick-settings body made transparent | `[data-surface="app-shell"]`, `"sidebar-drawer"`, `"quick-settings-body"` | always |
-| frosted glass: translucent fill, a top sheen, `backdrop-filter: blur(20px) saturate(160%)` (180% light), hairline edge | `[data-surface="sidebar"]`, `.pwa-header-safe`, the composer form, `[data-surface="quick-settings"]`, the settings dialog (`.modal-backdrop > [role="dialog"]`), `.bg-popover` | always |
+| frosted glass: `blur(32px) saturate(180%)` (dark: plus `brightness(.55)`), a light tint (dark white 7%, light white 60%), a top sheen, a bright 1px edge, a lit top edge and a faint inner glow, layered soft shadows | `[data-surface="sidebar"]`, `.pwa-header-safe`, the composer form; stronger (40px) on `[data-surface="quick-settings"]`, the settings dialog (`.modal-backdrop > [role="dialog"]`) and `.bg-popover` | always |
 | floating: lit top edge (`inset 0 1px 0`) and a soft two-step shadow | composer, quick settings, settings dialog, popovers | always |
-| translucent cards without blur | `.bg-card` in the sidebar and transcript, the solid agent bubble, the user bubble | always |
+| glass tiles with their own blur (24px): the cards in the transcript, the solid agent bubble, the user bubble; sidebar cards blur 16px so rows scrolling under a sticky header stay unreadable | `.chat-messages-pane .bg-card`, `.chat-assistant-bubble`, the user bubble, `[data-surface="sidebar"] .bg-card` | always |
+| nebula: three large soft blobs in the site's cyan, violet and mint, so the glass has something to frost | `body` background | halo |
+| outline under text on the sky (2px, page colour, `paint-order: stroke fill`) | `.chat-messages-pane` text outside bubbles and code | always |
 | glowing status dots, dark only | `.rounded-full.h-2.w-2` etc. with a green or blue fill | halo |
 | pill tab tracks | `[role="tablist"].rounded-lg` and its `[role="tab"]` (the PillBar) | pillTabs |
 | deep float shadow | `.shadow-lg/-xl/-2xl` | always |
@@ -98,33 +100,27 @@ version rebuilds the scene behind the app and turns the large surfaces into glas
 The `data-surface` attributes were added to five containers for this skin; they carry no
 style of their own.
 
-### Performance choices
+### Performance, contrast and comfort
 
-- **No canvas, no script.** The site's particles are a `<canvas>` redrawn every frame with
-  an O(n²) check for connecting lines; here they are static gradients on two
-  pseudo-elements, moved only by `transform` and `opacity` animations, which the
-  compositor runs without layout or paint.
-- **Blur on a handful of large containers only**: sidebar, header, composer, quick
-  settings, settings dialog, open popovers. Messages, list rows and cards are translucent
-  without blur, so scrolling a long transcript adds no filter work.
-- **Phones (640px and narrower):** a moving field makes every glass bar above it re-blur
-  each frame, so the drift stops and the twinkle advances in `steps(8)` over 9s (about one
-  change a second). The halo shrinks to 16rem.
-- **`prefers-reduced-motion: reduce`:** no animation at all. The *still* option does the
-  same for everyone who picks it.
-- Left out: the canvas's faint connecting lines between nearby particles, and the pointer
-  attraction; both need script.
+The third version was evaluated against a written scorecard: WCAG 2 and APCA contrast
+over the real composite, halation, background busyness, motion comfort and phone frame
+cost. The scorecard and how each number was measured are in the theme's
+[README](../README.md#evaluation-scorecard). Choices that came out of it:
 
-### Contrast over the field
-
-Glass panels are blurred, so behind them the field averages out to the base colour and the
-contrast table above holds. Without blur, a card over a star's core is the worst case, so
-dark cards are 82% opaque: muted text stays at 4.7:1 and body text at 11:1 even there (68%
-gave 3.1:1). Light cards (66% white) keep muted text at 5.0:1 over the brightest
-light-mode particle. Text that sits directly on the field (timestamps, tool rows) is 5.9:1
-or better against the field itself; only the 1 to 2px core of a star under a glyph is
-lower, as on the site, where text also sits over the particle canvas. The agent bubble's
-*translucent* setting keeps the app's own 55% fill, because the user chose it.
+- **One script run per page load, no per-frame script.** The sky is generated once
+  (seeded RNG, unit-tested), written into SVG masks, and from then on only CSS moves it.
+  About 500 stars become 5–8 composited layers.
+- **Blur where it reads as glass**: the bars, the composer, the dialogs and menus, and the
+  message tiles. Removing it from the bubbles saved about 0.08ms of compositor time per
+  frame at 390px with the CPU throttled 4x, so the bubbles keep it.
+- **Phones**: no drift and no shooting star (any running animation keeps the compositor
+  redrawing and re-blurring the glass); the twinkle steps about once a second per group.
+- **The glass dims what it blurs** (`brightness(.55)` in dark) and text on the open sky
+  has a 2px outline in the page colour, so neither a nebula nor a star can lower text
+  below the thresholds.
+- First check before the glass rework: the computed `backdrop-filter` was live on every
+  surface and no ancestor created a backdrop root. The second version's glass looked flat
+  because what sat behind it was almost uniform black; the nebula fixed that.
 
 ## Verification
 
