@@ -24,9 +24,10 @@ action is a **white pill** with near-black letters; everything else that points 
 
 1. **Light comes from above.** One radial white halo at the top of the stage, and deep
    shadows under floating things. No light from the sides, no coloured gradients over content.
-2. **Glass over the scene.** A panel is frosted glass, visionOS style: a hard blur (32px)
-   with saturation, a light tint over it, a bright 1px edge with a lit top and a faint inner
-   glow, and layered soft shadows so it floats. It is never a
+2. **Glass over the scene, without edges.** A panel is frosted glass like the header's
+   view switcher: a translucent neutral fill over a hard blur (32px) with saturation, and a
+   soft drop shadow so it floats. No border, no rim, no inner highlight: depth comes from
+   blur, fill and shadow only. It is never a
    solid block: the stars and glows must be felt through it. Light mode is the same idea in
    white glass (Apple-style), not flat white.
 3. **The stars are part of the page.** Take away the particle field and the design collapses
@@ -77,18 +78,33 @@ How it was measured:
 
 | role | mode | before: colour, worst ratio, worst Lc | after: colour, worst ratio, worst Lc |
 |---|---|---|---|
-| body | dark | `#f5f5f7` 1.31:1, Lc 17 (on a star) | `#ebebef` **9.27:1, Lc 87** (glass tile); on the sky 16.8:1, Lc 95 |
+| body | dark | `#f5f5f7` 1.31:1, Lc 17 (on a star) | `#ebebef` **13.6:1, Lc 93** (glass); on the sky 16.8:1, Lc 95 |
 | body | light | `#0b0b0f` 8.53:1, Lc 58 (on a star) | `#0b0b0f` **16.9:1, Lc 96**; on the sky 18.1:1, Lc 100 |
-| secondary | dark | `#a1a1aa` 1.80:1, Lc 27 | `#c6c6ce` **6.49:1, Lc 64** (glass tile); on the sky 11.8:1, Lc 72 |
+| secondary | dark | `#a1a1aa` 1.80:1, Lc 27 | `#c6c6ce` **9.49:1, Lc 70** (glass); on the sky 11.8:1, Lc 72 |
 | secondary | light | `#5f5f69` 2.74:1, Lc 34 | `#4f4f58` **6.97:1, Lc 78**; on the sky 7.3:1, Lc 82 |
-| fine print (gray-500) | dark | `#82828c` 2.67:1, Lc 29 | `#b4b4be` **5.36:1, Lc 54**; on the sky 9.7:1, Lc 62 |
+| fine print (gray-500) | dark | `#82828c` 2.67:1, Lc 29 | `#b4b4be` **7.83:1, Lc 60** (glass); on the sky 9.7:1, Lc 62 |
 | fine print (gray-500) | light | `#6b6b74` 2.29:1, Lc 29 | `#5c5c66` **5.68:1, Lc 73**; on the sky 6.1:1, Lc 77 |
-| placeholder | dark | `#a1a1aa` 5.51:1, Lc 48 | `#b4b4be` **5.36:1, Lc 54** |
-| placeholder (gray-400) | light | `#a1a1aa` 2.41:1, Lc 46 | `#6a6a74` **5.02:1, Lc 72** |
-| input / toggle edge | dark | `#3a3a3c` 1.24:1 | `#8a8a94` **3.23:1** |
-| input / toggle edge | light | `#d1d1d8` 1.43:1 | `#8a8a94` **3.21:1** |
-| composer edge | dark / light | 1.07:1 / 1.29:1 | **3.23:1 / 3.28:1** |
-| focus ring | dark / light | 11.1:1 / 5.24:1 | **8.61:1 / 5.23:1** |
+| placeholder | dark | `#a1a1aa` 5.51:1, Lc 48 | `#b4b4be` **7.83:1, Lc 60** |
+| placeholder (gray-400) | light | `#a1a1aa` 2.41:1, Lc 46 | `#6a6a74` **4.62:1, Lc 67** |
+| focus ring (2px, on focus) | dark / light | 11.1:1 / 5.24:1 | **10.0:1 / 4.85:1** |
+
+The glass rows are for the borderless glass (Update 3: the header pill bar's fill, #131316 at 50% in dark and #f6f6f9 at 60% in light, over `blur(32px) saturate(180%)`, dimmed to `brightness(.8)` in dark), at the centre of the brightest nebula blob.
+
+### Controls without borders (WCAG 1.4.11)
+
+The glass has no edges, and neither do the controls on it. Each control is identified by something other than a border line, and focus always shows a 2px ring in `--ring`:
+
+| control | identified by | contrast, dark / light | verdict |
+|---|---|---|---|
+| toggle, off | its thumb against its track (the track is a filled pill, white 20% / ink 16%) | thumb vs track **5.2:1 / 4.4:1**; track vs glass 1.9:1 / 1.4:1 | passes on the thumb, which carries the state |
+| toggle, on | thumb position, and the track filled with the primary colour | track vs glass **13:1 / 17:1** | passes |
+| text fields (`border-input`) | a light fill (white 10% / ink 6%), the placeholder and the label | fill vs glass 1.35:1 / 1.13:1; placeholder **7.8:1 / 4.6:1** | **relies on fill and text**: the field's own edge is below 3:1 |
+| composer | its glass panel, the placeholder, the send and attach buttons | panel vs the sky around it 1.2–1.4:1 / 1.07:1; placeholder as above | **relies on fill and text**, like the fields |
+| focus (fields, composer, toggles) | a 2px ring in `--ring` | **10.0:1 / 4.85:1** | passes |
+
+Honest summary: the text fields and the composer no longer have a 3:1 boundary at rest.
+They are found by their fill, their placeholder and their label, which is what the
+borderless look asks for. Toggles and the focus state pass 3:1.
 
 What changed to get there:
 
@@ -98,8 +114,8 @@ What changed to get there:
   barely changed anything.
 - **Glass dims what it blurs**: `brightness(.55)` in the backdrop filter, then the white
   tint on top, so the bright nebula behind a panel cannot wash out its muted text.
-- **Secondary and fine-print greys raised**, and control edges darkened or lightened to
-  reach 3:1.
+- **Secondary and fine-print greys raised.** Control edges were raised to 3:1 in the
+  third version and removed again in the fourth (borderless glass); see the controls table.
 
 ### Visual comfort
 

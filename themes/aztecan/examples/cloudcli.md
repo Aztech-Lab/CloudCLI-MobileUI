@@ -87,9 +87,10 @@ version rebuilds the scene behind the app and turns the large surfaces into glas
 | backdrop: the site's gradient, white halo (cyan in light), two faint console glows, the 80px grid with its top and bottom fade | `body` background | grid: off / faint / **normal**; halo |
 | starfield: a random sky on every load (`src/shared/aztecanStarfield.ts`): about one star per 3,400 px² (4,200 on phones), four tiers from dust to bright stars with a glow, drawn into SVG masks on one base layer and 3–6 twinkle groups with their own speed and phase, plus a rare shooting star; CSS animates `transform` and `opacity` only | `#aztecan-starfield` (fixed, `z-index: -1`), mounted by `SkinProvider` | stars: off / still / **animated** |
 | app shell, mobile drawer and quick-settings body made transparent | `[data-surface="app-shell"]`, `"sidebar-drawer"`, `"quick-settings-body"` | always |
-| frosted glass: `blur(32px) saturate(180%)` (dark: plus `brightness(.55)`), a light tint (dark white 7%, light white 60%), a top sheen, a bright 1px edge, a lit top edge and a faint inner glow, layered soft shadows | `[data-surface="sidebar"]`, `.pwa-header-safe`, the composer form; stronger (40px) on `[data-surface="quick-settings"]`, the settings dialog (`.modal-backdrop > [role="dialog"]`) and `.bg-popover` | always |
+| borderless frosted glass, modelled on the header's view switcher: a translucent neutral fill (dark #131316 at 50%, light #f6f6f9 at 60%) over `blur(32px) saturate(180%)` (dark: plus `brightness(.8)`), a soft drop shadow, no border, rim or inner highlight | `[data-surface="sidebar"]`, `.pwa-header-safe`, the composer form; stronger (40px, denser fill) on `[data-surface="quick-settings"]`, the settings dialog (`.modal-backdrop > [role="dialog"]`) and `.bg-popover` | always |
 | floating: lit top edge (`inset 0 1px 0`) and a soft two-step shadow | composer, quick settings, settings dialog, popovers | always |
-| glass tiles with their own blur (24px): the cards in the transcript, the solid agent bubble, the user bubble; sidebar cards blur 16px so rows scrolling under a sticky header stay unreadable | `.chat-messages-pane .bg-card`, `.chat-assistant-bubble`, the user bubble, `[data-surface="sidebar"] .bg-card` | always |
+| glass tiles with their own blur (24px), same fill, a small soft shadow, no edge: the cards in the transcript, the solid agent bubble, the user bubble; sidebar cards blur 16px so rows scrolling under a sticky header stay unreadable | `.chat-messages-pane .bg-card`, `.chat-assistant-bubble`, the user bubble, `[data-surface="sidebar"] .bg-card` | always |
+| borderless controls: text fields get a light fill instead of an edge, toggles a filled track, fields and the composer a 2px `--ring` focus ring | `.border-input`, `[role="switch"]`, the composer form | always |
 | nebula: three large soft blobs in the site's cyan, violet and mint, so the glass has something to frost | `body` background | halo |
 | outline under text on the sky (2px, page colour, `paint-order: stroke fill`) | `.chat-messages-pane` text outside bubbles and code | always |
 | glowing status dots, dark only | `.rounded-full.h-2.w-2` etc. with a green or blue fill | halo |
@@ -110,6 +111,7 @@ cost. The scorecard and how each number was measured are in the theme's
 - **One script run per page load, no per-frame script.** The sky is generated once
   (seeded RNG, unit-tested), written into SVG masks, and from then on only CSS moves it.
   About 500 stars become 5–8 composited layers.
+- **Borderless (fourth version)**: the third version gave the glass a bright edge, a lit top and an inner glow; the review asked for no rings at all, like the header's view switcher. The edges are now transparent (widths kept, so nothing moves) and depth is blur, fill and shadow. Controls lost their 3:1 edges with them; the README's controls table says what identifies each one now.
 - **Blur where it reads as glass**: the bars, the composer, the dialogs and menus, and the
   message tiles. Removing it from the bubbles saved about 0.08ms of compositor time per
   frame at 390px with the CPU throttled 4x, so the bubbles keep it.

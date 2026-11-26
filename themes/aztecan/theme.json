@@ -15,8 +15,8 @@
       "raised":  { "light": "#ffffff", "dark": "#0e0e12", "role": "panels, cards. Dark: --panel rgba(18,18,22,.72) flattened on base" },
       "overlay": { "light": "#ffffff", "dark": "#0d0e13", "role": "menus, popovers. Dark: the mobile menu rgba(13,14,19,.97)" },
       "hover":   { "light": "#e8edf7", "dark": "#1b1b1e", "role": "hover fill. Dark: .nav a:hover, white 8% on base. Light (derived): the site's --accent silver" },
-      "glass":   { "light": "rgba(255,255,255,0.6)", "dark": "rgba(255,255,255,0.07)", "filter": { "light": "blur(32px) saturate(180%)", "dark": "blur(32px) saturate(180%) brightness(0.55)" }, "strong": { "light": "rgba(255,255,255,0.72) over blur(40px) saturate(180%)", "dark": "rgba(255,255,255,0.08) over blur(40px) saturate(160%) brightness(0.45)" }, "edge": { "light": "rgba(255,255,255,0.85)", "dark": "rgba(255,255,255,0.16)" }, "highlight": { "light": "#ffffff", "dark": "rgba(255,255,255,0.26)" }, "sheen": { "light": "rgba(255,255,255,0.55)", "dark": "rgba(255,255,255,0.06)" }, "role": "visionOS-style frosted glass: a light tint over a hard blur (the dark dim keeps muted text >= Lc 60 over the brightest nebula), a sheen on the top 40%, a bright 1px edge, inset 0 1px 0 highlight and a faint inner glow, layered soft drop shadows. Strong for dialogs, menus and side panels over the app itself" },
-      "glassCard": { "light": "rgba(255,255,255,0.62)", "dark": "rgba(255,255,255,0.07)", "filter": "blur(24px) saturate(180%), plus brightness(0.55) in dark", "role": "message bubbles and cards: glass tiles with their own blur, edge, lit top and a small shadow" }
+      "glass":   { "light": "rgba(246,246,249,0.6)", "dark": "rgba(19,19,22,0.5)", "filter": { "light": "blur(32px) saturate(180%)", "dark": "blur(32px) saturate(180%) brightness(0.8)" }, "strong": { "light": "rgba(246,246,249,0.72) over blur(40px) saturate(180%)", "dark": "rgba(19,19,22,0.62) over blur(40px) saturate(160%) brightness(0.65)" }, "shadow": { "light": "0 16px 44px rgba(20,30,60,0.12)", "dark": "0 16px 48px rgba(0,0,0,0.4)" }, "role": "borderless frosted glass, modelled on the header view switcher (a pill of --muted at 50% over blurred content): a translucent neutral fill over a hard blur, a soft drop shadow, no border, rim or inner highlight. Strong for dialogs, menus and side panels over the app itself" },
+      "glassCard": { "light": "rgba(246,246,249,0.6)", "dark": "rgba(19,19,22,0.5)", "filter": "blur(24px) saturate(180%), plus brightness(0.8) in dark", "shadow": { "light": "0 6px 20px rgba(20,30,60,0.08)", "dark": "0 8px 24px rgba(0,0,0,0.28)" }, "role": "message bubbles and cards: glass tiles with their own blur and a small soft shadow, no edge" }
     },
     "ink": {
       "text":    { "light": "#0b0b0f", "dark": "#ebebef", "role": "body and headings. Dark: the site's --text #f5f5f7 capped against halation; >= 9:1 and Lc >= 87 on every surface" },
@@ -26,7 +26,7 @@
     },
     "line": {
       "default": { "light": "#dcdce2", "dark": "rgba(255,255,255,0.11)", "flat": { "dark": "#1f1f22" }, "role": "hairlines, panel edges. Dark: --line" },
-      "bright":  { "light": "#8a8a94", "dark": "#8a8a94", "role": "input, toggle and composer edges: >= 3:1 on the glass (the site's --line-bright, white 22%, is only 1.6:1)" }
+      "bright":  { "light": "#8a8a94", "dark": "#8a8a94", "role": "the --input token. In the borderless look no control draws it at rest: fields are a fill (white 10% / ink 6%), toggles a filled track (white 20% / ink 16%), and focus a 2px --ring" }
     },
     "primary": {
       "fill":    { "light": "#111114", "dark": "#e8edf7", "role": "the primary action. Dark: .primary-action, a white pill (linear-gradient #ffffff to #c9cbd1) with a white glow; flattened to --accent #e8edf7. Light (derived): inverted to near-black" },

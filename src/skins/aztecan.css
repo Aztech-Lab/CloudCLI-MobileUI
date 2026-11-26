@@ -115,19 +115,17 @@
   --aztecan-text-halo: #f6f6f9;
   --aztecan-halo-size: 27rem;
   /* skin-private: glass */
-  --aztecan-glass: rgba(255, 255, 255, 0.6);
-  --aztecan-glass-strong: rgba(255, 255, 255, 0.72);
-  --aztecan-glass-card: rgba(255, 255, 255, 0.62);
-  --aztecan-glass-sticky: rgba(255, 255, 255, 0.72);
-  --aztecan-glass-edge: rgba(255, 255, 255, 0.85);
-  --aztecan-glass-highlight: rgba(255, 255, 255, 1);
-  --aztecan-glass-glow: rgba(255, 255, 255, 0.45);
+  --aztecan-glass: rgba(246, 246, 249, 0.6);
+  --aztecan-glass-strong: rgba(246, 246, 249, 0.72);
+  --aztecan-glass-card: rgba(246, 246, 249, 0.6);
+  --aztecan-glass-sticky: rgba(246, 246, 249, 0.72);
   --aztecan-glass-filter: blur(32px) saturate(180%);
   --aztecan-glass-filter-strong: blur(40px) saturate(180%);
   --aztecan-glass-filter-tile: blur(24px) saturate(180%);
-  --aztecan-glass-sheen: rgba(255, 255, 255, 0.55);
-  --aztecan-float: 0 0 0 1px rgba(20, 28, 56, 0.08), 0 1px 2px rgba(20, 30, 60, 0.08), 0 10px 30px rgba(20, 30, 60, 0.1), 0 30px 70px rgba(20, 30, 60, 0.12);
-  --aztecan-tile-shadow: 0 0 0 1px rgba(20, 28, 56, 0.07), 0 1px 2px rgba(20, 30, 60, 0.06), 0 8px 24px rgba(20, 30, 60, 0.08);
+  --aztecan-field: rgba(11, 11, 15, 0.06);
+  --aztecan-track: rgba(11, 11, 15, 0.16);
+  --aztecan-float: 0 16px 44px rgba(20, 30, 60, 0.12);
+  --aztecan-tile-shadow: 0 6px 20px rgba(20, 30, 60, 0.08);
   --aztecan-bar-shadow: rgba(20, 30, 60, 0.08);
   --aztecan-shadow: 0 24px 64px rgba(30, 40, 70, 0.16);
 }
@@ -237,22 +235,20 @@
   --aztecan-star-color-bright: rgba(232, 238, 248, 0.95);
   --aztecan-text-halo: #08080b;
   /* Glass: --panel rgba(18,18,22,.72) on the site; thinner here so the stars show. */
-  /* Glass: a light tint over a blurred, saturated and dimmed backdrop (the dim keeps
-     muted text at APCA Lc >= 60 over the brightest nebula; see themes/aztecan). */
-  --aztecan-glass: rgba(255, 255, 255, 0.07);
-  --aztecan-glass-strong: rgba(255, 255, 255, 0.08);
-  --aztecan-glass-card: rgba(255, 255, 255, 0.07);
-  --aztecan-glass-sticky: rgba(255, 255, 255, 0.06);
-  --aztecan-glass-edge: rgba(255, 255, 255, 0.16);           /* --line-bright, a little brighter */
-  --aztecan-glass-highlight: rgba(255, 255, 255, 0.26);      /* .update-card inset top .26 */
-  --aztecan-glass-glow: rgba(255, 255, 255, 0.04);
-  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(0.55);
-  --aztecan-glass-filter-strong: blur(40px) saturate(160%) brightness(0.45);
-  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(0.55);
-  --aztecan-glass-sheen: rgba(255, 255, 255, 0.06);          /* .console: white .09 to 34% */
-  --aztecan-float: 0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 28px rgba(0, 0, 0, 0.38), 0 28px 72px rgba(0, 0, 0, 0.5);
-  --aztecan-tile-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.32);
-  --aztecan-bar-shadow: rgba(0, 0, 0, 0.32);
+  /* Glass: the header pill bar's fill (--muted #131316 at 50%) over a blurred, saturated
+     and slightly dimmed backdrop; no edges (see the glass rules). */
+  --aztecan-glass: rgba(19, 19, 22, 0.5);
+  --aztecan-glass-strong: rgba(19, 19, 22, 0.62);
+  --aztecan-glass-card: rgba(19, 19, 22, 0.5);
+  --aztecan-glass-sticky: rgba(19, 19, 22, 0.6);
+  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(0.8);
+  --aztecan-glass-filter-strong: blur(40px) saturate(160%) brightness(0.65);
+  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(0.8);
+  --aztecan-field: rgba(255, 255, 255, 0.1);
+  --aztecan-track: rgba(255, 255, 255, 0.2);
+  --aztecan-float: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --aztecan-tile-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  --aztecan-bar-shadow: rgba(0, 0, 0, 0.3);
   --aztecan-shadow: 0 32px 90px rgba(0, 0, 0, 0.52);         /* --shadow */
 }
 
@@ -435,90 +431,102 @@
   -webkit-text-stroke: 0;
 }
 
-/* 3. Glass, visionOS / macOS style. The app shell is transparent; the large containers
-   and the message bubbles are frosted glass over the sky:
+/* 3. Glass, borderless. The model is the header's view switcher (the PillBar): a
+   translucent neutral fill (--muted at 50%) floating over blurred content, with no
+   visible edge. Every glass surface here uses that recipe:
 
-   - the backdrop is blurred hard (32px), saturated (180%) so the nebula colours come
-     through, and in dark mode dimmed (brightness .6) so text on it keeps its contrast;
-   - over it a light tint (dark: white 7%, light: white 60%) with a specular sheen on the
-     top 40%;
-   - a bright 1px edge, a lit top edge and a faint inner glow (inset shadows);
-   - layered soft drop shadows, so the panel floats.
+   - a translucent neutral fill (dark: #131316 at 50%, light: #f6f6f9 at 60%);
+   - the backdrop blurred hard (32px) and saturated (180%) so the nebula colours come
+     through; in dark mode dimmed a little (brightness .8) so text keeps its contrast;
+   - depth from a soft drop shadow only: no border, no rim, no inner highlight.
 
-   Checked in the browser: the computed backdrop-filter is live on every surface below
-   and nothing above them creates a backdrop root (no filter, opacity, mask, clip-path
-   or will-change on an ancestor; the shell is transparent). The first version did blur,
-   but over a nearly uniform black there was nothing to see: the nebula blobs in the
-   backdrop (rule 1) are what make the frosting visible. */
+   The surfaces keep their border width (layout unchanged) with a transparent colour.
+   Thin separators inside panels (list dividers) stay as the app draws them, at the
+   faint --border colour. The computed backdrop-filter was checked live on every surface
+   and no ancestor creates a backdrop root; the nebula blobs (rule 1) are what make the
+   frosting visible. */
 [data-skin="aztecan"] :is([data-surface="app-shell"], [data-surface="sidebar-drawer"], [data-surface="quick-settings-body"]) {
   background-color: transparent;
 }
 [data-skin="aztecan"] :is([data-surface="sidebar"], .pwa-header-safe, .chat-composer-shell form[data-slot="prompt-input"], [data-surface="quick-settings"], .modal-backdrop > [role="dialog"], .bg-popover) {
+  border-color: transparent;
   background-color: var(--aztecan-glass);
-  background-image: linear-gradient(180deg, var(--aztecan-glass-sheen), transparent 40%);
+  background-image: none;
   -webkit-backdrop-filter: var(--aztecan-glass-filter);
   backdrop-filter: var(--aztecan-glass-filter);
 }
+[data-skin="aztecan"] [data-surface="sidebar-drawer"] {
+  border-color: transparent;
+}
 /* Dialogs, menus and the quick-settings panel float over the app itself, which is
-   busier than the sky: a stronger blur and a deeper dim. */
-[data-skin="aztecan"] :is([data-surface="quick-settings"], .modal-backdrop > [role="dialog"], .bg-popover) {
+   busier than the sky: a stronger blur, a denser fill and a deeper dim. (`html` lifts
+   the selector above the general rule, whose list holds a more specific selector.) */
+html[data-skin="aztecan"] :is([data-surface="quick-settings"], .modal-backdrop > [role="dialog"], .bg-popover) {
   background-color: var(--aztecan-glass-strong);
   -webkit-backdrop-filter: var(--aztecan-glass-filter-strong);
   backdrop-filter: var(--aztecan-glass-filter-strong);
 }
 [data-skin="aztecan"] :is(.chat-composer-shell form[data-slot="prompt-input"], [data-surface="quick-settings"], .modal-backdrop > [role="dialog"], .bg-popover) {
-  box-shadow:
-    inset 0 1px 0 var(--aztecan-glass-highlight),
-    inset 0 0 0 1px var(--aztecan-glass-glow),
-    inset 0 0 24px var(--aztecan-glass-glow),
-    var(--aztecan-float);
+  box-shadow: var(--aztecan-float);
 }
-[data-skin="aztecan"] :is([data-surface="quick-settings"], .modal-backdrop > [role="dialog"], [data-surface="sidebar-drawer"], .pwa-header-safe) {
-  border-color: var(--aztecan-glass-edge);
-}
-/* The header and the sidebar span the screen edge to edge; they float by their shadow
-   and a lit inner edge rather than by moving away from the edge (no layout change). */
+/* The header and the sidebar span the screen edge to edge; a soft shadow lifts them. */
 [data-skin="aztecan"] .pwa-header-safe {
-  box-shadow: inset 0 1px 0 var(--aztecan-glass-highlight), 0 10px 30px var(--aztecan-bar-shadow);
+  box-shadow: 0 10px 30px var(--aztecan-bar-shadow);
 }
 [data-skin="aztecan"] [data-surface="sidebar"] {
-  box-shadow: inset -1px 0 0 var(--aztecan-glass-edge), inset 0 1px 0 var(--aztecan-glass-highlight), 12px 0 40px var(--aztecan-bar-shadow);
-}
-/* Controls get an edge of at least 3:1 (WCAG 1.4.11): the composer, and toggles when off. */
-[data-skin="aztecan"] :is(.chat-composer-shell form[data-slot="prompt-input"]:not(:focus-within), [role="switch"].border-border) {
-  border-color: hsl(var(--input));
+  box-shadow: 12px 0 40px var(--aztecan-bar-shadow);
 }
 /* Let the sky show behind an open dialog too, softened by the existing blur. */
 [data-skin="aztecan"] .modal-backdrop {
   background-color: hsl(var(--background) / 0.35);
 }
 
-/* Glass tiles: the message bubbles and the cards in the transcript are frosted too, with
-   their own blur (measured at 390px with a 4x CPU slowdown, see themes/aztecan), a bright
-   edge, a lit top and a small shadow. The agent bubble's own setting wins: translucent
-   and off keep their look from index.css. */
+/* Controls without border lines (WCAG 1.4.11 is met by fill and focus; see
+   themes/aztecan/README.md): text fields get a light fill instead of an edge, toggles
+   a visible track, and the composer and fields a 2px focus ring in --ring. */
+[data-skin="aztecan"] .border-input {
+  border-color: transparent;
+}
+[data-skin="aztecan"] :is(input, textarea, select).border-input {
+  background-color: var(--aztecan-field);
+}
+[data-skin="aztecan"] :is(input, textarea, select).border-input:focus-visible {
+  box-shadow: 0 0 0 2px hsl(var(--ring));
+}
+[data-skin="aztecan"] [role="switch"].border-border {
+  border-color: transparent;
+}
+[data-skin="aztecan"] [role="switch"].bg-muted {
+  background-color: var(--aztecan-track);
+}
+[data-skin="aztecan"] .chat-composer-shell form[data-slot="prompt-input"]:focus-within {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px hsl(var(--ring)), var(--aztecan-float);
+}
+
+/* Glass tiles: the message bubbles and the cards in the transcript use the same recipe
+   with their own blur (measured at 390px with a 4x CPU slowdown, see themes/aztecan)
+   and a small soft shadow. The agent bubble's own setting wins: translucent and off
+   keep their look from index.css. */
 [data-skin="aztecan"] .chat-messages-pane .bg-card:not(.chat-assistant-bubble),
 [data-skin="aztecan"]:not([data-assistant-bubble]) .chat-assistant-bubble,
 [data-skin="aztecan"] .chat-message.user > div > div > div.rounded-2xl {
-  border-color: var(--aztecan-glass-edge);
+  border-color: transparent;
   background-color: var(--aztecan-glass-card);
-  background-image: linear-gradient(180deg, var(--aztecan-glass-sheen), transparent 40%);
+  background-image: none;
   -webkit-backdrop-filter: var(--aztecan-glass-filter-tile);
   backdrop-filter: var(--aztecan-glass-filter-tile);
-  box-shadow:
-    inset 0 1px 0 var(--aztecan-glass-highlight),
-    inset 0 0 0 1px var(--aztecan-glass-glow),
-    var(--aztecan-tile-shadow);
+  box-shadow: var(--aztecan-tile-shadow);
 }
-/* Sidebar cards are tiles on the sidebar's glass: tinted and edged, and blurred so the
-   rows scrolling under a sticky project header stay unreadable behind it. */
+/* Sidebar cards are tiles on the sidebar's glass, blurred so the rows scrolling under a
+   sticky project header stay unreadable behind it. */
 [data-skin="aztecan"] [data-surface="sidebar"] .bg-card,
 [data-skin="aztecan"] [data-surface="sidebar"] .sticky.bg-background {
-  border-color: var(--aztecan-glass-edge);
+  border-color: transparent;
   background-color: var(--aztecan-glass-sticky);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  box-shadow: inset 0 1px 0 var(--aztecan-glass-highlight);
+  box-shadow: none;
 }
 [data-skin="aztecan"] [data-surface="sidebar"] .sticky > .bg-background {
   background-color: transparent;
