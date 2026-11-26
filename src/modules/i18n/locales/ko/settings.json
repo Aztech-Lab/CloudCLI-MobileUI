@@ -272,6 +272,14 @@
           "still": "정지",
           "animated": "움직임"
         },
+        "glassContrast": {
+          "label": "유리 대비",
+          "description": "패널과 말풍선이 별 배경에서 얼마나 뚜렷하게 구분되는지",
+          "subtle": "은은하게",
+          "standard": "표준",
+          "strong": "강하게",
+          "solid": "불투명(밝은 곳용)"
+        },
         "grid": {
           "label": "배경 격자",
           "description": "배경의 가는 격자",

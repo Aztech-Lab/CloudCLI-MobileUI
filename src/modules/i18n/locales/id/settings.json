@@ -272,6 +272,14 @@
           "still": "Diam",
           "animated": "Bergerak"
         },
+        "glassContrast": {
+          "label": "Kontras kaca",
+          "description": "Seberapa jelas panel dan gelembung menonjol dari langit",
+          "subtle": "Halus",
+          "standard": "Standar",
+          "strong": "Kuat",
+          "solid": "Padat (cahaya terang)"
+        },
         "grid": {
           "label": "Kisi latar",
           "description": "Kisi halus di latar belakang",

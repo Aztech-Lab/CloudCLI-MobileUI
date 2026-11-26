@@ -246,6 +246,14 @@
           "still": "Still",
           "animated": "Animiert"
         },
+        "glassContrast": {
+          "label": "Glaskontrast",
+          "description": "Wie deutlich sich Flächen und Sprechblasen vom Sternenhimmel abheben",
+          "subtle": "Dezent",
+          "standard": "Standard",
+          "strong": "Stark",
+          "solid": "Massiv (helles Licht)"
+        },
         "grid": {
           "label": "Hintergrundraster",
           "description": "Das feine Raster im Hintergrund",

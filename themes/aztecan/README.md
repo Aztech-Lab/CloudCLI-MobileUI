@@ -117,6 +117,44 @@ What changed to get there:
 - **Secondary and fine-print greys raised.** Control edges were raised to 3:1 in the
   third version and removed again in the fourth (borderless glass); see the controls table.
 
+### Glass contrast levels
+
+Option **Glass contrast**: Subtle, **Standard** (the default), Strong, Solid. All levels are
+borderless. Each one scales the same set of values together:
+
+- the glass fill;
+- the backdrop: dimmed behind dark glass, lifted behind light glass;
+- the shadow;
+- the fill of text fields;
+- the cyan tint of the user's own bubble (Standard and up), so the two sides of the
+  conversation separate.
+
+Subtle is the fourth version's look. Values are worst case, over the brightest nebula blob,
+written as WCAG ratio / APCA Lc.
+
+| level | dark glass fill | dark: body / secondary / fine | dark: user bubble secondary | light: body / secondary / placeholder | glass vs sky, dark | field vs glass, dark / light |
+|---|---|---|---|---|---|---|
+| Subtle | #131316 at 50%, backdrop ×0.8 | 13.5/93, 9.5/70, 7.8/60 | 9.5/70 | 17.1/96, 7.1/79, 4.7/67 | 1.24–1.43 | 1.35 / 1.13 |
+| **Standard** | #1e1f26 at 66%, ×0.65 | 13.5/93, 9.4/70, 7.8/60 | 8.4/68 | 19.1/104, 7.9/86, 5.2/75 | 1.25–1.55 | 1.55 / 1.19 |
+| Strong | #24262e at 80%, ×0.55 | 12.9/92, 9.0/70, 7.5/59 | 7.7/67 | 19.5/105, 8.1/88, 5.3/76 | 1.30–1.92 | 1.92 / 1.24 |
+| Solid | #282a32 at 94%, ×0.5 | 12.2/91, 8.5/69, 7.0/58 | 7.1/66 | 19.6/106, 8.1/88, 5.3/77 | 1.38–2.18 | 2.18 / 1.30 |
+
+Every level keeps every text target: body ≥ 7:1 and Lc ≥ 75; secondary ≥ 4.5:1 and
+Lc ≥ 60; fine print and placeholders ≥ 4.5:1 and Lc ≥ 45.
+
+**WCAG 1.4.11: no level gives text fields or the composer a 3:1 boundary through fill
+alone, and none can while keeping AAA text inside them.**
+
+- *Dark*: the field must stay dark enough for #ebebef body text at 7:1, so its relative
+  luminance stays at or below 0.076. A 3:1 step from the near-black sky would need about
+  0.108.
+- *Light*: dark text at 7:1 needs a fill at or above 0.32 luminance. A 3:1 step down from
+  a white surface caps it at 0.30.
+- So fields and the composer meet 1.4.11 the same way at every level: by their fill, their
+  placeholder text, and the 2px focus ring.
+- Toggles pass at every level: the thumb against the track is 5.2:1 or more in dark and
+  4.4:1 or more in light.
+
 ### Visual comfort
 
 - **Halation**: no pure white text in dark mode. Body is `#ebebef`; `text-white`,

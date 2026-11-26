@@ -246,6 +246,14 @@
           "still": "Fixe",
           "animated": "Animé"
         },
+        "glassContrast": {
+          "label": "Contraste du verre",
+          "description": "À quel point les panneaux et les bulles se détachent du ciel",
+          "subtle": "Discret",
+          "standard": "Standard",
+          "strong": "Fort",
+          "solid": "Opaque (forte lumière)"
+        },
         "grid": {
           "label": "Grille de fond",
           "description": "La grille fine en arrière-plan",

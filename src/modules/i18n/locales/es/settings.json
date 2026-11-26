@@ -273,6 +273,14 @@
           "still": "Quieto",
           "animated": "Animado"
         },
+        "glassContrast": {
+          "label": "Contraste del cristal",
+          "description": "Cuánto destacan los paneles y las burbujas sobre el cielo",
+          "subtle": "Sutil",
+          "standard": "Estándar",
+          "strong": "Fuerte",
+          "solid": "Sólido (luz intensa)"
+        },
         "grid": {
           "label": "Cuadrícula de fondo",
           "description": "La cuadrícula fina del fondo",

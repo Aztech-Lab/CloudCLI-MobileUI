@@ -273,6 +273,14 @@
           "still": "סטטי",
           "animated": "מונפש"
         },
+        "glassContrast": {
+          "label": "ניגודיות הזכוכית",
+          "description": "עד כמה הלוחות והבועות בולטים על רקע השמיים",
+          "subtle": "עדין",
+          "standard": "רגיל",
+          "strong": "חזק",
+          "solid": "אטום (אור חזק)"
+        },
         "grid": {
           "label": "רשת רקע",
           "description": "הרשת הדקה ברקע",

@@ -273,6 +273,14 @@
           "still": "Sabit",
           "animated": "Hareketli"
         },
+        "glassContrast": {
+          "label": "Cam kontrastı",
+          "description": "Paneller ve balonların gökyüzünden ne kadar belirgin ayrıldığı",
+          "subtle": "Hafif",
+          "standard": "Standart",
+          "strong": "Güçlü",
+          "solid": "Opak (parlak ışık)"
+        },
         "grid": {
           "label": "Arka plan ızgarası",
           "description": "Arka plandaki ince ızgara",

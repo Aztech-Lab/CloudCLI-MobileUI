@@ -254,6 +254,14 @@
           "still": "靜止",
           "animated": "動態"
         },
+        "glassContrast": {
+          "label": "玻璃對比度",
+          "description": "面板和氣泡與星空背景區分的明顯程度",
+          "subtle": "輕柔",
+          "standard": "標準",
+          "strong": "強",
+          "solid": "實心（強光下）"
+        },
         "grid": {
           "label": "背景網格",
           "description": "背景中的細網格",

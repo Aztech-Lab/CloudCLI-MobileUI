@@ -47,9 +47,10 @@ describe('skin option declarations', () => {
   });
 
   it('declares the Aztecan options', () => {
-    expect(SKIN_OPTIONS.aztecan.map((option) => option.id)).toEqual(['stars', 'grid', 'halo', 'pillTabs']);
-    expect(defaultSkinOptions('aztecan')).toEqual({ stars: 'animated', grid: 'normal', halo: true, pillTabs: true });
+    expect(SKIN_OPTIONS.aztecan.map((option) => option.id)).toEqual(['stars', 'glassContrast', 'grid', 'halo', 'pillTabs']);
+    expect(defaultSkinOptions('aztecan')).toEqual({ stars: 'animated', glassContrast: 'standard', grid: 'normal', halo: true, pillTabs: true });
     expect(skinOptionAttribute('pillTabs')).toBe('data-skin-pill-tabs');
+    expect(skinOptionAttribute('glassContrast')).toBe('data-skin-glass-contrast');
   });
 
   it('maps option ids to kebab-case data attributes', () => {
@@ -100,7 +101,8 @@ describe('applySkinOptions', () => {
 
   it('replaces the option attributes of the previous skin', () => {
     applySkinOptions('otsr', defaultSkinOptions('otsr'));
-    applySkinOptions('aztecan', { stars: 'still', grid: 'faint', halo: false, pillTabs: true });
+    applySkinOptions('aztecan', { stars: 'still', glassContrast: 'solid', grid: 'faint', halo: false, pillTabs: true });
+    expect(html().getAttribute('data-skin-glass-contrast')).toBe('solid');
     expect(html().getAttribute('data-skin-stars')).toBe('still');
     expect(html().getAttribute('data-skin-grid')).toBe('faint');
     expect(html().getAttribute('data-skin-halo')).toBe('false');

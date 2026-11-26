@@ -246,6 +246,14 @@
           "still": "Fermo",
           "animated": "Animato"
         },
+        "glassContrast": {
+          "label": "Contrasto del vetro",
+          "description": "Quanto pannelli e fumetti risaltano sul cielo",
+          "subtle": "Leggero",
+          "standard": "Standard",
+          "strong": "Forte",
+          "solid": "Pieno (luce intensa)"
+        },
         "grid": {
           "label": "Griglia di sfondo",
           "description": "La griglia sottile sullo sfondo",

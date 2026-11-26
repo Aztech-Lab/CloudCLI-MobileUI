@@ -246,6 +246,14 @@
           "still": "静止",
           "animated": "アニメーション"
         },
+        "glassContrast": {
+          "label": "ガラスのコントラスト",
+          "description": "パネルや吹き出しが星空からどれだけはっきり浮かぶか",
+          "subtle": "控えめ",
+          "standard": "標準",
+          "strong": "強め",
+          "solid": "ソリッド（明るい場所向け）"
+        },
         "grid": {
           "label": "背景グリッド",
           "description": "背景の細いグリッド",

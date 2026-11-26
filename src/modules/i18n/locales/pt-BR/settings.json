@@ -272,6 +272,14 @@
           "still": "Parado",
           "animated": "Animado"
         },
+        "glassContrast": {
+          "label": "Contraste do vidro",
+          "description": "O quanto painéis e balões se destacam do céu",
+          "subtle": "Sutil",
+          "standard": "Padrão",
+          "strong": "Forte",
+          "solid": "Sólido (luz forte)"
+        },
         "grid": {
           "label": "Grade de fundo",
           "description": "A grade fina no fundo",

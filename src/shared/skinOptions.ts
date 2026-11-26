@@ -40,6 +40,7 @@ const OTSR_OPTIONS: readonly SkinOptionDefinition[] = [
 
 const AZTECAN_OPTIONS: readonly SkinOptionDefinition[] = [
   { id: 'stars', kind: 'select', default: 'animated', choices: [{ value: 'off' }, { value: 'still' }, { value: 'animated' }] },
+  { id: 'glassContrast', kind: 'select', default: 'standard', choices: [{ value: 'subtle' }, { value: 'standard' }, { value: 'strong' }, { value: 'solid' }] },
   { id: 'grid', kind: 'select', default: 'normal', choices: [{ value: 'off' }, { value: 'faint' }, { value: 'normal' }] },
   { id: 'halo', kind: 'toggle', default: true },
   { id: 'pillTabs', kind: 'toggle', default: true },

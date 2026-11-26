@@ -115,18 +115,20 @@
   --aztecan-text-halo: #f6f6f9;
   --aztecan-halo-size: 27rem;
   /* skin-private: glass */
-  --aztecan-glass: rgba(246, 246, 249, 0.6);
-  --aztecan-glass-strong: rgba(246, 246, 249, 0.72);
-  --aztecan-glass-card: rgba(246, 246, 249, 0.6);
-  --aztecan-glass-sticky: rgba(246, 246, 249, 0.72);
-  --aztecan-glass-filter: blur(32px) saturate(180%);
-  --aztecan-glass-filter-strong: blur(40px) saturate(180%);
-  --aztecan-glass-filter-tile: blur(24px) saturate(180%);
-  --aztecan-field: rgba(11, 11, 15, 0.06);
-  --aztecan-track: rgba(11, 11, 15, 0.16);
-  --aztecan-float: 0 16px 44px rgba(20, 30, 60, 0.12);
-  --aztecan-tile-shadow: 0 6px 20px rgba(20, 30, 60, 0.08);
-  --aztecan-bar-shadow: rgba(20, 30, 60, 0.08);
+  /* Glass at the default contrast level, Standard (the levels: glass rule 3). */
+  --aztecan-glass: rgba(255, 255, 255, 0.74);
+  --aztecan-glass-strong: rgba(255, 255, 255, 0.84);
+  --aztecan-glass-card: rgba(255, 255, 255, 0.76);
+  --aztecan-glass-user: rgba(232, 244, 252, 0.74);
+  --aztecan-glass-sticky: rgba(255, 255, 255, 0.82);
+  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(1.06);
+  --aztecan-glass-filter-strong: blur(40px) saturate(180%) brightness(1.06);
+  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(1.06);
+  --aztecan-field: rgba(11, 11, 15, 0.08);
+  --aztecan-track: rgba(11, 11, 15, 0.18);
+  --aztecan-float: 0 18px 48px rgba(20, 30, 60, 0.16);
+  --aztecan-tile-shadow: 0 8px 24px rgba(20, 30, 60, 0.12);
+  --aztecan-bar-shadow: rgba(20, 30, 60, 0.12);
   --aztecan-shadow: 0 24px 64px rgba(30, 40, 70, 0.16);
 }
 
@@ -235,20 +237,22 @@
   --aztecan-star-color-bright: rgba(232, 238, 248, 0.95);
   --aztecan-text-halo: #08080b;
   /* Glass: --panel rgba(18,18,22,.72) on the site; thinner here so the stars show. */
-  /* Glass: the header pill bar's fill (--muted #131316 at 50%) over a blurred, saturated
-     and slightly dimmed backdrop; no edges (see the glass rules). */
-  --aztecan-glass: rgba(19, 19, 22, 0.5);
-  --aztecan-glass-strong: rgba(19, 19, 22, 0.62);
-  --aztecan-glass-card: rgba(19, 19, 22, 0.5);
-  --aztecan-glass-sticky: rgba(19, 19, 22, 0.6);
-  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(0.8);
-  --aztecan-glass-filter-strong: blur(40px) saturate(160%) brightness(0.65);
-  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(0.8);
-  --aztecan-field: rgba(255, 255, 255, 0.1);
-  --aztecan-track: rgba(255, 255, 255, 0.2);
-  --aztecan-float: 0 16px 48px rgba(0, 0, 0, 0.4);
-  --aztecan-tile-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-  --aztecan-bar-shadow: rgba(0, 0, 0, 0.3);
+  /* Glass at the default level, Standard: a neutral fill a little lighter than the sky
+     (so panels separate from it) over a blurred, saturated, dimmed backdrop; no edges.
+     Subtle is the header pill bar's own fill, #131316 at 50%. */
+  --aztecan-glass: rgba(30, 31, 38, 0.66);
+  --aztecan-glass-strong: rgba(30, 31, 38, 0.78);
+  --aztecan-glass-card: rgba(30, 31, 38, 0.66);
+  --aztecan-glass-user: rgba(30, 46, 58, 0.72);
+  --aztecan-glass-sticky: rgba(30, 31, 38, 0.74);
+  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(0.65);
+  --aztecan-glass-filter-strong: blur(40px) saturate(160%) brightness(0.55);
+  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(0.65);
+  --aztecan-field: rgba(255, 255, 255, 0.14);
+  --aztecan-track: rgba(255, 255, 255, 0.24);
+  --aztecan-float: 0 18px 52px rgba(0, 0, 0, 0.5);
+  --aztecan-tile-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+  --aztecan-bar-shadow: rgba(0, 0, 0, 0.4);
   --aztecan-shadow: 0 32px 90px rgba(0, 0, 0, 0.52);         /* --shadow */
 }
 
@@ -431,6 +435,101 @@
   -webkit-text-stroke: 0;
 }
 
+/* Glass contrast (option glassContrast: subtle | standard | strong | solid; standard is the
+   default and lives in the token blocks above). Every level is borderless; fill, backdrop
+   dim (dark) or lift (light), shadow, field fill and the user bubble's cyan tint scale
+   together. Scorecard per level in themes/aztecan/README.md. */
+:root[data-skin="aztecan"][data-skin-glass-contrast="subtle"]:not(.dark) {
+  --aztecan-glass: rgba(246, 246, 249, 0.6);
+  --aztecan-glass-strong: rgba(246, 246, 249, 0.72);
+  --aztecan-glass-card: rgba(246, 246, 249, 0.6);
+  --aztecan-glass-user: rgba(246, 246, 249, 0.6);
+  --aztecan-glass-sticky: rgba(246, 246, 249, 0.72);
+  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(1);
+  --aztecan-glass-filter-strong: blur(40px) saturate(180%) brightness(1);
+  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(1);
+  --aztecan-field: rgba(11, 11, 15, 0.06);
+  --aztecan-track: rgba(11, 11, 15, 0.16);
+  --aztecan-float: 0 16px 44px rgba(20, 30, 60, 0.12);
+  --aztecan-tile-shadow: 0 6px 20px rgba(20, 30, 60, 0.08);
+  --aztecan-bar-shadow: rgba(20, 30, 60, 0.08);
+}
+:root[data-skin="aztecan"][data-skin-glass-contrast="subtle"].dark {
+  --aztecan-glass: rgba(19, 19, 22, 0.5);
+  --aztecan-glass-strong: rgba(19, 19, 22, 0.62);
+  --aztecan-glass-card: rgba(19, 19, 22, 0.5);
+  --aztecan-glass-user: rgba(19, 19, 22, 0.5);
+  --aztecan-glass-sticky: rgba(19, 19, 22, 0.6);
+  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(0.8);
+  --aztecan-glass-filter-strong: blur(40px) saturate(160%) brightness(0.65);
+  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(0.8);
+  --aztecan-field: rgba(255, 255, 255, 0.1);
+  --aztecan-track: rgba(255, 255, 255, 0.2);
+  --aztecan-float: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --aztecan-tile-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  --aztecan-bar-shadow: rgba(0, 0, 0, 0.3);
+}
+:root[data-skin="aztecan"][data-skin-glass-contrast="strong"]:not(.dark) {
+  --aztecan-glass: rgba(255, 255, 255, 0.86);
+  --aztecan-glass-strong: rgba(255, 255, 255, 0.92);
+  --aztecan-glass-card: rgba(255, 255, 255, 0.88);
+  --aztecan-glass-user: rgba(224, 240, 250, 0.88);
+  --aztecan-glass-sticky: rgba(255, 255, 255, 0.9);
+  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(1.1);
+  --aztecan-glass-filter-strong: blur(40px) saturate(180%) brightness(1.1);
+  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(1.1);
+  --aztecan-field: rgba(11, 11, 15, 0.1);
+  --aztecan-track: rgba(11, 11, 15, 0.2);
+  --aztecan-float: 0 20px 56px rgba(20, 30, 60, 0.2);
+  --aztecan-tile-shadow: 0 10px 28px rgba(20, 30, 60, 0.15);
+  --aztecan-bar-shadow: rgba(20, 30, 60, 0.15);
+}
+:root[data-skin="aztecan"][data-skin-glass-contrast="strong"].dark {
+  --aztecan-glass: rgba(36, 38, 46, 0.8);
+  --aztecan-glass-strong: rgba(36, 38, 46, 0.88);
+  --aztecan-glass-card: rgba(36, 38, 46, 0.8);
+  --aztecan-glass-user: rgba(34, 54, 68, 0.86);
+  --aztecan-glass-sticky: rgba(36, 38, 46, 0.86);
+  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(0.55);
+  --aztecan-glass-filter-strong: blur(40px) saturate(160%) brightness(0.5);
+  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(0.55);
+  --aztecan-field: rgba(255, 255, 255, 0.2);
+  --aztecan-track: rgba(255, 255, 255, 0.28);
+  --aztecan-float: 0 20px 56px rgba(0, 0, 0, 0.58);
+  --aztecan-tile-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  --aztecan-bar-shadow: rgba(0, 0, 0, 0.48);
+}
+:root[data-skin="aztecan"][data-skin-glass-contrast="solid"]:not(.dark) {
+  --aztecan-glass: rgba(255, 255, 255, 0.96);
+  --aztecan-glass-strong: rgba(255, 255, 255, 0.97);
+  --aztecan-glass-card: rgba(255, 255, 255, 0.96);
+  --aztecan-glass-user: rgba(222, 238, 250, 0.96);
+  --aztecan-glass-sticky: rgba(255, 255, 255, 0.97);
+  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(1.12);
+  --aztecan-glass-filter-strong: blur(40px) saturate(180%) brightness(1.12);
+  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(1.12);
+  --aztecan-field: rgba(11, 11, 15, 0.12);
+  --aztecan-track: rgba(11, 11, 15, 0.22);
+  --aztecan-float: 0 20px 60px rgba(20, 30, 60, 0.22);
+  --aztecan-tile-shadow: 0 10px 30px rgba(20, 30, 60, 0.16);
+  --aztecan-bar-shadow: rgba(20, 30, 60, 0.16);
+}
+:root[data-skin="aztecan"][data-skin-glass-contrast="solid"].dark {
+  --aztecan-glass: rgba(40, 42, 50, 0.94);
+  --aztecan-glass-strong: rgba(40, 42, 50, 0.96);
+  --aztecan-glass-card: rgba(40, 42, 50, 0.94);
+  --aztecan-glass-user: rgba(36, 58, 74, 0.95);
+  --aztecan-glass-sticky: rgba(40, 42, 50, 0.96);
+  --aztecan-glass-filter: blur(32px) saturate(180%) brightness(0.5);
+  --aztecan-glass-filter-strong: blur(40px) saturate(160%) brightness(0.45);
+  --aztecan-glass-filter-tile: blur(24px) saturate(180%) brightness(0.5);
+  --aztecan-field: rgba(255, 255, 255, 0.24);
+  --aztecan-track: rgba(255, 255, 255, 0.3);
+  --aztecan-float: 0 22px 60px rgba(0, 0, 0, 0.62);
+  --aztecan-tile-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --aztecan-bar-shadow: rgba(0, 0, 0, 0.5);
+}
+
 /* 3. Glass, borderless. The model is the header's view switcher (the PillBar): a
    translucent neutral fill (--muted at 50%) floating over blurred content, with no
    visible edge. Every glass surface here uses that recipe:
@@ -520,6 +619,11 @@ html[data-skin="aztecan"] :is([data-surface="quick-settings"], .modal-backdrop >
 }
 /* Sidebar cards are tiles on the sidebar's glass, blurred so the rows scrolling under a
    sticky project header stay unreadable behind it. */
+/* At the higher levels the user's own bubble takes a faint cyan tint, so the two sides of
+   the conversation separate (at Subtle it matches the agent bubble). */
+[data-skin="aztecan"] .chat-message.user > div > div > div.rounded-2xl {
+  background-color: var(--aztecan-glass-user);
+}
 [data-skin="aztecan"] [data-surface="sidebar"] .bg-card,
 [data-skin="aztecan"] [data-surface="sidebar"] .sticky.bg-background {
   border-color: transparent;
