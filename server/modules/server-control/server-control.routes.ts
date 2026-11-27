@@ -4,6 +4,7 @@ import express from 'express';
 import { AppError, asyncHandler, createApiSuccessResponse } from '@/shared/utils.js';
 
 import type { createServerControlService } from './server-control.service.js';
+import type { createServerSettingsService } from './server-settings.js';
 
 function readBoolean(value: unknown, name: string): boolean {
   if (typeof value !== 'boolean') {
@@ -52,6 +53,23 @@ export function createServerControlRouter(
       res.status(202).json(createApiSuccessResponse(await serverControlService.stop()));
     }),
   );
+
+  return router;
+}
+
+/** GET/PATCH /settings: the server switches of Settings > MobileUI (values apply after a restart). */
+export function createServerSettingsRouter(
+  serverSettingsService: ReturnType<typeof createServerSettingsService>,
+): express.Router {
+  const router = express.Router();
+
+  router.get('/', (_req, res) => {
+    res.json(createApiSuccessResponse(serverSettingsService.getSettings()));
+  });
+
+  router.patch('/', (req, res) => {
+    res.json(createApiSuccessResponse(serverSettingsService.updateSettings(req.body)));
+  });
 
   return router;
 }

@@ -8,7 +8,8 @@
     "conversation": "对话",
     "files": "文件",
     "about": "关于本版本",
-    "phone": "手机与导航"
+    "phone": "手机与导航",
+    "agents": "Agent 与后台"
   },
   "autoExpandThinking": "自动展开思考细节",
   "autoExpandThinkingDescription": "思考内容默认展开，流式输出时也实时显示。仍可手动收起单个思考块。",
@@ -145,5 +146,47 @@
     "swipeNavigationDescription": "在手机上左右滑动切换工作区标签页；在第一个标签页向回滑动会打开菜单。",
     "homeRecents": "主屏显示最近对话",
     "homeRecentsDescription": "未打开项目时，列出最近的对话及其项目。关闭后显示原版的“选择项目”页面。"
+  },
+  "serverSwitches": {
+    "intro": "服务器开关：保存在服务器上，下次重启后生效。服务器配置中设置的值始终优先。",
+    "stagingNote": "这是测试门户：这些开关只影响测试门户（它有自己的数据库）。",
+    "source": {
+      "default": "默认",
+      "ui": "在此设置",
+      "config": "由服务器配置锁定"
+    },
+    "lockedHint": "已在服务器配置中设置（{{key}}），始终优先。请在 _server/config.json 中修改。",
+    "appliesAfterRestart": "已保存。服务器重启后生效。",
+    "restartNow": "立即重启",
+    "restartManually": "请在电脑上重启服务器以生效。",
+    "experimental": "实验性",
+    "defaultValue": "默认（{{value}}）",
+    "save": "保存",
+    "codexRuntime": {
+      "label": "Codex 运行方式",
+      "description": "Codex 对话如何运行：每条消息一个进程（exec，默认），或常驻的 app server（支持审批和后台终端）。",
+      "exec": "exec（默认）",
+      "appserver": "appserver（实验性）"
+    },
+    "approvalTimeout": {
+      "label": "审批超时",
+      "description": "工具审批等待你回答多久，超时后自动拒绝。"
+    },
+    "backgroundHold": {
+      "label": "后台任务时限",
+      "description": "仍有后台任务运行的会话最多可以多久没有任何输出，超过后这些任务会被停止。"
+    },
+    "fileTreeMaxEntries": {
+      "label": "文件树上限",
+      "description": "在非常大的项目中，文件标签页一次加载的条目数（默认 {{value}}）。超出部分在展开文件夹时再加载。"
+    },
+    "extraReadRoots": {
+      "label": "额外只读文件夹",
+      "description": "对话内文件查看器可以只读打开的项目外文件夹。必须是已存在文件夹的绝对路径，最多 20 个。",
+      "placeholder": "文件夹的绝对路径",
+      "add": "添加文件夹",
+      "remove": "移除 {{path}}",
+      "confirm": "登录此服务器的任何人都将能在对话中读取\n{{path}}\n下的所有文件。确定添加吗？"
+    }
   }
 }

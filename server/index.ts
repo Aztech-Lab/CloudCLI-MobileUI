@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Load environment variables before other imports execute.
 import './load-env.js';
+// [local] Server switches saved in Settings > MobileUI fill the environment variables the
+// configuration leaves unset. Must stay second, before any module reads them at load time.
+import './modules/server-control/apply-setting-overrides.js';
 import fs, { promises as fsPromises } from 'fs';
 import path from 'path';
 import os from 'os';

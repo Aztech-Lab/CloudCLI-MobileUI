@@ -8,7 +8,8 @@
     "conversation": "對話",
     "files": "檔案",
     "about": "關於本版本",
-    "phone": "手機與導覽"
+    "phone": "手機與導覽",
+    "agents": "Agent 與背景"
   },
   "autoExpandThinking": "自動展開思考細節",
   "autoExpandThinkingDescription": "思考內容預設展開，串流輸出時也即時顯示。仍可手動收合單個思考區塊。",
@@ -145,5 +146,47 @@
     "swipeNavigationDescription": "在手機上左右滑動切換工作區分頁；在第一個分頁向回滑動會開啟選單。",
     "homeRecents": "主畫面顯示最近對話",
     "homeRecentsDescription": "未開啟專案時，列出最近的對話及其專案。關閉後顯示原版的「選擇專案」畫面。"
+  },
+  "serverSwitches": {
+    "intro": "伺服器開關：儲存在伺服器上，下次重新啟動後生效。伺服器設定中設定的值一律優先。",
+    "stagingNote": "這是測試入口：這些開關只影響測試入口（它有自己的資料庫）。",
+    "source": {
+      "default": "預設",
+      "ui": "在此設定",
+      "config": "由伺服器設定鎖定"
+    },
+    "lockedHint": "已在伺服器設定中設定（{{key}}），一律優先。請在 _server/config.json 中修改。",
+    "appliesAfterRestart": "已儲存。伺服器重新啟動後生效。",
+    "restartNow": "立即重新啟動",
+    "restartManually": "請在電腦上重新啟動伺服器以生效。",
+    "experimental": "實驗性",
+    "defaultValue": "預設（{{value}}）",
+    "save": "儲存",
+    "codexRuntime": {
+      "label": "Codex 執行方式",
+      "description": "Codex 對話如何執行：每則訊息一個程序（exec，預設），或常駐的 app server（支援審核與背景終端機）。",
+      "exec": "exec（預設）",
+      "appserver": "appserver（實驗性）"
+    },
+    "approvalTimeout": {
+      "label": "審核逾時",
+      "description": "工具審核等待你回覆多久，逾時後自動拒絕。"
+    },
+    "backgroundHold": {
+      "label": "背景工作時限",
+      "description": "仍有背景工作執行的工作階段最多可以多久沒有任何輸出，超過後這些工作會被停止。"
+    },
+    "fileTreeMaxEntries": {
+      "label": "檔案樹上限",
+      "description": "在非常大的專案中，檔案分頁一次載入的項目數（預設 {{value}}）。超出部分在展開資料夾時再載入。"
+    },
+    "extraReadRoots": {
+      "label": "額外唯讀資料夾",
+      "description": "對話內檔案檢視器可以唯讀開啟的專案外資料夾。必須是已存在資料夾的絕對路徑，最多 20 個。",
+      "placeholder": "資料夾的絕對路徑",
+      "add": "新增資料夾",
+      "remove": "移除 {{path}}",
+      "confirm": "登入此伺服器的任何人都將能在對話中讀取\n{{path}}\n底下的所有檔案。確定新增嗎？"
+    }
   }
 }

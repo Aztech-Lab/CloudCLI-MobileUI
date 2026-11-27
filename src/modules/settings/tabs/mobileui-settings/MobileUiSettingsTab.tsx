@@ -4,13 +4,16 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useServerControl } from '@/modules/settings/hooks/useServerControl';
+import { useServerSettings } from '@/modules/settings/hooks/useServerSettings';
 import ServerSettingsTab from '@/modules/settings/tabs/ServerSettingsTab';
 import '@/shared/mobileUiI18n';
 import AboutEditionSection from '@/modules/settings/tabs/mobileui-settings/AboutEditionSection';
+import AgentsSection from '@/modules/settings/tabs/mobileui-settings/AgentsSection';
 import ConversationSection from '@/modules/settings/tabs/mobileui-settings/ConversationSection';
 import FilesSection from '@/modules/settings/tabs/mobileui-settings/FilesSection';
 import LookSection from '@/modules/settings/tabs/mobileui-settings/LookSection';
 import PhoneSection from '@/modules/settings/tabs/mobileui-settings/PhoneSection';
+import { ExtraReadRootsRow, FileTreeMaxEntriesRow } from '@/modules/settings/tabs/mobileui-settings/ServerSwitches';
 
 /** DOM id of the Server section; Settings opened with the old 'server' tab scrolls to it. */
 export const MOBILEUI_SERVER_SECTION_ID = 'mobileui-section-server';
@@ -25,6 +28,9 @@ export default function MobileUiSettingsTab({ initialTab }: MobileUiSettingsTabP
   // The Server section is shown only for a server started by scripts/server/. For any other
   // server the status endpoint answers { managed: false } at once, without running a script.
   const serverControl = useServerControl({ isOpen: true, isActive: true });
+  // Server switches; absent on the hosted build and on servers without the endpoint.
+  const serverSettings = useServerSettings();
+  const switchContext = { settings: serverSettings, serverControl };
   const scrolledRef = useRef(false);
 
   useEffect(() => {
@@ -41,7 +47,15 @@ export default function MobileUiSettingsTab({ initialTab }: MobileUiSettingsTabP
       <LookSection />
       <ConversationSection />
       <PhoneSection />
-      <FilesSection />
+      <FilesSection
+        serverSwitches={serverSettings.overview && (
+          <>
+            <FileTreeMaxEntriesRow context={switchContext} />
+            <ExtraReadRootsRow context={switchContext} />
+          </>
+        )}
+      />
+      <AgentsSection context={switchContext} />
       {serverControl.managed && (
         <div id={MOBILEUI_SERVER_SECTION_ID} className="scroll-mt-4">
           <ServerSettingsTab serverControl={serverControl} />

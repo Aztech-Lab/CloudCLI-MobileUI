@@ -8,7 +8,8 @@
     "conversation": "Conversation",
     "files": "Files",
     "about": "About this edition",
-    "phone": "Phone & navigation"
+    "phone": "Phone & navigation",
+    "agents": "Agents & background"
   },
   "autoExpandThinking": "Auto-expand thinking",
   "autoExpandThinkingDescription": "Open thinking blocks by default, also while they stream. You can still collapse a block yourself.",
@@ -145,5 +146,47 @@
     "swipeNavigationDescription": "On a phone, swipe left or right to switch workspace tabs; swiping back from the first tab opens the menu.",
     "homeRecents": "Recent conversations on the home screen",
     "homeRecentsDescription": "With no project open, list the latest conversations and their projects. Off: the original “choose a project” screen."
+  },
+  "serverSwitches": {
+    "intro": "Server switches: saved on the server and used from its next restart. A value set in the server configuration always wins.",
+    "stagingNote": "This is the test portal: these switches affect only the test portal (it has its own database).",
+    "source": {
+      "default": "Default",
+      "ui": "Set here",
+      "config": "Locked by server config"
+    },
+    "lockedHint": "Set in the server configuration ({{key}}), which always wins. Change it in _server/config.json.",
+    "appliesAfterRestart": "Saved. Applies after the server restarts.",
+    "restartNow": "Restart now",
+    "restartManually": "Restart the server on the computer to use it.",
+    "experimental": "Experimental",
+    "defaultValue": "Default ({{value}})",
+    "save": "Save",
+    "codexRuntime": {
+      "label": "Codex runtime",
+      "description": "How Codex conversations run: one process per message (exec, the default), or a long-lived app server with approvals and background terminals.",
+      "exec": "exec (default)",
+      "appserver": "appserver (experimental)"
+    },
+    "approvalTimeout": {
+      "label": "Approval timeout",
+      "description": "How long a tool approval waits for your answer before it is declined."
+    },
+    "backgroundHold": {
+      "label": "Background work limit",
+      "description": "How long a session with background tasks still running may stay silent before those tasks are stopped."
+    },
+    "fileTreeMaxEntries": {
+      "label": "File tree limit",
+      "description": "How many entries the Files tab loads at once in a very large project (default {{value}}). Folders beyond it load when opened."
+    },
+    "extraReadRoots": {
+      "label": "Extra read-only folders",
+      "description": "Folders outside the project that the in-chat file viewer may open, read-only. Absolute paths of existing folders, up to 20.",
+      "placeholder": "Absolute folder path",
+      "add": "Add folder",
+      "remove": "Remove {{path}}",
+      "confirm": "Anyone signed in to this server will be able to read every file under\n{{path}}\nfrom the chat. Add it?"
+    }
   }
 }

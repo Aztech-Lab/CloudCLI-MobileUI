@@ -678,6 +678,9 @@ export const api = {
     setAutostart: (enabled: boolean) => put('/api/server-control/autostart', { enabled }),
     restart: (deploy: boolean) => post('/api/server-control/restart', { deploy }),
     stop: () => post('/api/server-control/stop'),
+    // [local] Server switches of Settings > MobileUI (saved here, applied after a restart).
+    settings: () => get('/api/server-control/settings'),
+    saveSettings: (updates: Record<string, unknown>) => patch('/api/server-control/settings', updates),
   },
 };
 
