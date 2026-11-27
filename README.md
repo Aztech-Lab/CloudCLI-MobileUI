@@ -111,7 +111,7 @@ Background agents and long commands keep running while you go on talking to the 
 
 ## Getting started
 
-You need a computer that stays on, with [Node.js](https://nodejs.org) 22 or newer and Claude Code installed and logged in. Then download this project, build it and start it. The commands are in [AGENTS_DEPLOY.md](AGENTS_DEPLOY.md) and take a few minutes; you can also hand that file to an AI agent and let it do the setup for you.
+You need a computer that stays on, with [Node.js](https://nodejs.org) 22 or newer and Claude Code installed and logged in. Then download this project and run its setup script: `scripts\server\setup.cmd` on Windows, `sh scripts/server/setup.sh` on macOS and Linux. It asks which port to use and which networks may connect, builds everything, starts the server in the background and starts it again whenever you log in. [AGENTS_DEPLOY.md](AGENTS_DEPLOY.md#setup) explains the details and the manual way; you can also hand that file to an AI agent and let it do the setup for you. Once it runs, **Settings → Server** shows its status and can restart or stop it.
 
 When it is running, open `http://<your-computer's-address>:3001` in a browser. The first person to open it creates the one and only account, so do that yourself straight away. On an iPhone, open the page in Safari, tap **Share**, then **Add to Home Screen**.
 

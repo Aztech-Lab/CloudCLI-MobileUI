@@ -2,3 +2,7 @@
 #   git config merge.ours.driver true)
 README.md merge=ours
 CONTRIBUTING.md merge=ours
+# [local] scripts/server/: sh scripts must keep LF (they run on macOS/Linux); Windows scripts CRLF
+scripts/server/*.sh text eol=lf
+scripts/server/*.ps1 text eol=crlf
+scripts/server/*.cmd text eol=crlf

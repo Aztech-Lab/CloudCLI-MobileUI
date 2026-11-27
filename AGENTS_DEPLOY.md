@@ -2,6 +2,8 @@
 
 Audience: an AI agent (or a technical human) installing, configuring, updating or troubleshooting CloudCLI-MobileUI on a user's machine. Every step has a command and a check. Follow the steps in order, stop at every **ASK THE USER** marker, and report the final state using the template at the end.
 
+**On a new machine, use [clone → setup](#setup)**: one script installs and builds, starts the server in the background and keeps it running across logins. Steps 2–8 are the same work done by hand.
+
 ## 0. Facts
 
 | Item | Value |
@@ -22,9 +24,120 @@ Audience: an AI agent (or a technical human) installing, configuring, updating o
 
 1. Never expose the port to the internet (no router port forwarding, no tunnels) unless the user explicitly asks and accepts the risk: a logged-in user has shell-level access to the machine.
 2. Do not create the login account yourself unless the user tells you to (see step 6).
-3. Do not change firewall rules, services or autostart without the user's approval.
+3. Do not change firewall rules, services or autostart without the user's approval. (Setup does both by default: ask first, then pass `--no-firewall` / `--no-autostart` as needed.)
 4. Run the server as the same OS user that is logged in to Claude Code.
 5. Do not run `cloudcli update` against an install built from this repository; it replaces it with the upstream build.
+
+<a id="setup"></a>
+## New machine: clone → setup (recommended)
+
+The scripts in `scripts/server/` do steps 2–8 below in one command. The result is a server that runs in the background from its own copy of the build (not from the checkout) and starts when the user logs in. Use the manual steps (2–8) only if the user wants something else, such as Docker, pm2 or a system service.
+
+### a. Ask first
+
+**ASK THE USER**, and note the answers:
+
+1. Port (default `3001`).
+2. Which networks may connect: a list of IPv4 networks such as the home LAN (`192.168.1.0/24`) and a VPN pool, or none (this computer only). Do not guess them; never add networks the user did not name.
+3. Start at login? (default yes)
+4. May you change the firewall? On Windows the user has to accept one administrator (UAC) prompt; on Linux with ufw, `sudo` may ask for a password. On macOS the script only prints advice.
+
+Also check the preconditions of step 2 (Node.js 22 or newer, git, Claude Code installed and logged in).
+
+### b. Run setup
+
+```bash
+git clone https://github.com/Aztech-Lab/CloudCLI-MobileUI.git
+cd CloudCLI-MobileUI
+# macOS / Linux
+sh scripts/server/setup.sh --yes --port 3001 --allow 192.168.1.0/24
+```
+```powershell
+# Windows (PowerShell or cmd)
+scripts\server\setup.cmd -Yes -Port 3001 -Allow 192.168.1.0/24
+```
+
+- No networks (this computer only): leave out `--allow` / `-Allow`. The server then listens on `127.0.0.1`.
+- Several networks: `--allow 192.168.1.0/24 --allow 10.8.0.0/24` / `-Allow 192.168.1.0/24,10.8.0.0/24`.
+- No start at login: add `--no-autostart` / `-NoAutostart`. No firewall change: `--no-firewall` / `-NoFirewall`.
+- Without `--yes` / `-Yes`, setup asks the port and networks itself (for a human at the keyboard).
+
+What it does, in order (it stops with `SETUP STOPPED: <reason>` at the first failure):
+
+1. Checks Node.js against `package.json` `engines`, npm, and Claude Code (missing Claude Code is a warning; the server starts anyway).
+2. Creates the machine config `_server/config.json` from the commented template `scripts/server/config.template.jsonc`, unless it exists. An existing config is kept and used.
+3. Runs `npm ci` and `npm run build` in the clone.
+4. Deploys the build into a separate runtime folder (`npm pack`, `npm ci --omit=dev`, native modules check).
+5. Sets the firewall: only the configured networks may reach the port(s).
+6. Starts the server in the background and waits until `/health` answers.
+7. Turns on start at login.
+
+Check: `sh scripts/server/status.sh` (Windows: `scripts\server\status.cmd`) prints `Server: running on port …`, and `curl -s http://127.0.0.1:<port>/health` returns `"status":"ok"`. Then continue with step 6 (create the account) and step 12 (report).
+
+### c. Where things are
+
+| Path (in the clone) | What |
+|---|---|
+| `_server/config.json` | Machine config: port, listen address, allowed networks, environment for the server, test portal, folders. Git-ignored; never commit it. Edit it, then restart (and run the firewall script after changing ports or networks). |
+| `_server/runtime/` | The build the server runs. Do not edit. |
+| `_server/runtime.next/` | A prepared build, waiting for `restart --deploy`. |
+| `_server/backup/runtime-*` | Previous builds (the newest 3 are kept). To roll back: stop, rename one back to `runtime`, start. |
+| `_server/logs/` | `cloudcli.log` (server output), `restart.log`, `deploy.log`, `firewall.log`; `staging.log` and `restart-staging.log` for the test portal. |
+| `_server/staging/` | Optional test portal: its build and its copy of the database. |
+
+Every folder can be moved with `paths` in the config (relative paths are resolved against the clone), for example to keep the runtime outside the clone. The config itself can live elsewhere too: pass `--config <file>` / `-Config <file>` to every script, or set `CLOUDCLI_SERVER_CONFIG`.
+
+### d. Everyday commands
+
+Each script exists as `scripts/server/<name>.sh` (macOS/Linux, `--long-options`) and `scripts\server\<name>.ps1` (Windows, `-Options`; `.cmd` wrappers for `setup`, `start`, `stop`, `restart` and `status`). `--help` on the `.sh` scripts and the top of each file list the options.
+
+| Task | macOS / Linux | Windows |
+|---|---|---|
+| Running? Which build, what work, autostart? | `sh scripts/server/status.sh` | `scripts\server\status.cmd` |
+| Start (in the background) | `sh scripts/server/start.sh` | `scripts\server\start.cmd` |
+| Start in this terminal | `sh scripts/server/start.sh --foreground` | `scripts\server\start.cmd -Foreground` |
+| Stop | `sh scripts/server/stop.sh` | `scripts\server\stop.cmd` |
+| Restart | `sh scripts/server/restart.sh` | `scripts\server\restart.cmd` |
+| Update | `git pull --ff-only`, `sh scripts/server/setup.sh` (keeps the config, prepares the new build), `sh scripts/server/restart.sh --deploy` | the same with `setup.cmd` and `restart.cmd -Deploy` |
+| Prepare a build without setup | `sh scripts/server/deploy.sh --build` | `scripts\server\deploy.ps1 -Build` |
+| Start at login | `sh scripts/server/autostart.sh on` / `off` / `status` | `scripts\server\autostart.ps1 on` / `off` / `status` |
+| Re-apply the firewall | `sh scripts/server/firewall.sh` | `scripts\server\firewall.ps1` (`-DryRun` only prints the rules) |
+
+`stop` and `restart` only ever stop the CloudCLI server process listening on the configured port, and refuse when another program holds that port. Before stopping they read `activeWork` from `/health` (see step 9): if work is running they show it and ask; without a terminal to ask in, they refuse. **ASK THE USER** in that case, and add `--force` / `-Force` only when the user agrees.
+
+<a id="restart-from-inside"></a>
+**Restarting from inside CloudCLI.** If you are an agent running in a CloudCLI chat, the server you would restart is the one running you: stopping it ends your own turn. Finish your reply first, and always restart detached and delayed:
+
+```bash
+sh scripts/server/restart.sh --detach --delay 30     # add --deploy to switch to a prepared build
+```
+```powershell
+scripts\server\restart.cmd -Detach -Delay 30         # add -Deploy to switch to a prepared build
+```
+
+The running-work check happens first, in your shell, so you see its answer; then a separate process that survives the server going down does the restart. Progress goes to `_server/logs/restart.log`. The web UI offers the same under **Settings → Server** (shown only for a server started by these scripts): status, build, running work, start at login, Restart and Stop.
+
+### e. Test portal (optional)
+
+A second port that runs another build with its own copy of the login database, for trying a branch before it goes live. Set `"stagingPort"` in the config (and, if wanted, `"stagingEnv"`: feature switches only the test portal gets), re-run the firewall script, then:
+
+```bash
+sh scripts/server/deploy.sh --staging --from <path-to-a-worktree> --build   # --fresh-db: take a new copy of the database
+sh scripts/server/restart.sh --staging --deploy
+```
+
+On Windows: `scripts\server\deploy.ps1 -Staging -From <path> -Build`, then `scripts\server\restart.cmd -Staging -Deploy`. The test portal never writes to the real database; the Claude Code sessions in `~/.claude` are shared.
+
+### f. Platform details
+
+| | Windows | macOS | Linux |
+|---|---|---|---|
+| Background start | hidden PowerShell under `conhost --headless` (no window), launched outside the caller's process tree | detached process (own session) | detached process (own session) |
+| Start at login | value in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` named after `autostartName`; it shows in Task Manager → Startup apps, and switching it off there makes `status` say `disabled` | LaunchAgent `~/Library/LaunchAgents/local.cloudcli-mobileui.plist` | systemd user unit `~/.config/systemd/user/cloudcli-mobileui.service`; it starts at the first login and stops at the last logout unless the user runs `sudo loginctl enable-linger $USER` once |
+| Firewall | Windows Firewall rules in group `CloudCLI`: allow the networks, block every other IPv4 address on the port | advice only (the application firewall cannot filter by network; a pf example is printed) | ufw if installed (allow the networks, deny the rest); otherwise iptables advice is printed |
+
+<a id="uninstall-scripts"></a>
+**Uninstall** with the scripts: `autostart off`, `stop`, `firewall --remove` (Windows: `firewall.ps1 -Remove`), then delete the clone. The login database in `~/.cloudcli/` and the sessions in `~/.claude/` are not touched.
 
 ## 2. Preconditions
 
@@ -134,9 +247,11 @@ For access from outside the home network use an encrypted VPN (IPsec, WireGuard,
 
 ## 8. Keep it running (optional)
 
-The server stops when its shell closes. Ask the user whether they want it to start automatically; do not add autostart on your own. Options: `pm2 start "npm run server" --name cloudcli` (cross-platform), a systemd user service (Linux), or a scheduled task at logon running as the user (Windows). Whatever you use must run as the user logged in to Claude Code.
+The server stops when its shell closes. Ask the user whether they want it to start automatically; do not add autostart on your own. The setup scripts handle this ([clone → setup](#setup), `autostart on|off|status`). Other options: `pm2 start "npm run server" --name cloudcli` (cross-platform), a systemd user service (Linux), or a scheduled task at logon running as the user (Windows). Whatever you use must run as the user logged in to Claude Code.
 
 ## 9. Update
+
+With the setup scripts: `git pull --ff-only`, run setup again, then `restart --deploy` (see [everyday commands](#setup)). By hand:
 
 ```bash
 cd CloudCLI-MobileUI
@@ -157,7 +272,7 @@ Check `/health` again; `version` reflects the upstream base version.
 - `turns`: replies being written now (including a turn Claude started on its own to report finished background work).
 - `backgroundSessions` / `backgroundTasks`: sessions whose turn has ended but whose background work still runs, and how many tasks they run in total. With `CLOUDCLI_CODEX_RUNTIME=appserver` this includes Codex's background commands and running subagents (they live in the shared `codex app-server` process, which a restart stops).
 
-If any count is above 0, **ASK THE USER** before restarting, or wait and check again. A restart script can do the same check, for example:
+If any count is above 0, **ASK THE USER** before restarting, or wait and check again. The scripts in `scripts/server/` do this check themselves. Your own restart script can do it like this:
 
 ```bash
 curl -s http://127.0.0.1:3001/health | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const w=JSON.parse(s).activeWork||{};process.exit((w.turns||0)+(w.backgroundSessions||0)>0?1:0)})"
@@ -186,7 +301,7 @@ The field is absent on builds that predate it. When a restart does end backgroun
 
 ## 11. Uninstall
 
-Stop the server, remove any service/autostart and firewall rules you created, delete the `CloudCLI-MobileUI` folder, and optionally `~/.cloudcli/`. Claude Code and its sessions in `~/.claude/` are not affected.
+With the setup scripts, see [uninstall](#uninstall-scripts). Otherwise: stop the server, remove any service/autostart and firewall rules you created, delete the `CloudCLI-MobileUI` folder, and optionally `~/.cloudcli/`. Claude Code and its sessions in `~/.claude/` are not affected.
 
 ## 12. Report back to the user
 
@@ -198,6 +313,6 @@ CloudCLI-MobileUI deployed
 - Account: created by user | created by agent (credentials handed over) | pending
 - Firewall: rules added (subnets: …) | not changed
 - Environment set: …
-- Autostart: none | pm2 | service | task
+- Autostart: none | at login (scripts/server) | pm2 | service | task
 - Open issues:
 ```

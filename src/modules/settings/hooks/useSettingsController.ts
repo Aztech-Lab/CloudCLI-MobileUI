@@ -54,7 +54,8 @@ type NotificationPreferencesResponse = {
 
 type ActiveLoginProvider = AgentProvider | '';
 
-const KNOWN_MAIN_TABS: SettingsMainTab[] = ['agents', 'appearance', 'git', 'api', 'tasks', 'browser', 'notifications', 'plugins', 'about'];
+// [local] 'server' added (Settings > Server).
+const KNOWN_MAIN_TABS: SettingsMainTab[] = ['agents', 'appearance', 'git', 'api', 'tasks', 'browser', 'notifications', 'plugins', 'server', 'about'];
 
 const normalizeMainTab = (tab: string): SettingsMainTab => {
   // Keep backwards compatibility with older callers that still pass "tools".

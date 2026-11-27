@@ -27,6 +27,9 @@
   "bugs": {
     "url": "https://github.com/Aztech-Lab/CloudCLI-MobileUI/issues"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "concurrently --kill-others \"npm run server:dev\" \"npm run client\"",
     "preserver": "node scripts/promote-dist-server.mjs recover",
