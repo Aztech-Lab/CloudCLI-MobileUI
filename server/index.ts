@@ -229,8 +229,9 @@ app.use('/api/agent', parsePublicBody, agentRoutes);
 
 app.use('/api/voice', authenticateToken, parseAuthenticatedBody, voiceRoutes);
 
-// [local] Server status, autostart, restart and stop (protected; Settings > MobileUI > Server)
-app.use('/api/server-control', authenticateToken, serverControlRoutes);
+// [local] Server status, autostart, restart, stop and server switches (protected; Settings > MobileUI).
+// Needs the body parser like every other route since 1.37.10 parses bodies per route.
+app.use('/api/server-control', authenticateToken, parseAuthenticatedBody, serverControlRoutes);
 
 // Serve public files (like api-docs.html)
 app.use(express.static(path.join(APP_ROOT, 'public')));
