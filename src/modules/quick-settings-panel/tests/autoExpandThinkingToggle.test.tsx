@@ -5,6 +5,7 @@ import { fireEvent, render } from '@testing-library/react';
 import { test } from 'vitest';
 
 import '@/modules/i18n';
+import '@/shared/mobileUiI18n';
 import QuickSettingsContent from '@/modules/quick-settings-panel/QuickSettingsContent';
 import { ThemeProvider } from '@/shared/context/ThemeContext';
 import type { QuickSettingsPreferences } from '@/shared/types';

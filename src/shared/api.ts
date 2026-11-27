@@ -671,7 +671,7 @@ export const api = {
     update: () => post('/api/system/update'),
   },
 
-  // [local] Settings > Server: a server started by scripts/server/.
+  // [local] Settings > MobileUI > Server: a server started by scripts/server/.
   serverControl: {
     availability: () => get('/api/server-control'),
     status: () => get('/api/server-control/status'),

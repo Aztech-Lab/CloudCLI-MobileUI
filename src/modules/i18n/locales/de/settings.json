@@ -59,8 +59,6 @@
     "darkMode": "Darkmode",
     "showRawParameters": "Rohe Parameter anzeigen",
     "showThinking": "Denken anzeigen",
-    "autoExpandThinking": "Denken automatisch aufklappen",
-    "autoExpandThinkingDescription": "Denkblöcke standardmäßig geöffnet anzeigen, auch während sie gestreamt werden. Einzelne Blöcke lassen sich weiterhin zuklappen.",
     "sendByCtrlEnter": "Mit Strg+Enter senden",
     "sendByCtrlEnterDescription": "Wenn aktiviert, sendet Strg+Enter die Nachricht anstelle von Enter. Dies ist nützlich für IME-Benutzer:innen, um versehentliches Senden zu vermeiden.",
     "dragHandle": {
@@ -209,69 +207,6 @@
       "light": "Hell",
       "dark": "Dunkel",
       "system": "Systemdarstellung folgen"
-    },
-    "skin": {
-      "label": "Skin",
-      "description": "The visual style of the interface; light and dark work with every skin",
-      "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners",
-      "aztecan": "Aztecan — Fast-Schwarz, Cyan, Glas"
-    },
-    "skinOptions": {
-      "otsr": {
-        "dotField": {
-          "label": "Dot field",
-          "description": "The dotted texture behind the conversation",
-          "off": "Off",
-          "faint": "Faint",
-          "normal": "Normal",
-          "strong": "Strong"
-        },
-        "chamfers": {
-          "label": "Chamfered edges",
-          "description": "Cut corners on the tab strip, the composer and your messages"
-        },
-        "monoLabels": {
-          "label": "Monospace tab labels",
-          "description": "Uppercase instrument-style labels on the workspace tabs"
-        },
-        "squareMarks": {
-          "label": "Square status marks",
-          "description": "Square instead of round status indicators"
-        }
-      },
-      "aztecan": {
-        "stars": {
-          "label": "Sternenfeld",
-          "description": "Langsam treibende Sterne hinter den Glasflächen",
-          "off": "Aus",
-          "still": "Still",
-          "animated": "Animiert"
-        },
-        "glassContrast": {
-          "label": "Glaskontrast",
-          "description": "Wie deutlich sich Flächen und Sprechblasen vom Sternenhimmel abheben",
-          "subtle": "Dezent",
-          "standard": "Standard",
-          "strong": "Stark",
-          "solid": "Massiv (helles Licht)"
-        },
-        "grid": {
-          "label": "Hintergrundraster",
-          "description": "Das feine Raster im Hintergrund",
-          "off": "Aus",
-          "faint": "Schwach",
-          "normal": "Normal"
-        },
-        "halo": {
-          "label": "Lichtschein",
-          "description": "Ein weiches Licht vom oberen Bildschirmrand und leuchtende Statuspunkte im dunklen Modus"
-        },
-        "pillTabs": {
-          "label": "Pillen-Tabs",
-          "description": "Vollständig abgerundete Tab-Leisten, wie die Navigation der Website"
-        }
-      }
     },
     "projectSorting": {
       "label": "Projektsortierung",

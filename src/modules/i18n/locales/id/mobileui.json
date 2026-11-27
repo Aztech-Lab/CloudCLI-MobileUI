@@ -1,0 +1,42 @@
+{
+  "autoExpandThinking": "Otomatis bentangkan proses berpikir",
+  "autoExpandThinkingDescription": "Blok proses berpikir terbuka secara default, termasuk saat sedang di-stream. Anda tetap bisa menutup blok secara manual.",
+  "skin": {
+    "descriptions": {
+      "aztecan": "Hampir hitam, sian, kaca"
+    }
+  },
+  "skinOptions": {
+    "aztecan": {
+      "stars": {
+        "label": "Bidang bintang",
+        "description": "Bintang yang melayang di balik panel kaca",
+        "off": "Mati",
+        "still": "Diam",
+        "animated": "Bergerak"
+      },
+      "glassContrast": {
+        "label": "Kontras kaca",
+        "description": "Seberapa jelas panel dan gelembung menonjol dari langit",
+        "subtle": "Halus",
+        "standard": "Standar",
+        "strong": "Kuat",
+        "solid": "Padat (cahaya terang)"
+      },
+      "grid": {
+        "label": "Kisi latar",
+        "description": "Kisi halus di latar belakang",
+        "off": "Mati",
+        "faint": "Samar"
+      },
+      "halo": {
+        "label": "Halo dan pendar",
+        "description": "Cahaya lembut dari bagian atas layar dan titik status yang berpendar di mode gelap"
+      },
+      "pillTabs": {
+        "label": "Tab pil",
+        "description": "Strip tab yang sepenuhnya membulat, seperti navigasi situs web"
+      }
+    }
+  }
+}

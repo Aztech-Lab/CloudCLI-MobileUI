@@ -1,11 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { useUiPreferences, useSetUiPreference } from '@/shared/context/UiPreferencesContext';
-import { useSkin } from '@/shared/context/SkinContext';
 import { useTheme } from '@/shared/context/ThemeContext';
-import { ASSISTANT_BUBBLE_STYLES, type AssistantBubbleStyle } from '@/shared/assistantBubble';
-import { SKIN_IDS, type SkinId } from '@/shared/skin';
-import { SKIN_OPTIONS } from '@/shared/skinOptions';
 import type { CodeEditorSettingsState, ProjectSortOrder, ThemeMode } from '@/shared/types';
 import { LanguageSelector } from '@/modules/i18n';
 import SettingsCard from '@/modules/settings/SettingsCard';
@@ -34,10 +30,7 @@ export default function AppearanceSettingsTab({
   onCodeEditorFontSizeChange,
 }: AppearanceSettingsTabProps) {
   const { t } = useTranslation('settings');
-  const { themeMode, setThemeMode, assistantBubble, setAssistantBubble } = useTheme();
-  const { skin, setSkin, skinOptions, setSkinOption } = useSkin();
-  // [local] The active skin's own dials, rendered from its declaration (skinOptions.ts).
-  const skinOptionDefinitions = SKIN_OPTIONS[skin];
+  const { themeMode, setThemeMode } = useTheme();
   const preferences = useUiPreferences();
   const setPreference = useSetUiPreference();
 
@@ -60,82 +53,7 @@ export default function AppearanceSettingsTab({
               <option value="system">{t('appearanceSettings.theme.system')}</option>
             </select>
           </SettingsRow>
-          {/* [local] How the agent's spoken replies are framed (src/shared/assistantBubble.ts). */}
-          <SettingsRow
-            label={t('appearanceSettings.assistantBubble.label', { defaultValue: 'Agent reply bubble' })}
-            description={t('appearanceSettings.assistantBubble.description', { defaultValue: 'How the agent’s written replies are framed in the conversation' })}
-          >
-            <select
-              value={assistantBubble}
-              onChange={(event) => setAssistantBubble(event.target.value as AssistantBubbleStyle)}
-              aria-label={t('appearanceSettings.assistantBubble.label', { defaultValue: 'Agent reply bubble' })}
-              className="w-full touch-manipulation rounded-lg border border-input bg-card p-2.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary sm:w-36"
-            >
-              {ASSISTANT_BUBBLE_STYLES.map((style) => (
-                <option key={style} value={style}>{t(`appearanceSettings.assistantBubble.${style}`, { defaultValue: style })}</option>
-              ))}
-            </select>
-          </SettingsRow>
         </SettingsCard>
-      </SettingsSection>
-
-      {/* [local] Skins: token overrides layered on the light/dark mode (docs/fork/THEMING.md). */}
-      <SettingsSection title={t('appearanceSettings.skin.label', { defaultValue: 'Skin' })}>
-        <SettingsCard>
-          <SettingsRow
-            label={t('appearanceSettings.skin.label', { defaultValue: 'Skin' })}
-            description={t('appearanceSettings.skin.description', { defaultValue: 'The visual style of the interface; light and dark work with every skin' })}
-          >
-            <select
-              value={skin}
-              onChange={(event) => setSkin(event.target.value as SkinId)}
-              aria-label={t('appearanceSettings.skin.label', { defaultValue: 'Skin' })}
-              className="w-full touch-manipulation rounded-lg border border-input bg-card p-2.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary sm:w-48"
-            >
-              {SKIN_IDS.map((id) => (
-                <option key={id} value={id}>{t(`appearanceSettings.skin.${id}`, { defaultValue: id })}</option>
-              ))}
-            </select>
-          </SettingsRow>
-        </SettingsCard>
-
-        {skinOptionDefinitions.length > 0 && (
-          <SettingsCard divided>
-            {skinOptionDefinitions.map((definition) => {
-              const key = `appearanceSettings.skinOptions.${skin}.${definition.id}`;
-              const label = t(`${key}.label`, { defaultValue: definition.id });
-              const value = skinOptions[definition.id] ?? definition.default;
-              return (
-                <SettingsRow
-                  key={definition.id}
-                  label={label}
-                  description={t(`${key}.description`, { defaultValue: '' }) || undefined}
-                >
-                  {definition.kind === 'toggle' ? (
-                    <SettingsToggle
-                      checked={value === true}
-                      onChange={(next) => setSkinOption(definition.id, next)}
-                      ariaLabel={label}
-                    />
-                  ) : (
-                    <select
-                      value={String(value)}
-                      onChange={(event) => setSkinOption(definition.id, event.target.value)}
-                      aria-label={label}
-                      className="w-full touch-manipulation rounded-lg border border-input bg-card p-2.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary sm:w-36"
-                    >
-                      {definition.choices.map((choice) => (
-                        <option key={choice.value} value={choice.value}>
-                          {t(`${key}.${choice.value}`, { defaultValue: choice.value })}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </SettingsRow>
-              );
-            })}
-          </SettingsCard>
-        )}
       </SettingsSection>
 
       <SettingsSection title={t('mainTabs.appearance')}>
@@ -172,31 +90,6 @@ export default function AppearanceSettingsTab({
               checked={preferences.keepProjectsExpanded}
               onChange={(value) => setPreference('keepProjectsExpanded', value)}
               ariaLabel={t('appearanceSettings.keepProjectsExpanded.label', { defaultValue: 'Keep projects expanded' })}
-            />
-          </SettingsRow>
-        </SettingsCard>
-      </SettingsSection>
-
-      {/* [local] Thinking display, mirrored from Quick Settings so it is reachable here too. */}
-      <SettingsSection title={t('quickSettings.sections.toolDisplay')}>
-        <SettingsCard divided>
-          <SettingsRow label={t('quickSettings.showThinking')}>
-            <SettingsToggle
-              checked={preferences.showThinking}
-              onChange={(value) => setPreference('showThinking', value)}
-              ariaLabel={t('quickSettings.showThinking')}
-            />
-          </SettingsRow>
-          <SettingsRow
-            label={t('quickSettings.autoExpandThinking')}
-            description={t('quickSettings.autoExpandThinkingDescription')}
-            className={preferences.showThinking ? undefined : 'opacity-50'}
-          >
-            <SettingsToggle
-              checked={preferences.autoExpandThinking}
-              onChange={(value) => setPreference('autoExpandThinking', value)}
-              ariaLabel={t('quickSettings.autoExpandThinking')}
-              disabled={!preferences.showThinking}
             />
           </SettingsRow>
         </SettingsCard>

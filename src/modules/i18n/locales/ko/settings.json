@@ -75,8 +75,6 @@
     "darkMode": "다크 모드",
     "showRawParameters": "Raw 파라미터 표시",
     "showThinking": "생각 과정 표시",
-    "autoExpandThinking": "생각 과정 자동 펼치기",
-    "autoExpandThinkingDescription": "생각 블록을 기본으로 펼쳐 표시합니다(스트리밍 중 포함). 각 블록은 직접 접을 수 있습니다.",
     "sendByCtrlEnter": "Ctrl+Enter로 전송",
     "voiceEnabled": "음성 (마이크 + 소리 내어 읽기)",
     "sendByCtrlEnterDescription": "활성화하면 Enter 대신 Ctrl+Enter로 메시지를 전송합니다. IME 사용자가 실수로 전송하는 것을 방지하는 데 유용합니다.",
@@ -235,69 +233,6 @@
       "light": "밝게",
       "dark": "어둡게",
       "system": "시스템 설정 따르기"
-    },
-    "skin": {
-      "label": "Skin",
-      "description": "The visual style of the interface; light and dark work with every skin",
-      "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners",
-      "aztecan": "Aztecan — 짙은 검정, 시안, 유리"
-    },
-    "skinOptions": {
-      "otsr": {
-        "dotField": {
-          "label": "Dot field",
-          "description": "The dotted texture behind the conversation",
-          "off": "Off",
-          "faint": "Faint",
-          "normal": "Normal",
-          "strong": "Strong"
-        },
-        "chamfers": {
-          "label": "Chamfered edges",
-          "description": "Cut corners on the tab strip, the composer and your messages"
-        },
-        "monoLabels": {
-          "label": "Monospace tab labels",
-          "description": "Uppercase instrument-style labels on the workspace tabs"
-        },
-        "squareMarks": {
-          "label": "Square status marks",
-          "description": "Square instead of round status indicators"
-        }
-      },
-      "aztecan": {
-        "stars": {
-          "label": "별 배경",
-          "description": "유리 패널 뒤에서 천천히 떠다니는 별",
-          "off": "끄기",
-          "still": "정지",
-          "animated": "움직임"
-        },
-        "glassContrast": {
-          "label": "유리 대비",
-          "description": "패널과 말풍선이 별 배경에서 얼마나 뚜렷하게 구분되는지",
-          "subtle": "은은하게",
-          "standard": "표준",
-          "strong": "강하게",
-          "solid": "불투명(밝은 곳용)"
-        },
-        "grid": {
-          "label": "배경 격자",
-          "description": "배경의 가는 격자",
-          "off": "끄기",
-          "faint": "희미하게",
-          "normal": "보통"
-        },
-        "halo": {
-          "label": "헤일로와 광채",
-          "description": "화면 상단의 부드러운 빛과 다크 모드에서 빛나는 상태 점"
-        },
-        "pillTabs": {
-          "label": "알약형 탭",
-          "description": "웹사이트 내비게이션처럼 탭 줄을 완전히 둥글게 표시합니다"
-        }
-      }
     },
     "projectSorting": {
       "label": "프로젝트 정렬",

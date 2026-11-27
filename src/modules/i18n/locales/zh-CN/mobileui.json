@@ -1,0 +1,142 @@
+{
+  "tab": {
+    "label": "MobileUI",
+    "description": "本版本在 CloudCLI 之上新增的所有设置，集中在这里。"
+  },
+  "sections": {
+    "look": "外观",
+    "conversation": "对话",
+    "files": "文件",
+    "about": "关于本版本"
+  },
+  "autoExpandThinking": "自动展开思考细节",
+  "autoExpandThinkingDescription": "思考内容默认展开，流式输出时也实时显示。仍可手动收起单个思考块。",
+  "skin": {
+    "label": "皮肤",
+    "description": "界面的视觉风格；浅色和深色对每种皮肤都适用",
+    "names": {
+      "default": "默认",
+      "otsr": "OTSR",
+      "aztecan": "Aztecan"
+    },
+    "descriptions": {
+      "otsr": "实验室白、铜色、直角",
+      "aztecan": "近黑、青色、玻璃",
+      "default": "CloudCLI 原版外观"
+    }
+  },
+  "skinOptions": {
+    "otsr": {
+      "dotField": {
+        "label": "背景点阵",
+        "description": "对话区域背后的点状纹理",
+        "off": "关闭",
+        "faint": "淡",
+        "normal": "正常",
+        "strong": "强"
+      },
+      "chamfers": {
+        "label": "切角边缘",
+        "description": "标签条、输入框和你的消息气泡使用切角"
+      },
+      "monoLabels": {
+        "label": "等宽标签文字",
+        "description": "工作区标签使用大写等宽的仪表风格文字"
+      },
+      "squareMarks": {
+        "label": "方形状态标记",
+        "description": "状态指示用方块代替圆点"
+      }
+    },
+    "aztecan": {
+      "stars": {
+        "label": "星空背景",
+        "description": "玻璃面板背后缓缓漂移的星点",
+        "off": "关闭",
+        "still": "静止",
+        "animated": "动态"
+      },
+      "glassContrast": {
+        "label": "玻璃对比度",
+        "description": "面板和气泡与星空背景区分的明显程度",
+        "subtle": "轻柔",
+        "standard": "标准",
+        "strong": "强",
+        "solid": "实心（强光下）"
+      },
+      "grid": {
+        "label": "背景网格",
+        "description": "背景中的细网格",
+        "off": "关闭",
+        "faint": "淡",
+        "normal": "正常"
+      },
+      "halo": {
+        "label": "光晕",
+        "description": "屏幕顶部的柔光，以及深色模式下发光的状态圆点"
+      },
+      "pillTabs": {
+        "label": "胶囊标签",
+        "description": "标签条使用全圆角，和官网导航一样"
+      }
+    }
+  },
+  "assistantBubble": {
+    "label": "Agent 回复气泡",
+    "description": "对话中 agent 文字回复的外框样式",
+    "off": "无气泡",
+    "translucent": "半透明",
+    "solid": "实心"
+  },
+  "serverSettings": {
+    "title": "服务器",
+    "description": "本机上由 scripts/server 中的脚本启动的 CloudCLI 服务器。",
+    "testPortal": "这是测试门户（端口 {{port}}）。重启和停止只作用于它。",
+    "loading": "正在读取服务器状态…",
+    "unavailable": "此服务器不是由 scripts/server 中的脚本启动的，无法在这里控制。",
+    "status": "状态",
+    "running": "运行中，端口 {{port}}",
+    "runningPid": "运行中，端口 {{port}}（PID {{pid}}）",
+    "stopped": "未运行",
+    "version": "版本 {{version}}",
+    "build": "构建",
+    "buildValue": "{{branch}} {{commit}}，构建于 {{builtAt}}",
+    "buildDirty": "含未提交的修改",
+    "noBuildInfo": "没有构建信息",
+    "pendingBuild": "已准备的新构建",
+    "pendingBuildHint": "可以上线：重启后它会成为运行中的构建。",
+    "activeWork": "正在进行的工作",
+    "activeWorkNone": "无",
+    "activeWorkValue": "正在生成的回复：{{turns}} · 有后台工作的会话：{{sessions}} · 后台任务：{{tasks}}",
+    "autostart": "登录时启动",
+    "autostartDescription": "登录这台电脑时在后台启动服务器。",
+    "autostartDisabled": "已被系统关闭（Windows：任务管理器 > 启动应用）。在这里打开会重新启用它。",
+    "autostartUnsupported": "此系统不支持。",
+    "autostartLiveOnly": "只适用于正式服务器，请在那里修改。",
+    "actionsTitle": "重启或停止",
+    "actionsDescription": "两者都会结束所有正在生成的回复和后台任务，本页面也会断开连接。重启后会自动重连；停止后需要在电脑上重新启动服务器。",
+    "activateBuild": "同时启用已准备的新构建",
+    "restart": "重启",
+    "stop": "停止",
+    "working": "处理中…",
+    "confirmRestart": "现在重启服务器？本页面会短暂断开连接。",
+    "confirmStop": "停止服务器？在电脑上重新启动服务器之前，本页面将无法使用。",
+    "confirmWork": "正在进行的工作会被结束，且无法恢复。{{work}}",
+    "restartScheduled": "正在重启… 服务器恢复后本页面会自动重连。",
+    "stopScheduled": "服务器正在停止。请在电脑上重新启动它（scripts/server/start）。"
+  },
+  "showThinking": {
+    "label": "显示思考过程",
+    "description": "与快捷设置中的开关相同。"
+  },
+  "files": {
+    "showIgnored": "显示被 gitignore 的文件",
+    "showIgnoredDescription": "在文件标签页中以淡色列出被 gitignore 的文件和文件夹。与那里的眼睛按钮相同；只记在本设备上。"
+  },
+  "about": {
+    "basedOnVersion": "CloudCLI-MobileUI，基于 CloudCLI {{version}}。",
+    "basedOn": "CloudCLI-MobileUI，基于 CloudCLI。",
+    "repository": "代码仓库",
+    "whatsNew": "更新内容"
+  }
+}

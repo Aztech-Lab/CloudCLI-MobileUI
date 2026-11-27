@@ -1,6 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import {
+  applyAssistantBubble,
+  readStoredAssistantBubble,
+  writeAssistantBubble,
+  type AssistantBubbleStyle,
+} from '@/shared/assistantBubble';
 import { showStarfield, unmountStarfield } from '@/shared/aztecanStarfield';
 import { applySkin, readStoredSkin, writeSkin, type SkinId } from '@/shared/skin';
 import {
@@ -18,6 +24,9 @@ type SkinContextValue = {
   /** The active skin's option values, every declared option present. */
   skinOptions: SkinOptionValues;
   setSkinOption: (optionId: string, value: SkinOptionValue) => void;
+  /** How the agent's written replies are framed: off, translucent or solid. */
+  assistantBubble: AssistantBubbleStyle;
+  setAssistantBubble: (style: AssistantBubbleStyle) => void;
 };
 
 const SkinContext = createContext<SkinContextValue | null>(null);
@@ -39,16 +48,25 @@ export const useSkin = () => {
  * Mirrors ThemeProvider: the only writes are explicit choices (setSkin,
  * setSkinOption); a value arriving from the store (another device, another tab,
  * the hydrate) is applied but never written back.
+ *
+ * Also owns the agent reply bubble style (src/shared/assistantBubble.ts), which
+ * follows the same rules; it lived in ThemeProvider before.
  */
 export const SkinProvider = ({ children }: { children: ReactNode }) => {
   const [skin, setSkinState] = useState<SkinId>(readStoredSkin);
   const [skinOptions, setSkinOptionsState] = useState<SkinOptionValues>(() => readStoredSkinOptions(readStoredSkin()));
+  const [assistantBubble, setAssistantBubbleState] = useState<AssistantBubbleStyle>(readStoredAssistantBubble);
 
   useEffect(() => subscribeToUserPreferences(() => {
     const storedSkin = readStoredSkin();
     setSkinState(storedSkin);
     setSkinOptionsState(readStoredSkinOptions(storedSkin));
+    setAssistantBubbleState(readStoredAssistantBubble());
   }), []);
+
+  useEffect(() => {
+    applyAssistantBubble(assistantBubble);
+  }, [assistantBubble]);
 
   useEffect(() => {
     applySkin(skin);
@@ -79,9 +97,14 @@ export const SkinProvider = ({ children }: { children: ReactNode }) => {
     setSkinOptionsState(readStoredSkinOptions(skin));
   }, [skin]);
 
+  const setAssistantBubble = useCallback((style: AssistantBubbleStyle) => {
+    writeAssistantBubble(style);
+    setAssistantBubbleState(style);
+  }, []);
+
   const value = useMemo<SkinContextValue>(
-    () => ({ skin, setSkin, skinOptions, setSkinOption }),
-    [skin, setSkin, skinOptions, setSkinOption],
+    () => ({ skin, setSkin, skinOptions, setSkinOption, assistantBubble, setAssistantBubble }),
+    [skin, setSkin, skinOptions, setSkinOption, assistantBubble, setAssistantBubble],
   );
 
   return (

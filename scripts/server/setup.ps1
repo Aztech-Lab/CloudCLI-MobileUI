@@ -145,5 +145,5 @@ Write-Host "Open http://127.0.0.1:$($inst.port) on this computer and create your
 if (@($cfg.firewallAllow).Count -gt 0) {
     Write-Host "Other devices on $(@($cfg.firewallAllow) -join ', ') use http://<this computer's address>:$($inst.port) - create the account first."
 }
-Write-Host "Manage it with the scripts in $PSScriptRoot (status, restart, stop, autostart), or in Settings > Server."
+Write-Host "Manage it with the scripts in $PSScriptRoot (status, restart, stop, autostart), or in Settings > MobileUI > Server."
 exit 0

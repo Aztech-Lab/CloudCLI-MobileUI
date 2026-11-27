@@ -1,0 +1,142 @@
+{
+  "tab": {
+    "label": "MobileUI",
+    "description": "Everything this edition adds to CloudCLI, in one place."
+  },
+  "sections": {
+    "look": "Look",
+    "conversation": "Conversation",
+    "files": "Files",
+    "about": "About this edition"
+  },
+  "autoExpandThinking": "Auto-expand thinking",
+  "autoExpandThinkingDescription": "Open thinking blocks by default, also while they stream. You can still collapse a block yourself.",
+  "skin": {
+    "label": "Skin",
+    "description": "The visual style of the interface; light and dark work with every skin",
+    "names": {
+      "default": "Default",
+      "otsr": "OTSR",
+      "aztecan": "Aztecan"
+    },
+    "descriptions": {
+      "otsr": "Lab white, copper, square corners",
+      "aztecan": "Near-black, cyan, glass",
+      "default": "The original CloudCLI look"
+    }
+  },
+  "skinOptions": {
+    "otsr": {
+      "dotField": {
+        "label": "Dot field",
+        "description": "The dotted texture behind the conversation",
+        "off": "Off",
+        "faint": "Faint",
+        "normal": "Normal",
+        "strong": "Strong"
+      },
+      "chamfers": {
+        "label": "Chamfered edges",
+        "description": "Cut corners on the tab strip, the composer and your messages"
+      },
+      "monoLabels": {
+        "label": "Monospace tab labels",
+        "description": "Uppercase instrument-style labels on the workspace tabs"
+      },
+      "squareMarks": {
+        "label": "Square status marks",
+        "description": "Square instead of round status indicators"
+      }
+    },
+    "aztecan": {
+      "stars": {
+        "label": "Starfield",
+        "description": "Drifting stars behind the glass panels",
+        "off": "Off",
+        "still": "Still",
+        "animated": "Animated"
+      },
+      "glassContrast": {
+        "label": "Glass contrast",
+        "description": "How clearly panels and bubbles stand out from the sky",
+        "subtle": "Subtle",
+        "standard": "Standard",
+        "strong": "Strong",
+        "solid": "Solid (bright light)"
+      },
+      "grid": {
+        "label": "Background grid",
+        "description": "The fine grid in the background",
+        "off": "Off",
+        "faint": "Faint",
+        "normal": "Normal"
+      },
+      "halo": {
+        "label": "Halo and glow",
+        "description": "A soft light from the top of the screen, and glowing status dots in dark mode"
+      },
+      "pillTabs": {
+        "label": "Pill tabs",
+        "description": "Fully rounded tab strips, like the navigation of the website"
+      }
+    }
+  },
+  "assistantBubble": {
+    "label": "Agent reply bubble",
+    "description": "How the agent’s written replies are framed in the conversation",
+    "off": "No bubble",
+    "translucent": "Translucent",
+    "solid": "Solid"
+  },
+  "serverSettings": {
+    "title": "Server",
+    "description": "The CloudCLI server on this computer, started by the scripts in scripts/server.",
+    "testPortal": "This is the test portal (port {{port}}). Restart and Stop act on it only.",
+    "loading": "Loading the server status…",
+    "unavailable": "This server was not started by the scripts in scripts/server, so it cannot be controlled here.",
+    "status": "Status",
+    "running": "Running on port {{port}}",
+    "runningPid": "Running on port {{port}} (PID {{pid}})",
+    "stopped": "Not running",
+    "version": "Version {{version}}",
+    "build": "Build",
+    "buildValue": "{{branch}} {{commit}}, built {{builtAt}}",
+    "buildDirty": "with uncommitted changes",
+    "noBuildInfo": "No build information",
+    "pendingBuild": "Prepared build",
+    "pendingBuildHint": "Ready to go live: a restart makes it the running build.",
+    "activeWork": "Running work",
+    "activeWorkNone": "None",
+    "activeWorkValue": "Replies being written: {{turns}} · sessions with background work: {{sessions}} · background tasks: {{tasks}}",
+    "autostart": "Start at login",
+    "autostartDescription": "Start the server in the background when you log in to this computer.",
+    "autostartDisabled": "Switched off by the system (on Windows: Task Manager > Startup apps). Turning it on here switches it back on.",
+    "autostartUnsupported": "Not available on this system.",
+    "autostartLiveOnly": "Applies to the live server only; change it there.",
+    "actionsTitle": "Restart or stop",
+    "actionsDescription": "Both end every reply being written and all background tasks, and this page loses its connection. After a restart it reconnects by itself; after a stop the server has to be started again on the computer.",
+    "activateBuild": "Activate the prepared build",
+    "restart": "Restart",
+    "stop": "Stop",
+    "working": "Working…",
+    "confirmRestart": "Restart the server now? This page loses its connection for a moment.",
+    "confirmStop": "Stop the server? This page stops working until the server is started again on the computer.",
+    "confirmWork": "Running work will be ended and cannot be resumed. {{work}}",
+    "restartScheduled": "Restarting… This page reconnects when the server is back.",
+    "stopScheduled": "The server is stopping. Start it again on the computer (scripts/server/start)."
+  },
+  "showThinking": {
+    "label": "Show thinking",
+    "description": "The same switch as in quick settings."
+  },
+  "files": {
+    "showIgnored": "Show gitignored files",
+    "showIgnoredDescription": "List gitignored files and folders in the Files tab, dimmed. Same as the eye button there; remembered on this device only."
+  },
+  "about": {
+    "basedOnVersion": "CloudCLI-MobileUI, based on CloudCLI {{version}}.",
+    "basedOn": "CloudCLI-MobileUI, based on CloudCLI.",
+    "repository": "Repository",
+    "whatsNew": "What’s new"
+  }
+}

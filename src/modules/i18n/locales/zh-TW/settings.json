@@ -59,8 +59,6 @@
     "darkMode": "深色模式",
     "showRawParameters": "顯示原始參數",
     "showThinking": "顯示思考過程",
-    "autoExpandThinking": "自動展開思考細節",
-    "autoExpandThinkingDescription": "思考內容預設展開，串流輸出時也即時顯示。仍可手動收合單個思考區塊。",
     "sendByCtrlEnter": "使用 Ctrl+Enter 傳送",
     "sendByCtrlEnterDescription": "啟用後，按 Ctrl+Enter 傳送訊息，而不是僅按 Enter。這對於使用輸入法的使用者可以避免意外傳送。",
     "dragHandle": {
@@ -117,7 +115,6 @@
     "computer": "電腦使用",
     "notifications": "通知",
     "plugins": "外掛",
-    "server": "伺服器",
     "about": "關於"
   },
   "notifications": {
@@ -211,76 +208,6 @@
       "light": "淺色",
       "dark": "深色",
       "system": "跟隨系統外觀"
-    },
-    "assistantBubble": {
-      "label": "Agent 回覆氣泡",
-      "description": "對話中 agent 文字回覆的外框樣式",
-      "off": "無氣泡",
-      "translucent": "半透明",
-      "solid": "實心"
-    },
-    "skin": {
-      "label": "外觀皮膚",
-      "description": "介面的視覺風格；淺色與深色對每種皮膚都適用",
-      "default": "預設",
-      "otsr": "OTSR — 實驗室白、銅色、直角",
-      "aztecan": "Aztecan — 近黑、青色、玻璃"
-    },
-    "skinOptions": {
-      "otsr": {
-        "dotField": {
-          "label": "背景點陣",
-          "description": "對話區域背後的點狀紋理",
-          "off": "關閉",
-          "faint": "淡",
-          "normal": "正常",
-          "strong": "強"
-        },
-        "chamfers": {
-          "label": "切角邊緣",
-          "description": "標籤列、輸入框和你的訊息氣泡使用切角"
-        },
-        "monoLabels": {
-          "label": "等寬標籤文字",
-          "description": "工作區標籤使用大寫等寬的儀表風格文字"
-        },
-        "squareMarks": {
-          "label": "方形狀態標記",
-          "description": "狀態指示用方塊代替圓點"
-        }
-      },
-      "aztecan": {
-        "stars": {
-          "label": "星空背景",
-          "description": "玻璃面板背後緩緩漂移的星點",
-          "off": "關閉",
-          "still": "靜止",
-          "animated": "動態"
-        },
-        "glassContrast": {
-          "label": "玻璃對比度",
-          "description": "面板和氣泡與星空背景區分的明顯程度",
-          "subtle": "輕柔",
-          "standard": "標準",
-          "strong": "強",
-          "solid": "實心（強光下）"
-        },
-        "grid": {
-          "label": "背景網格",
-          "description": "背景中的細網格",
-          "off": "關閉",
-          "faint": "淡",
-          "normal": "正常"
-        },
-        "halo": {
-          "label": "光暈",
-          "description": "螢幕頂部的柔光，以及深色模式下發光的狀態圓點"
-        },
-        "pillTabs": {
-          "label": "膠囊標籤",
-          "description": "標籤列使用全圓角，和官網導覽一樣"
-        }
-      }
     },
     "projectSorting": {
       "label": "專案排序",
@@ -696,42 +623,5 @@
     "creditsTitle": "致謝",
     "basedOn": "CloudCLI-MobileUI 以 Siteboon AI B.V. 的 CloudCLI（AGPL-3.0 授權）為基礎。本版本的問題請在這裡回報，不要提交給原專案。",
     "upstreamCredit": "原版 CloudCLI 專案（致謝）"
-  },
-  "serverSettings": {
-    "title": "伺服器",
-    "description": "本機上由 scripts/server 中的指令碼啟動的 CloudCLI 伺服器。",
-    "testPortal": "這是測試入口（連接埠 {{port}}）。重新啟動和停止只作用於它。",
-    "loading": "正在讀取伺服器狀態…",
-    "unavailable": "此伺服器不是由 scripts/server 中的指令碼啟動的，無法在這裡控制。",
-    "status": "狀態",
-    "running": "執行中，連接埠 {{port}}",
-    "runningPid": "執行中，連接埠 {{port}}（PID {{pid}}）",
-    "stopped": "未執行",
-    "version": "版本 {{version}}",
-    "build": "建置",
-    "buildValue": "{{branch}} {{commit}}，建置於 {{builtAt}}",
-    "buildDirty": "含未提交的變更",
-    "noBuildInfo": "沒有建置資訊",
-    "pendingBuild": "已準備的新建置",
-    "pendingBuildHint": "可以上線：重新啟動後它會成為執行中的建置。",
-    "activeWork": "進行中的工作",
-    "activeWorkNone": "無",
-    "activeWorkValue": "正在產生的回覆：{{turns}} · 有背景工作的工作階段：{{sessions}} · 背景任務：{{tasks}}",
-    "autostart": "登入時啟動",
-    "autostartDescription": "登入這台電腦時在背景啟動伺服器。",
-    "autostartDisabled": "已被系統關閉（Windows：工作管理員 > 啟動應用程式）。在這裡開啟會重新啟用它。",
-    "autostartUnsupported": "此系統不支援。",
-    "autostartLiveOnly": "只適用於正式伺服器，請在那裡修改。",
-    "actionsTitle": "重新啟動或停止",
-    "actionsDescription": "兩者都會結束所有正在產生的回覆和背景任務，本頁面也會中斷連線。重新啟動後會自動重新連線；停止後需要在電腦上重新啟動伺服器。",
-    "activateBuild": "同時啟用已準備的新建置",
-    "restart": "重新啟動",
-    "stop": "停止",
-    "working": "處理中…",
-    "confirmRestart": "現在重新啟動伺服器？本頁面會短暫中斷連線。",
-    "confirmStop": "停止伺服器？在電腦上重新啟動伺服器之前，本頁面將無法使用。",
-    "confirmWork": "進行中的工作會被結束，且無法恢復。{{work}}",
-    "restartScheduled": "正在重新啟動… 伺服器恢復後本頁面會自動重新連線。",
-    "stopScheduled": "伺服器正在停止。請在電腦上重新啟動它（scripts/server/start）。"
   }
 }

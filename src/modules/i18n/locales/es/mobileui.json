@@ -1,0 +1,42 @@
+{
+  "autoExpandThinking": "Expandir razonamiento automáticamente",
+  "autoExpandThinkingDescription": "Abre los bloques de razonamiento por defecto, también mientras se transmiten. Puedes seguir contrayendo un bloque manualmente.",
+  "skin": {
+    "descriptions": {
+      "aztecan": "Casi negro, cian, cristal"
+    }
+  },
+  "skinOptions": {
+    "aztecan": {
+      "stars": {
+        "label": "Campo de estrellas",
+        "description": "Estrellas que se desplazan detrás de los paneles de cristal",
+        "off": "Desactivado",
+        "still": "Quieto",
+        "animated": "Animado"
+      },
+      "glassContrast": {
+        "label": "Contraste del cristal",
+        "description": "Cuánto destacan los paneles y las burbujas sobre el cielo",
+        "subtle": "Sutil",
+        "standard": "Estándar",
+        "strong": "Fuerte",
+        "solid": "Sólido (luz intensa)"
+      },
+      "grid": {
+        "label": "Cuadrícula de fondo",
+        "description": "La cuadrícula fina del fondo",
+        "off": "Desactivada",
+        "faint": "Tenue"
+      },
+      "halo": {
+        "label": "Halo y brillo",
+        "description": "Una luz suave desde la parte superior de la pantalla y puntos de estado brillantes en modo oscuro"
+      },
+      "pillTabs": {
+        "label": "Pestañas de píldora",
+        "description": "Barras de pestañas totalmente redondeadas, como la navegación del sitio web"
+      }
+    }
+  }
+}

@@ -115,7 +115,7 @@ sh scripts/server/restart.sh --detach --delay 30     # add --deploy to switch to
 scripts\server\restart.cmd -Detach -Delay 30         # add -Deploy to switch to a prepared build
 ```
 
-The running-work check happens first, in your shell, so you see its answer; then a separate process that survives the server going down does the restart. Progress goes to `_server/logs/restart.log`. The web UI offers the same under **Settings → Server** (shown only for a server started by these scripts): status, build, running work, start at login, Restart and Stop.
+The running-work check happens first, in your shell, so you see its answer; then a separate process that survives the server going down does the restart. Progress goes to `_server/logs/restart.log`. The web UI offers the same under **Settings → MobileUI → Server** (shown only for a server started by these scripts): status, build, running work, start at login, Restart and Stop.
 
 ### e. Test portal (optional)
 
