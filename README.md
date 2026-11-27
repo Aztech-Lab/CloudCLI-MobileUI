@@ -15,7 +15,7 @@
 
 **[Getting started](#getting-started)** · **[Help wanted](#help-wanted)** · **[What's new](#whats-new)** · **[Deploy with an agent](AGENTS_DEPLOY.md)**
 
-**New:** keep talking to Claude while background agents and long commands keep working. [See how ↓](#keep-talking-while-claude-works)
+**New:** one-command setup that starts with your computer · the Aztecan skin, frosted glass over a starfield · keep talking while background work runs. [What's new ↓](#whats-new)
 
 </div>
 
@@ -153,6 +153,7 @@ Good places to start:
 - **Design a skin.** A skin is mostly a set of CSS variables, plus a few optional signature rules and settings, so you can change the whole look without touching any component. [docs/fork/THEMING.md](docs/fork/THEMING.md) has a step-by-step checklist. The designs themselves live in [`themes/`](themes/) as packages that any project can apply.
 - **Make code colors follow the skin.** Syntax highlighting in the chat, the code editor and the git graph still use fixed colors; THEMING.md lists where they live.
 - **Translate.** Several languages are missing strings, including some that this project added for the home screen and the file tree. They live in `src/modules/i18n/locales`, with English as the reference.
+- **Run the setup script on a Mac or a Linux machine.** `scripts/server/setup.sh` has so far been tested only on Windows; tell us whether it installs, starts at login (launchd or systemd) and stops cleanly on your system.
 - **Try it on your phone and tell us what breaks.** Reports from Android phones and tablets are especially welcome, because most testing so far has been on iPhones.
 
 ### How a change gets in
