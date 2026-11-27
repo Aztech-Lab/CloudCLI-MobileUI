@@ -3,10 +3,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/shared/api';
 import type { Project,FileTreeNode } from '@/shared/types';
 import type { WorkspaceRootScope } from '@/modules/file-tree/hooks/useWorkspaceRoots';
+import { useFileTreeCachedState } from '@/modules/file-tree/hooks/useFileTreeCachedState';
+import { fileTreeCacheKey, mergeRefreshedTree, readFileTreeCache } from '@/modules/file-tree/utils/fileTreeStateCache';
 
 type UseFileTreeDataResult = {
   files: FileTreeNode[];
   loading: boolean;
+  /** [local] A remembered tree is shown while a fresh copy is fetched in the background. */
+  refreshing: boolean;
+  /** [local] Key of the Files tab state cache for this project and root (null without a project). */
+  cacheKey: string | null;
   error: string | null;
   /** [local] Set instead of a raw message when the listed folder no longer exists. */
   missingFolder: string | null;
@@ -16,6 +22,9 @@ type UseFileTreeDataResult = {
   /** [local] Fetch one directory flagged `incomplete` and splice it into the tree. */
   loadDirectory: (directoryPath: string) => Promise<void>;
 };
+
+// [local] Stable stand-in while no tree is stored, so dependents do not re-run every render.
+const NO_FILES: FileTreeNode[] = [];
 
 const DEFAULT_LOAD_ERROR = 'Unable to load the file tree for this project.';
 
@@ -77,12 +86,16 @@ export function useFileTreeData(
   // [local] Another workspace root of the session; null lists the project folder as before.
   rootScope: WorkspaceRootScope | null = null,
 ): UseFileTreeDataResult {
-  const [files, setFiles] = useState<FileTreeNode[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [missingFolder, setMissingFolder] = useState<string | null>(null);
   const scopeSessionId = rootScope?.sessionId ?? null;
   const scopeRoot = rootScope?.root ?? 0;
+  // [local] The tree lives in a module-level cache, so reopening the Files tab shows
+  // it at once (no spinner) and only refreshes it in the background.
+  const cacheKey = fileTreeCacheKey(selectedProject?.projectId, scopeSessionId, scopeRoot);
+  const [files, setFiles] = useFileTreeCachedState(cacheKey, 'files', NO_FILES);
+  const [loading, setLoading] = useState(() => Boolean(cacheKey) && readFileTreeCache(cacheKey)?.files === undefined);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [missingFolder, setMissingFolder] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loadingDirs, setLoadingDirs] = useState<Set<string>>(() => new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -121,14 +134,14 @@ export function useFileTreeData(
         return next;
       });
     }
-  }, [projectId, scopeSessionId, scopeRoot]);
+  }, [projectId, scopeSessionId, scopeRoot, setFiles]);
 
   useEffect(() => {
     // File-tree requests use the DB projectId; the backend resolves it to the
     // project's absolute path through the projects table.
-    if (!projectId) {
-      setFiles([]);
+    if (!projectId || !cacheKey) {
       setLoading(false);
+      setRefreshing(false);
       setError(null);
       setMissingFolder(null);
       return;
@@ -142,10 +155,13 @@ export function useFileTreeData(
 
     // Track mount state so aborted or late responses do not enqueue stale state updates.
     let isActive = true;
+    // [local] With a remembered tree on screen, refresh quietly instead of showing the spinner.
+    const hasRememberedTree = readFileTreeCache(cacheKey)?.files !== undefined;
 
     const fetchFiles = async () => {
       if (isActive) {
-        setLoading(true);
+        setLoading(!hasRememberedTree);
+        setRefreshing(hasRememberedTree);
         setError(null);
         setMissingFolder(null);
       }
@@ -162,7 +178,7 @@ export function useFileTreeData(
           const errorText = await response.text();
           console.error('File fetch failed:', response.status, errorText);
           if (isActive) {
-            setFiles([]);
+            setFiles(undefined); // [local] forget the remembered tree
             setError(readResponseErrorMessage(errorText) ?? DEFAULT_LOAD_ERROR);
             setMissingFolder(readMissingFolderPath(errorText));
           }
@@ -171,7 +187,8 @@ export function useFileTreeData(
 
         const data = (await response.json()) as FileTreeNode[];
         if (isActive) {
-          setFiles(data);
+          // [local] Keep folders loaded on demand instead of collapsing them to "Loading…".
+          setFiles((previous) => mergeRefreshedTree(previous, data));
         }
       } catch (error) {
         if ((error as { name?: string }).name === 'AbortError') {
@@ -180,12 +197,13 @@ export function useFileTreeData(
 
         console.error('Error fetching files:', error);
         if (isActive) {
-          setFiles([]);
+          setFiles(undefined); // [local] forget the remembered tree
           setError(DEFAULT_LOAD_ERROR);
         }
       } finally {
         if (isActive) {
           setLoading(false);
+          setRefreshing(false);
         }
       }
     };
@@ -196,11 +214,13 @@ export function useFileTreeData(
       isActive = false;
       abortControllerRef.current?.abort();
     };
-  }, [projectId, refreshKey, scopeSessionId, scopeRoot]);
+  }, [projectId, refreshKey, scopeSessionId, scopeRoot, cacheKey, setFiles]);
 
   return {
     files,
     loading,
+    refreshing,
+    cacheKey,
     error,
     missingFolder,
     refreshFiles,

@@ -13,6 +13,7 @@ import { useFileTreeViewMode } from '@/modules/file-tree/hooks/useFileTreeViewMo
 import { useShowIgnoredFiles } from '@/modules/file-tree/hooks/useShowIgnoredFiles';
 import { useFileTreeUpload } from '@/modules/file-tree/hooks/useFileTreeUpload';
 import { useWorkspaceRoots } from '@/modules/file-tree/hooks/useWorkspaceRoots';
+import { useFileTreeScrollMemory } from '@/modules/file-tree/hooks/useFileTreeScrollMemory';
 import type { DirectoryRevealRequest, FileTreeImageSelection, FileTreeNode, Project, ProjectSession } from '@/shared/types';
 import { formatFileSize, formatRelativeTime, isImageFile, withoutIgnoredEntries } from '@/modules/file-tree/utils/fileTreeUtils';
 import { directoryRevealPaths } from '@/modules/file-tree/utils/revealDirectory';
@@ -25,6 +26,10 @@ import FileTreeRootSwitcher from '@/modules/file-tree/FileTreeRootSwitcher';
 import FileTreeUploadProgress from '@/modules/file-tree/FileTreeUploadProgress';
 import ImageViewer from '@/modules/file-tree/ImageViewer';
 
+
+// [local] Reveal requests already served. The tab unmounts when another tab opens and
+// now remembers its opened folders, so a remount must not unfold an old request again.
+const servedRevealRequests = new WeakSet<DirectoryRevealRequest>();
 
 type FileTreeProps = {
   selectedProject: Project | null;
@@ -66,7 +71,7 @@ export default function FileTree({ selectedProject, selectedSession = null, onFi
   );
   const rootScope = workspaceRoots.scope;
 
-  const { files, loading, error, missingFolder, refreshFiles, loadingDirs, loadDirectory } = useFileTreeData(
+  const { files, loading, refreshing, cacheKey, error, missingFolder, refreshFiles, loadingDirs, loadDirectory } = useFileTreeData(
     selectedProject,
     rootScope,
   );
@@ -74,7 +79,7 @@ export default function FileTree({ selectedProject, selectedSession = null, onFi
     ? t('fileTree.folderNotFound', 'Folder not found: {{path}}', { path: missingFolder })
     : error;
   const { viewMode, changeViewMode } = useFileTreeViewMode();
-  const { expandedDirs, toggleDirectory, expandDirectories, collapseAll } = useExpandedDirectories();
+  const { expandedDirs, toggleDirectory, expandDirectories, collapseAll } = useExpandedDirectories(cacheKey);
 
   // [local] Load any expanded directory the server flagged `incomplete` (cut off by the
   // entry budget or the depth limit), whether it was opened by click, search or reveal.
@@ -100,25 +105,27 @@ export default function FileTree({ selectedProject, selectedSession = null, onFi
   const { searchQuery, setSearchQuery, filteredFiles } = useFileTreeSearch({
     files: visibleFiles,
     expandDirectories,
+    cacheKey,
   });
+  const scrollRef = useFileTreeScrollMemory(cacheKey, !loading); // [local]
 
   // The reveal request already served, so a later tree refresh does not fold
   // the folders open again over a collapse the user has since made.
-  const revealedRef = useRef<DirectoryRevealRequest | null>(null);
+  // [local] Tracked in `servedRevealRequests`, which outlives this component.
 
   // Expand every ancestor between the project root and the requested folder.
   // A request that arrives before the tree finds nothing to expand and is
   // retried when `files` lands.
   useEffect(() => {
     const projectRoot = selectedProject?.path || selectedProject?.fullPath;
-    if (!revealDirectory || !projectRoot || revealedRef.current === revealDirectory) {
+    if (!revealDirectory || !projectRoot || servedRevealRequests.has(revealDirectory)) {
       return;
     }
     const paths = directoryRevealPaths(files, projectRoot, revealDirectory.path);
     if (paths.length === 0) {
       return;
     }
-    revealedRef.current = revealDirectory;
+    servedRevealRequests.add(revealDirectory);
     expandDirectories(paths);
   }, [revealDirectory, selectedProject?.path, selectedProject?.fullPath, expandDirectories, files]);
 
@@ -265,7 +272,7 @@ export default function FileTree({ selectedProject, selectedSession = null, onFi
         onCollapseAll={collapseAll}
         showIgnored={showIgnored}
         onToggleShowIgnored={toggleShowIgnored}
-        loading={loading}
+        loading={loading || refreshing}
         operationLoading={operationLoading}
         isUploading={upload.uploadProgress?.status === 'uploading'}
         uploadProgress={upload.uploadProgress?.progress ?? null}
@@ -282,7 +289,7 @@ export default function FileTree({ selectedProject, selectedSession = null, onFi
 
       {viewMode === 'detailed' && filteredFiles.length > 0 && <FileTreeDetailedColumns />}
 
-      <ScrollArea className="flex-1 px-2 py-1">
+      <ScrollArea ref={scrollRef} className="flex-1 px-2 py-1">
         {/* New item input */}
         {operations.isCreating && (
           <div
