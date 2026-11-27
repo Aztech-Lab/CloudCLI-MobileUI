@@ -1321,6 +1321,28 @@ export class ClaudeSessionsProvider implements IProviderSessions {
       }
     }
 
+    // [local] The CLI could not save part of the session (SDK 0.3.332,
+    // `session_writes_lost`): the disk was full or over quota. The answer goes
+    // on, but a later resume may miss what was not written, so it is shown as
+    // an error row rather than dropped like other `system` events.
+    if (raw.type === 'system' && raw.subtype === 'session_writes_lost') {
+      const lost = Array.isArray(raw.lost) ? raw.lost.filter((entry: unknown) => typeof entry === 'string') : [];
+      const what = lost.length === 1 && lost[0] === 'global_config'
+        ? 'its settings (~/.claude.json)'
+        : lost.includes('global_config')
+          ? 'part of this conversation and its settings (~/.claude.json)'
+          : 'part of this conversation';
+      const reason = raw.error_code === 'EDQUOT' ? 'the disk quota is used up' : 'the disk is full';
+      return [createNormalizedMessage({
+        id: `${baseId}_writes_lost`,
+        sessionId,
+        timestamp: ts,
+        provider: PROVIDER,
+        kind: 'error',
+        content: `Claude Code could not save ${what} because ${reason}${typeof raw.error_code === 'string' ? ` (${raw.error_code})` : ''}. Resuming this session later may miss what was not saved. Free up disk space to keep saving.`,
+      })];
+    }
+
     // A compaction is the most expensive thing a long session does without
     // being asked, and neither record that describes it survives the branches
     // below: `system` events normalize to nothing. Both become one ordinary

@@ -897,7 +897,8 @@ export type ProviderRuntimeContext = {
     // [local] Moves running foreground work to the background (Ctrl+B).
     backgroundTasks?(toolUseId?: string): Promise<boolean>;
     setModel?(model?: string): Promise<void>;
-    setPermissionMode?(mode: string): Promise<void>;
+    // [local] `unknown`: SDK 0.3.332 answers with the mode now in effect.
+    setPermissionMode?(mode: string): Promise<unknown>;
     applyFlagSettings?(settings: AnyRecord): Promise<void>;
   };
 };
