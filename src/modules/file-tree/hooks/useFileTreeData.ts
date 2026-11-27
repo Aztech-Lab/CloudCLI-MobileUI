@@ -4,7 +4,14 @@ import { api } from '@/shared/api';
 import type { Project,FileTreeNode } from '@/shared/types';
 import type { WorkspaceRootScope } from '@/modules/file-tree/hooks/useWorkspaceRoots';
 import { useFileTreeCachedState } from '@/modules/file-tree/hooks/useFileTreeCachedState';
-import { fileTreeCacheKey, mergeRefreshedTree, readFileTreeCache } from '@/modules/file-tree/utils/fileTreeStateCache';
+import {
+  fileTreeCacheKey,
+  findDirectoryNode,
+  markLoadedDirectoriesStale,
+  mergeRefreshedTree,
+  readFileTreeCache,
+  writeFileTreeCache,
+} from '@/modules/file-tree/utils/fileTreeStateCache';
 
 type UseFileTreeDataResult = {
   files: FileTreeNode[];
@@ -55,22 +62,38 @@ function readMissingFolderPath(responseBody: string): string | null {
   }
 }
 
+// [local] The ETag a listing response carries (mocked responses may have no headers).
+function readEtag(response: Response): string | undefined {
+  return response.headers?.get('ETag') ?? undefined;
+}
+
+// [local] Asks "changed since?" with the ETag of what the tree already holds.
+function conditionalHeaders(etag: string | undefined): { headers?: Record<string, string> } {
+  return etag ? { headers: { 'If-None-Match': etag } } : {};
+}
+
 // [local] Replace the children of the node at `directoryPath` (or, with `children`
 // undefined, keep them and just clear `incomplete`), returning a new tree.
+// `listingEtag` names the listing new children came from.
 function replaceDirectoryChildren(
   nodes: FileTreeNode[],
   directoryPath: string,
   children: FileTreeNode[] | undefined,
+  listingEtag?: string,
 ): FileTreeNode[] {
   let changed = false;
   const next = nodes.map((node) => {
     if (node.type !== 'directory') return node;
     if (node.path === directoryPath) {
       changed = true;
-      return { ...node, children: children ?? node.children, incomplete: false };
+      if (!children) return { ...node, incomplete: false };
+      const { listingEtag: _previousEtag, ...rest } = node;
+      return listingEtag
+        ? { ...rest, children, incomplete: false, listingEtag }
+        : { ...rest, children, incomplete: false };
     }
     if (node.children && directoryPath.startsWith(node.path)) {
-      const updated = replaceDirectoryChildren(node.children, directoryPath, children);
+      const updated = replaceDirectoryChildren(node.children, directoryPath, children, listingEtag);
       if (updated !== node.children) {
         changed = true;
         return { ...node, children: updated };
@@ -110,16 +133,23 @@ export function useFileTreeData(
     if (!projectId) return;
     setLoadingDirs((previous) => new Set(previous).add(directoryPath));
     let children: FileTreeNode[] | undefined;
+    let listingEtag: string | undefined;
+    // [local] Children loaded before are kept when the server says they did not change (304).
+    const loadedBefore = findDirectoryNode(readFileTreeCache(cacheKey)?.files, directoryPath);
+    const knownEtag = loadedBefore?.children ? loadedBefore.listingEtag : undefined;
     try {
       const response = await api.getFiles(
         projectId,
-        {},
+        conditionalHeaders(knownEtag),
         directoryPath,
         scopeSessionId && scopeRoot > 0 ? { sessionId: scopeSessionId, root: scopeRoot } : null,
         true, // [local] gitignored entries come back flagged; the toolbar toggle hides them client-side
       );
-      if (response.ok) {
+      if (response.status === 304) {
+        // Unchanged: keep the children on screen.
+      } else if (response.ok) {
         children = (await response.json()) as FileTreeNode[];
+        listingEtag = readEtag(response);
       } else {
         console.error('Directory fetch failed:', response.status, await response.text());
       }
@@ -127,14 +157,14 @@ export function useFileTreeData(
       console.error('Error fetching directory:', loadError);
     } finally {
       // Clear `incomplete` even on failure so the expand effect does not retry in a loop.
-      setFiles((previous) => replaceDirectoryChildren(previous, directoryPath, children));
+      setFiles((previous) => replaceDirectoryChildren(previous, directoryPath, children, listingEtag));
       setLoadingDirs((previous) => {
         const next = new Set(previous);
         next.delete(directoryPath);
         return next;
       });
     }
-  }, [projectId, scopeSessionId, scopeRoot, setFiles]);
+  }, [projectId, scopeSessionId, scopeRoot, cacheKey, setFiles]);
 
   useEffect(() => {
     // File-tree requests use the DB projectId; the backend resolves it to the
@@ -156,7 +186,10 @@ export function useFileTreeData(
     // Track mount state so aborted or late responses do not enqueue stale state updates.
     let isActive = true;
     // [local] With a remembered tree on screen, refresh quietly instead of showing the spinner.
-    const hasRememberedTree = readFileTreeCache(cacheKey)?.files !== undefined;
+    const rememberedEntry = readFileTreeCache(cacheKey);
+    const hasRememberedTree = rememberedEntry?.files !== undefined;
+    // [local] ...and only ask whether it changed: the server answers 304 without the tree.
+    const knownEtag = hasRememberedTree ? rememberedEntry?.etag : undefined;
 
     const fetchFiles = async () => {
       if (isActive) {
@@ -168,16 +201,31 @@ export function useFileTreeData(
       try {
         const response = await api.getFiles(
           projectId,
-          { signal: abortControllerRef.current!.signal },
+          { signal: abortControllerRef.current!.signal, ...conditionalHeaders(knownEtag) },
           undefined,
           scopeSessionId && scopeRoot > 0 ? { sessionId: scopeSessionId, root: scopeRoot } : null,
           true, // [local] see loadDirectory
         );
 
+        // [local] Unchanged: keep the tree. Folders loaded on demand are not
+        // covered by that answer and get asked again on their own.
+        if (response.status === 304) {
+          if (isActive) {
+            if (readFileTreeCache(cacheKey)?.files === undefined) {
+              // The remembered tree was dropped meanwhile: fetch it in full.
+              setRefreshKey((previous) => previous + 1);
+            } else {
+              setFiles((previous) => markLoadedDirectoriesStale(previous));
+            }
+          }
+          return;
+        }
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error('File fetch failed:', response.status, errorText);
           if (isActive) {
+            writeFileTreeCache(cacheKey, { etag: undefined }, false);
             setFiles(undefined); // [local] forget the remembered tree
             setError(readResponseErrorMessage(errorText) ?? DEFAULT_LOAD_ERROR);
             setMissingFolder(readMissingFolderPath(errorText));
@@ -189,6 +237,7 @@ export function useFileTreeData(
         if (isActive) {
           // [local] Keep folders loaded on demand instead of collapsing them to "Loading…".
           setFiles((previous) => mergeRefreshedTree(previous, data));
+          writeFileTreeCache(cacheKey, { etag: readEtag(response) }, false);
         }
       } catch (error) {
         if ((error as { name?: string }).name === 'AbortError') {
@@ -197,6 +246,7 @@ export function useFileTreeData(
 
         console.error('Error fetching files:', error);
         if (isActive) {
+          writeFileTreeCache(cacheKey, { etag: undefined }, false);
           setFiles(undefined); // [local] forget the remembered tree
           setError(DEFAULT_LOAD_ERROR);
         }

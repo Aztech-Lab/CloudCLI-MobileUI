@@ -1,13 +1,16 @@
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 import ignore from 'ignore';
 
+import { fileTreeEntryKey } from '@/modules/file-tree/file-tree.change-tracker.js';
 import type {
   FileTreeDirectoryEntry,
   FileTreeNode,
   FileTreeRootScope,
   FileTreeServiceDependencies,
   FileTreeServices,
+  FileTreeStats,
   FileTreeUploadedFile,
 } from '@/shared/types.js';
 import {
@@ -57,6 +60,19 @@ function readExtraReadRoots(): string[] {
     .filter(Boolean);
 }
 
+// [local] Directories of one tree level read together before their share of the
+// entry budget is settled; bounds what a level holds in memory at once.
+const FILE_TREE_LEVEL_BATCH_SIZE = 256;
+
+function sortFileTreeItems(items: FileTreeNode[]): void {
+  items.sort((left, right) => {
+    if (left.type !== right.type) {
+      return left.type === 'directory' ? -1 : 1;
+    }
+    return left.name.localeCompare(right.name);
+  });
+}
+
 type FileTreeEntryFilter = (entryPath: string, isDirectory: boolean) => boolean;
 
 // [local] How the tree treats one entry: shown, shown but marked as gitignored
@@ -102,6 +118,32 @@ function permissionBitsToRwx(permissionBits: number): string {
   const execute = permissionBits & 1 ? 'x' : '-';
   return read + write + execute;
 }
+
+/** [local] The metadata a tree entry shows, from its `lstat`. */
+function describeStats(stats: FileTreeStats): Pick<FileTreeNode, 'size' | 'modified' | 'permissions' | 'permissionsRwx' | 'isSymlink'> {
+  const ownerPermissions = (stats.mode >> 6) & 7;
+  const groupPermissions = (stats.mode >> 3) & 7;
+  const otherPermissions = stats.mode & 7;
+  return {
+    size: stats.size,
+    modified: stats.mtime.toISOString(),
+    permissions: `${ownerPermissions}${groupPermissions}${otherPermissions}`,
+    permissionsRwx: permissionBitsToRwx(ownerPermissions)
+      + permissionBitsToRwx(groupPermissions)
+      + permissionBitsToRwx(otherPermissions),
+    ...(stats.isSymbolicLink() ? { isSymlink: true } : {}),
+  };
+}
+
+/**
+ * [local] What a listing shows about one entry besides name and children, as
+ * a comparable string (see file-tree.change-tracker.ts). `permissionsRwx`
+ * follows from `permissions`.
+ */
+function entryStamp(entry: Pick<FileTreeNode, 'size' | 'modified' | 'permissions' | 'isSymlink'>): string {
+  return `${entry.size}|${entry.modified}|${entry.permissions}|${entry.isSymlink ? 1 : 0}`;
+}
+
 
 function validateFilename(name: string): void {
   if (!name.trim()) {
@@ -350,6 +392,14 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
     return { entries: visibleEntries, truncated };
   }
 
+  /**
+   * [local] Walks the tree level by level (all directories at depth 1, then
+   * depth 2, ...) and hands out the shared entry budget in a fixed order:
+   * directories in tree order, entries in directory order. Directories are
+   * still read in parallel, but which ones end up cut off no longer depends on
+   * which read finished first, so walking an unchanged folder twice gives the
+   * same listing (and the same ETag) even when it is truncated.
+   */
   async function buildFileTree(
     directoryPath: string,
     maximumDepth: number,
@@ -357,19 +407,63 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
     classifyEntry: FileTreeEntryClassifier = classifyByFilter(includeEntryByFallbackDirectoryNames),
     remainingEntries = { value: MAXIMUM_FILE_TREE_ENTRIES },
   ): Promise<FileTreeNode[]> {
-    return (await buildFileTreeLevel(directoryPath, maximumDepth, currentDepth, classifyEntry, remainingEntries)).items;
+    type PendingDirectory = { path: string; depth: number; node: FileTreeNode | null };
+    let rootItems: FileTreeNode[] = [];
+    let level: PendingDirectory[] = [{ path: directoryPath, depth: currentDepth, node: null }];
+
+    while (level.length > 0) {
+      const nextLevel: PendingDirectory[] = [];
+      for (let start = 0; start < level.length; start += FILE_TREE_LEVEL_BATCH_SIZE) {
+        const batch = level.slice(start, start + FILE_TREE_LEVEL_BATCH_SIZE);
+        // Each read may take what is left of the budget; what it actually gets
+        // is settled below, in order, once the whole batch has been read.
+        const budgetAtStart = remainingEntries.value;
+        const reads = await Promise.all(batch.map((directory) => (
+          collectVisibleEntries(directory.path, classifyEntry, { value: budgetAtStart })
+        )));
+
+        const levelItems = await Promise.all(batch.map(async (directory, index) => {
+          const read = reads[index];
+          const kept = read.entries.slice(0, Math.max(0, remainingEntries.value));
+          remainingEntries.value -= kept.length;
+          const truncated = read.truncated || kept.length < read.entries.length;
+          return { directory, truncated, items: await describeEntries(directory.path, kept) };
+        }));
+
+        for (const { directory, truncated, items } of levelItems) {
+          sortFileTreeItems(items);
+          if (directory.node) {
+            directory.node.children = items;
+            if (truncated) directory.node.incomplete = true;
+          } else {
+            rootItems = items;
+          }
+          for (const item of items) {
+            if (item.type !== 'directory' || FORBIDDEN_WORKSPACE_PATHS.includes(normalizeProjectPath(item.path))) {
+              // Pseudo-filesystems and other system-critical directories (e.g.
+              // /proc, /sys) are never walked: /proc in particular can hold
+              // thousands of virtual entries.
+              continue;
+            }
+            // [local] A gitignored directory (node_modules, build output, ...) is listed but
+            // never walked eagerly; the browser loads it like a truncated one when expanded.
+            if (directory.depth < maximumDepth && !item.ignored) {
+              nextLevel.push({ path: item.path, depth: directory.depth + 1, node: item });
+            } else {
+              // [local] Not descended into: the browser fetches it when expanded.
+              item.incomplete = true;
+            }
+          }
+        }
+      }
+      level = nextLevel;
+    }
+    return rootItems;
   }
 
-  async function buildFileTreeLevel(
-    directoryPath: string,
-    maximumDepth: number,
-    currentDepth: number,
-    classifyEntry: FileTreeEntryClassifier,
-    remainingEntries: { value: number },
-  ): Promise<{ items: FileTreeNode[]; truncated: boolean }> {
-    const { entries: visibleEntries, truncated } = await collectVisibleEntries(directoryPath, classifyEntry, remainingEntries);
-
-    const items = await Promise.all(visibleEntries.map(async ({ entry, ignored }): Promise<FileTreeNode> => {
+  /** Builds the nodes of one directory's entries, with their metadata. */
+  async function describeEntries(directoryPath: string, entries: VisibleDirectoryEntry[]): Promise<FileTreeNode[]> {
+    return Promise.all(entries.map(async ({ entry, ignored }): Promise<FileTreeNode> => {
       const itemPath = path.join(directoryPath, entry.name);
       const item: FileTreeNode = {
         name: entry.name,
@@ -385,62 +479,15 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
       try {
         await acquire();
         try {
-          const stats = await fileSystem.lstat(itemPath);
-          const ownerPermissions = (stats.mode >> 6) & 7;
-          const groupPermissions = (stats.mode >> 3) & 7;
-          const otherPermissions = stats.mode & 7;
-
-          item.size = stats.size;
-          item.modified = stats.mtime.toISOString();
-          item.permissions = `${ownerPermissions}${groupPermissions}${otherPermissions}`;
-          item.permissionsRwx = permissionBitsToRwx(ownerPermissions)
-            + permissionBitsToRwx(groupPermissions)
-            + permissionBitsToRwx(otherPermissions);
-          if (stats.isSymbolicLink()) {
-            item.isSymlink = true;
-          }
+          Object.assign(item, describeStats(await fileSystem.lstat(itemPath)));
         } finally {
           release();
         }
       } catch {
         // Metadata failures should not hide an otherwise readable tree entry.
       }
-
-      // Skip recursing into pseudo-filesystems and other system-critical
-      // directories (e.g. /proc, /sys) — they're never valid project roots,
-      // and /proc in particular can contain thousands of virtual entries
-      // that make traversal from a broad root (e.g. "/") pathologically slow.
-      const isForbiddenSystemDir = FORBIDDEN_WORKSPACE_PATHS.includes(normalizeProjectPath(itemPath));
-
-      if (entry.isDirectory() && !isForbiddenSystemDir) {
-        // [local] A gitignored directory (node_modules, build output, ...) is listed but
-        // never walked eagerly; the browser loads it like a truncated one when expanded.
-        if (currentDepth < maximumDepth && !ignored) {
-          const child = await buildFileTreeLevel(
-            itemPath,
-            maximumDepth,
-            currentDepth + 1,
-            classifyEntry,
-            remainingEntries,
-          );
-          item.children = child.items;
-          if (child.truncated) item.incomplete = true;
-        } else {
-          // [local] Not descended into: the browser fetches it when expanded.
-          item.incomplete = true;
-        }
-      }
-
       return item;
     }));
-
-    items.sort((left, right) => {
-      if (left.type !== right.type) {
-        return left.type === 'directory' ? -1 : 1;
-      }
-      return left.name.localeCompare(right.name);
-    });
-    return { items, truncated };
   }
 
   /**
@@ -501,6 +548,110 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
     return resolvePathInsideRoots(projectRoots(projectRoot), projectRoot, targetPath);
   }
 
+  type ListingOptions = Parameters<FileTreeServices['listProjectFiles']>[1];
+
+  /**
+   * [local] The folder a listing request walks (`listRoot`) and the root it
+   * belongs to (`scopeRoot`): the project folder unless the request names
+   * another root of its session; `subPath` lists one directory inside it.
+   */
+  async function resolveListingTarget(
+    projectId: string,
+    options: ListingOptions,
+  ): Promise<{ scopeRoot: string; listRoot: string }> {
+    const scopeRoot = resolveScopeRoot(await resolveProjectRoot(projectId), options?.scope);
+    try {
+      await fileSystem.access(scopeRoot);
+    } catch {
+      // [local] Names the folder, so a moved or deleted project is recognizable.
+      throw new AppError(`Folder not found: ${scopeRoot}`, {
+        statusCode: 404,
+        code: 'PROJECT_PATH_NOT_FOUND',
+        details: { path: scopeRoot },
+      });
+    }
+
+    // [local] `subPath` lists one directory inside the project (lazy expansion of a
+    // directory the full listing flagged `incomplete`), with a fresh entry budget.
+    let listRoot = scopeRoot;
+    if (options?.subPath) {
+      const resolvedSubPath = path.resolve(scopeRoot, options.subPath);
+      if (resolvedSubPath !== path.resolve(scopeRoot)) {
+        listRoot = resolvePathInsideProject(scopeRoot, options.subPath);
+      }
+    }
+    return { scopeRoot, listRoot };
+  }
+
+  async function readListingClassifier(
+    scopeRoot: string,
+    options: ListingOptions,
+  ): Promise<FileTreeEntryClassifier | undefined> {
+    if (!options?.respectGitignore) {
+      return undefined;
+    }
+    try {
+      const gitignoreContent = await fileSystem.readTextFile(path.join(scopeRoot, '.gitignore'));
+      // [local] `includeIgnored` keeps gitignored entries, flagged `ignored`, instead of dropping them.
+      return createGitignoreEntryClassifier(scopeRoot, gitignoreContent, options.includeIgnored === true);
+    } catch (error) {
+      if (readErrorCode(error) !== 'ENOENT') {
+        dependencies.logger.error(`Error reading .gitignore in "${scopeRoot}"`, error);
+      }
+      return undefined;
+    }
+  }
+
+  /**
+   * [local] Whether a watch of `scopeRoot` sees every change to `listRoot`:
+   * false when the path to it passes through a link (a recursive watch does
+   * not follow links), so such listings are always walked.
+   */
+  async function isWatchedThroughRoot(scopeRoot: string, listRoot: string): Promise<boolean> {
+    if (path.resolve(listRoot) === path.resolve(scopeRoot)) {
+      return true;
+    }
+    try {
+      const expected = path.join(await fileSystem.realpath(scopeRoot), path.relative(scopeRoot, listRoot));
+      const actual = await fileSystem.realpath(listRoot);
+      return process.platform === 'win32'
+        ? expected.toLowerCase() === actual.toLowerCase()
+        : expected === actual;
+    } catch {
+      return false;
+    }
+  }
+
+  /** [local] Entry key (relative to `scopeRoot`) → stamp, for every entry of a listing. */
+  function collectEntryStamps(scopeRoot: string, tree: FileTreeNode[]): Map<string, string> {
+    const stamps = new Map<string, string>();
+    const visit = (nodes: FileTreeNode[]) => {
+      for (const node of nodes) {
+        stamps.set(fileTreeEntryKey(path.relative(scopeRoot, node.path)), entryStamp(node));
+        if (node.children) visit(node.children);
+      }
+    };
+    visit(tree);
+    return stamps;
+  }
+
+  /** [local] The stamp an entry would get if listed now; null when unreadable. */
+  async function readEntryStamp(absolutePath: string): Promise<string | null> {
+    await acquire();
+    try {
+      return entryStamp(describeStats(await fileSystem.lstat(absolutePath)));
+    } catch {
+      return null;
+    } finally {
+      release();
+    }
+  }
+
+  /** [local] The server changed files itself: never confirm an older listing. */
+  function invalidateListings(): void {
+    dependencies.changeTracker?.invalidateAll();
+  }
+
   async function cleanupTemporaryFiles(files: FileTreeUploadedFile[]): Promise<void> {
     await Promise.all(files.map(async (file) => {
       try {
@@ -511,7 +662,7 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
     }));
   }
 
-  return {
+  const services: FileTreeServices = {
     async browseWorkspace(inputPath) {
       const requestedPath = inputPath
         ? expandWorkspacePath(dependencies.workspace.rootPath, inputPath)
@@ -638,44 +789,49 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
     },
 
     async listProjectFiles(projectId, options) {
-      // [local] The listed root is the project folder unless the request names
-      // another root of its session.
-      const projectRoot = resolveScopeRoot(await resolveProjectRoot(projectId), options?.scope);
-      try {
-        await fileSystem.access(projectRoot);
-      } catch {
-        // [local] Names the folder, so a moved or deleted project is recognizable.
-        throw new AppError(`Folder not found: ${projectRoot}`, {
-          statusCode: 404,
-          code: 'PROJECT_PATH_NOT_FOUND',
-          details: { path: projectRoot },
-        });
-      }
+      const target = await resolveListingTarget(projectId, options);
+      return buildFileTree(target.listRoot, MAXIMUM_FILE_TREE_DEPTH, 0, await readListingClassifier(target.scopeRoot, options));
+    },
 
-      let classifyEntry: FileTreeEntryClassifier | undefined;
-      if (options?.respectGitignore) {
-        try {
-          const gitignoreContent = await fileSystem.readTextFile(path.join(projectRoot, '.gitignore'));
-          // [local] `includeIgnored` keeps gitignored entries, flagged `ignored`, instead of dropping them.
-          classifyEntry = createGitignoreEntryClassifier(projectRoot, gitignoreContent, options.includeIgnored === true);
-        } catch (error) {
-          if (readErrorCode(error) !== 'ENOENT') {
-            dependencies.logger.error(`Error reading .gitignore in "${projectRoot}"`, error);
-          }
+    // [local] The listing for a conditional request. When a filesystem watch
+    // armed before the last walk of this folder saw nothing since, a matching
+    // ETag is confirmed without walking again; otherwise the folder is walked
+    // and the ETag (a hash of the listing) decides.
+    async listProjectFilesIfChanged(projectId, options, candidateEtags) {
+      const target = await resolveListingTarget(projectId, options);
+      const tracker = dependencies.changeTracker;
+      const snapshotKey = JSON.stringify([
+        target.listRoot,
+        options?.respectGitignore === true,
+        options?.includeIgnored === true,
+        MAXIMUM_FILE_TREE_ENTRIES,
+      ]);
+
+      if (tracker && candidateEtags.length > 0) {
+        const unchangedEtag = await tracker.unchangedEtag(snapshotKey, target.scopeRoot, candidateEtags, readEntryStamp);
+        if (unchangedEtag) {
+          return { notModified: true, etag: unchangedEtag };
         }
       }
 
-      // [local] `subPath` lists one directory inside the project (lazy expansion of a
-      // directory the full listing flagged `incomplete`), with a fresh entry budget.
-      let listRoot = projectRoot;
-      if (options?.subPath) {
-        const resolvedSubPath = path.resolve(projectRoot, options.subPath);
-        if (resolvedSubPath !== path.resolve(projectRoot)) {
-          listRoot = resolvePathInsideProject(projectRoot, options.subPath);
-        }
+      // Armed before the walk, so a change made while walking is still seen.
+      const token = tracker ? await tracker.arm(target.scopeRoot) : null;
+      const tree = await buildFileTree(
+        target.listRoot,
+        MAXIMUM_FILE_TREE_DEPTH,
+        0,
+        await readListingClassifier(target.scopeRoot, options),
+      );
+      const body = JSON.stringify(tree);
+      const etag = `W/"ft-${createHash('sha1').update(body).digest('base64url')}"`;
+
+      if (tracker && token && await isWatchedThroughRoot(target.scopeRoot, target.listRoot)) {
+        tracker.remember(snapshotKey, target.scopeRoot, token, etag, collectEntryStamps(target.scopeRoot, tree));
       }
 
-      return buildFileTree(listRoot, MAXIMUM_FILE_TREE_DEPTH, 0, classifyEntry);
+      return candidateEtags.includes(etag)
+        ? { notModified: true, etag }
+        : { notModified: false, etag, body };
     },
 
     // [local] Root 0 is always the project folder; a session of this project
@@ -899,5 +1055,16 @@ export function createFileTreeService(dependencies: FileTreeServiceDependencies)
         throw error;
       }
     },
+  };
+
+  // [local] Whatever the server writes itself (even a failed, partial upload)
+  // ends every remembered listing, independent of how fast watch events arrive.
+  return {
+    ...services,
+    saveTextFile: (...input) => services.saveTextFile(...input).finally(invalidateListings),
+    createEntry: (...input) => services.createEntry(...input).finally(invalidateListings),
+    renameEntry: (...input) => services.renameEntry(...input).finally(invalidateListings),
+    deleteEntry: (...input) => services.deleteEntry(...input).finally(invalidateListings),
+    storeUploadedFiles: (...input) => services.storeUploadedFiles(...input).finally(invalidateListings),
   };
 }
