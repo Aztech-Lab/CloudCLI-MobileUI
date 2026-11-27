@@ -9,7 +9,7 @@ import {
   isAssistantBubbleStyle,
   readStoredAssistantBubble,
 } from '@/shared/assistantBubble';
-import { ThemeProvider, useTheme } from '@/shared/context/ThemeContext';
+import { SkinProvider, useSkin } from '@/shared/context/SkinContext';
 import { readUserPreference, resetUserPreferences, writeUserPreference } from '@/shared/userSettings';
 
 /**
@@ -19,7 +19,7 @@ import { readUserPreference, resetUserPreferences, writeUserPreference } from '@
  */
 
 const wrapper = ({ children }: { children: React.ReactNode }) =>
-  React.createElement(ThemeProvider, null, children);
+  React.createElement(SkinProvider, null, children);
 
 const attribute = () => document.documentElement.getAttribute(ASSISTANT_BUBBLE_ATTRIBUTE);
 
@@ -57,16 +57,16 @@ describe('assistant bubble styles', () => {
   });
 });
 
-describe('ThemeProvider', () => {
+describe('SkinProvider', () => {
   it('starts from the stored style and applies it', () => {
     writeUserPreference('assistantBubble', 'off');
-    const { result } = renderHook(() => useTheme(), { wrapper });
+    const { result } = renderHook(() => useSkin(), { wrapper });
     expect(result.current.assistantBubble).toBe('off');
     expect(attribute()).toBe('off');
   });
 
   it('writes an explicit choice and applies it', () => {
-    const { result } = renderHook(() => useTheme(), { wrapper });
+    const { result } = renderHook(() => useSkin(), { wrapper });
     expect(attribute()).toBeNull();
     act(() => result.current.setAssistantBubble('translucent'));
     expect(result.current.assistantBubble).toBe('translucent');
@@ -77,7 +77,7 @@ describe('ThemeProvider', () => {
   });
 
   it('follows a value that arrives from the store without writing it back', () => {
-    const { result } = renderHook(() => useTheme(), { wrapper });
+    const { result } = renderHook(() => useSkin(), { wrapper });
     act(() => writeUserPreference('assistantBubble', 'off'));
     expect(result.current.assistantBubble).toBe('off');
     expect(attribute()).toBe('off');

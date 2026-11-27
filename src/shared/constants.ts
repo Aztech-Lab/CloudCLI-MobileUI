@@ -8,6 +8,7 @@ import {
   MonitorPlay,
   Palette,
   Plug,
+  Smartphone, // [local] Settings > MobileUI
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 
@@ -115,6 +116,8 @@ export const SETTINGS_MAIN_TABS: SettingsMainTabMeta[] = [
   { id: 'browser', label: 'Browser', keywords: 'browser playwright chromium automation', icon: MonitorPlay },
   { id: 'notifications', label: 'Notifications', keywords: 'notifications alerts push', icon: Bell },
   { id: 'plugins', label: 'Plugins', keywords: 'plugins extensions integrations', icon: Plug },
+  // [local] Settings > MobileUI
+  { id: 'mobileui', label: 'MobileUI', keywords: 'mobileui skin bubble thinking swipe phone server restart', icon: Smartphone },
   { id: 'about', label: 'About', keywords: 'about version info', icon: Info },
 ];
 

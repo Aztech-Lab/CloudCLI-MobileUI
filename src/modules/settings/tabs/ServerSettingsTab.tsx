@@ -1,5 +1,6 @@
-// [local] Settings > Server: status, autostart, restart and stop of a server started by
-// scripts/server/. Settings shows this tab only when the server reports it is script-managed.
+// [local] Settings > MobileUI > Server: status, autostart, restart and stop of a server started
+// by scripts/server/. The MobileUI tab shows this section only when the server reports it is
+// script-managed. Strings live in the `mobileui` namespace (serverSettings.*).
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -7,7 +8,7 @@ import SettingsCard from '@/modules/settings/SettingsCard';
 import SettingsRow from '@/modules/settings/SettingsRow';
 import SettingsSection from '@/modules/settings/SettingsSection';
 import SettingsToggle from '@/modules/settings/SettingsToggle';
-import type { useServerControl } from '@/modules/settings/hooks/useServerControl';
+import { confirmServerAction, describeActiveWork, hasWork, type useServerControl } from '@/modules/settings/hooks/useServerControl';
 import { Button } from '@/shared/ui';
 import type { ServerActiveWork, ServerBuildInfo } from '@/shared/types';
 
@@ -15,14 +16,10 @@ type ServerSettingsTabProps = {
   serverControl: ReturnType<typeof useServerControl>;
 };
 
-function hasWork(work: ServerActiveWork | null): work is ServerActiveWork {
-  return Boolean(work && (work.turns > 0 || work.backgroundSessions > 0 || work.backgroundTasks > 0));
-}
-
-/** Rendered by Settings for the "server" tab. */
+/** Rendered by Settings > MobileUI as its Server section. */
 export default function ServerSettingsTab({ serverControl }: ServerSettingsTabProps) {
-  const { t } = useTranslation('settings');
-  const { overview, error, pendingAction, scheduled, refresh, setAutostart, restart, stop } = serverControl;
+  const { t } = useTranslation('mobileui');
+  const { overview, error, pendingAction, scheduled, setAutostart, restart, stop } = serverControl;
   // Whether a restart also activates the prepared build; on by default whenever one exists.
   const [activateBuild, setActivateBuild] = useState(true);
 
@@ -32,11 +29,7 @@ export default function ServerSettingsTab({ serverControl }: ServerSettingsTabPr
         + (build.dirty ? ` (${t('serverSettings.buildDirty')})` : '')
       : t('serverSettings.noBuildInfo')
   );
-  const describeWork = (work: ServerActiveWork) => t('serverSettings.activeWorkValue', {
-    turns: work.turns,
-    sessions: work.backgroundSessions,
-    tasks: work.backgroundTasks,
-  });
+  const describeWork = (work: ServerActiveWork) => describeActiveWork(t, work);
 
   if (!overview) {
     return (
@@ -57,14 +50,7 @@ export default function ServerSettingsTab({ serverControl }: ServerSettingsTabPr
   const isLive = overview.instance === 'live';
   const busy = pendingAction !== null || scheduled !== null;
 
-  // Asks with the latest counts: work may have started since the last refresh.
-  const confirmAction = async (action: 'restart' | 'stop') => {
-    const latest = await refresh();
-    const work = latest?.managed ? latest.status.activeWork : status.activeWork;
-    const lines = [t(action === 'restart' ? 'serverSettings.confirmRestart' : 'serverSettings.confirmStop')];
-    if (hasWork(work)) lines.push(t('serverSettings.confirmWork', { work: describeWork(work) }));
-    return window.confirm(lines.join('\n\n'));
-  };
+  const confirmAction = (action: 'restart' | 'stop') => confirmServerAction(serverControl, action, t);
 
   const handleRestart = async () => {
     if (await confirmAction('restart')) await restart(Boolean(status.pendingBuild) && activateBuild);

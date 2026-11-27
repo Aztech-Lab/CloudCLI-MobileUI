@@ -75,8 +75,6 @@
     "darkMode": "Tmavý režim",
     "showRawParameters": "Zobrazit surové parametry",
     "showThinking": "Zobrazit přemýšlení",
-    "autoExpandThinking": "Automaticky rozbalit přemýšlení",
-    "autoExpandThinkingDescription": "Bloky přemýšlení se ve výchozím stavu zobrazí rozbalené, i během streamování. Jednotlivý blok můžete stále sbalit ručně.",
     "sendByCtrlEnter": "Odesílat pomocí Ctrl+Enter",
     "voiceEnabled": "Hlas (mikrofon + předčítání)",
     "sendByCtrlEnterDescription": "Po zapnutí se zpráva odesílá klávesami Ctrl+Enter místo samotného Enter. Hodí se uživatelům IME, aby zprávy neodesílali omylem.",

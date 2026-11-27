@@ -75,8 +75,6 @@
     "darkMode": "Modo escuro",
     "showRawParameters": "Mostrar parâmetros brutos",
     "showThinking": "Mostrar raciocínio",
-    "autoExpandThinking": "Expandir raciocínio automaticamente",
-    "autoExpandThinkingDescription": "Abre os blocos de raciocínio por padrão, inclusive durante a transmissão. Você ainda pode recolher um bloco manualmente.",
     "sendByCtrlEnter": "Enviar com Ctrl+Enter",
     "voiceEnabled": "Voz (microfone + leitura em voz alta)",
     "sendByCtrlEnterDescription": "Quando ativado, pressionar Ctrl+Enter envia a mensagem em vez de apenas Enter. Isso é útil para usuários de IME evitarem envios acidentais.",
@@ -235,69 +233,6 @@
       "light": "Claro",
       "dark": "Escuro",
       "system": "Seguir a aparência do sistema"
-    },
-    "skin": {
-      "label": "Skin",
-      "description": "The visual style of the interface; light and dark work with every skin",
-      "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners",
-      "aztecan": "Aztecan — quase preto, ciano, vidro"
-    },
-    "skinOptions": {
-      "otsr": {
-        "dotField": {
-          "label": "Dot field",
-          "description": "The dotted texture behind the conversation",
-          "off": "Off",
-          "faint": "Faint",
-          "normal": "Normal",
-          "strong": "Strong"
-        },
-        "chamfers": {
-          "label": "Chamfered edges",
-          "description": "Cut corners on the tab strip, the composer and your messages"
-        },
-        "monoLabels": {
-          "label": "Monospace tab labels",
-          "description": "Uppercase instrument-style labels on the workspace tabs"
-        },
-        "squareMarks": {
-          "label": "Square status marks",
-          "description": "Square instead of round status indicators"
-        }
-      },
-      "aztecan": {
-        "stars": {
-          "label": "Campo de estrelas",
-          "description": "Estrelas que flutuam atrás dos painéis de vidro",
-          "off": "Desligado",
-          "still": "Parado",
-          "animated": "Animado"
-        },
-        "glassContrast": {
-          "label": "Contraste do vidro",
-          "description": "O quanto painéis e balões se destacam do céu",
-          "subtle": "Sutil",
-          "standard": "Padrão",
-          "strong": "Forte",
-          "solid": "Sólido (luz forte)"
-        },
-        "grid": {
-          "label": "Grade de fundo",
-          "description": "A grade fina no fundo",
-          "off": "Desligada",
-          "faint": "Suave",
-          "normal": "Normal"
-        },
-        "halo": {
-          "label": "Halo e brilho",
-          "description": "Uma luz suave vinda do topo da tela e pontos de status brilhantes no modo escuro"
-        },
-        "pillTabs": {
-          "label": "Abas em pílula",
-          "description": "Barras de abas totalmente arredondadas, como a navegação do site"
-        }
-      }
     },
     "projectSorting": {
       "label": "Ordenação de projetos",

@@ -2,8 +2,14 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 
-import { createServerControlRouter } from './server-control.routes.js';
+import express from 'express';
+
+import { appConfigDb } from '@/modules/database/index.js';
+import { IS_PLATFORM } from '@/shared/utils.js';
+
+import { createServerControlRouter, createServerSettingsRouter } from './server-control.routes.js';
 import { createServerControlService, readServerControlTarget } from './server-control.service.js';
+import { createServerSettingsService, getAppliedServerSettings } from './server-settings.js';
 
 const OUTPUT_LIMIT = 256 * 1024;
 
@@ -41,12 +47,25 @@ delete process.env.CLOUDCLI_SERVER_CONTROL_DIR;
 delete process.env.CLOUDCLI_SERVER_CONTROL_CONFIG;
 delete process.env.CLOUDCLI_SERVER_CONTROL_INSTANCE;
 
+const controlTarget = target && fs.existsSync(target.scriptsDir) ? target : null;
+
 /** Server-control router for the server entrypoint (mounted behind authentication). */
-export const serverControlRoutes = createServerControlRouter(
+export const serverControlRoutes = express.Router();
+
+// Server switches (Settings > MobileUI); available whether or not the scripts started this server.
+serverControlRoutes.use('/settings', createServerSettingsRouter(createServerSettingsService({
+  store: appConfigDb,
+  getApplied: () => getAppliedServerSettings(),
+  instance: target?.instance ?? null,
+  isPlatform: IS_PLATFORM,
+  log: (message) => console.log(message),
+})));
+
+serverControlRoutes.use(createServerControlRouter(
   createServerControlService({
     // A folder that no longer exists (e.g. a deleted clone) means nothing can be controlled.
-    target: target && fs.existsSync(target.scriptsDir) ? target : null,
+    target: controlTarget,
     platform: process.platform,
     runScript,
   }),
-);
+));

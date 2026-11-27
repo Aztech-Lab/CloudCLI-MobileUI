@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '@/modules/i18n';
+import '@/shared/mobileUiI18n';
 import SettingsSidebar from '@/modules/settings/SettingsSidebar';
 import { useServerControl } from '@/modules/settings/hooks/useServerControl';
 import ServerSettingsTab from '@/modules/settings/tabs/ServerSettingsTab';
@@ -78,7 +79,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('Settings > Server', () => {
+describe('Settings > MobileUI > Server', () => {
   it('says so when the server was not started by the scripts', async () => {
     managed = false;
     render(<Harness />);
@@ -133,10 +134,9 @@ describe('Settings > Server', () => {
     expect(await screen.findByText(/Task Manager > Startup apps/)).toBeTruthy();
   });
 
-  it('the sidebar leaves out hidden tabs', () => {
-    render(<SettingsSidebar activeTab="agents" onChange={() => undefined} hiddenTabs={['server']} />);
-    expect(screen.queryAllByText('Server')).toHaveLength(0);
+  it('the sidebar offers MobileUI instead of a separate Server tab', () => {
     render(<SettingsSidebar activeTab="agents" onChange={() => undefined} />);
-    expect(screen.queryAllByText('Server').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('Server')).toHaveLength(0);
+    expect(screen.queryAllByText('MobileUI').length).toBeGreaterThan(0);
   });
 });

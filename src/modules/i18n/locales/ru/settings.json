@@ -59,8 +59,6 @@
     "darkMode": "Темная тема",
     "showRawParameters": "Показывать сырые параметры",
     "showThinking": "Показывать размышления",
-    "autoExpandThinking": "Автоматически раскрывать размышления",
-    "autoExpandThinkingDescription": "Блоки размышлений открыты по умолчанию, в том числе во время потоковой передачи. Любой блок можно свернуть вручную.",
     "sendByCtrlEnter": "Отправка по Ctrl+Enter",
     "sendByCtrlEnterDescription": "Когда включено, нажатие Ctrl+Enter будет отправлять сообщение вместо просто Enter. Это полезно для пользователей IME, чтобы избежать случайной отправки.",
     "dragHandle": {
@@ -209,69 +207,6 @@
       "light": "Светлая",
       "dark": "Тёмная",
       "system": "Как в системе"
-    },
-    "skin": {
-      "label": "Skin",
-      "description": "The visual style of the interface; light and dark work with every skin",
-      "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners",
-      "aztecan": "Aztecan — почти чёрный, циан, стекло"
-    },
-    "skinOptions": {
-      "otsr": {
-        "dotField": {
-          "label": "Dot field",
-          "description": "The dotted texture behind the conversation",
-          "off": "Off",
-          "faint": "Faint",
-          "normal": "Normal",
-          "strong": "Strong"
-        },
-        "chamfers": {
-          "label": "Chamfered edges",
-          "description": "Cut corners on the tab strip, the composer and your messages"
-        },
-        "monoLabels": {
-          "label": "Monospace tab labels",
-          "description": "Uppercase instrument-style labels on the workspace tabs"
-        },
-        "squareMarks": {
-          "label": "Square status marks",
-          "description": "Square instead of round status indicators"
-        }
-      },
-      "aztecan": {
-        "stars": {
-          "label": "Звёздное поле",
-          "description": "Звёзды, медленно плывущие за стеклянными панелями",
-          "off": "Выкл.",
-          "still": "Неподвижно",
-          "animated": "Анимация"
-        },
-        "glassContrast": {
-          "label": "Контраст стекла",
-          "description": "Насколько заметно панели и сообщения выделяются на фоне неба",
-          "subtle": "Мягкий",
-          "standard": "Стандартный",
-          "strong": "Сильный",
-          "solid": "Плотный (яркий свет)"
-        },
-        "grid": {
-          "label": "Фоновая сетка",
-          "description": "Тонкая сетка на фоне",
-          "off": "Выкл.",
-          "faint": "Слабая",
-          "normal": "Обычная"
-        },
-        "halo": {
-          "label": "Ореол и свечение",
-          "description": "Мягкий свет сверху экрана и светящиеся точки статуса в тёмной теме"
-        },
-        "pillTabs": {
-          "label": "Вкладки-капсулы",
-          "description": "Полностью скруглённые полосы вкладок, как в навигации сайта"
-        }
-      }
     },
     "projectSorting": {
       "label": "Сортировка проектов",

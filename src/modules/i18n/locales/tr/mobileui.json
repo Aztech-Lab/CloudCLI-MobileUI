@@ -1,0 +1,42 @@
+{
+  "autoExpandThinking": "Düşünmeyi otomatik genişlet",
+  "autoExpandThinkingDescription": "Düşünme blokları varsayılan olarak açık gösterilir, akış sırasında da. Bir bloğu yine elle daraltabilirsiniz.",
+  "skin": {
+    "descriptions": {
+      "aztecan": "Neredeyse siyah, camgöbeği, cam"
+    }
+  },
+  "skinOptions": {
+    "aztecan": {
+      "stars": {
+        "label": "Yıldız alanı",
+        "description": "Cam panellerin arkasında süzülen yıldızlar",
+        "off": "Kapalı",
+        "still": "Sabit",
+        "animated": "Hareketli"
+      },
+      "glassContrast": {
+        "label": "Cam kontrastı",
+        "description": "Paneller ve balonların gökyüzünden ne kadar belirgin ayrıldığı",
+        "subtle": "Hafif",
+        "standard": "Standart",
+        "strong": "Güçlü",
+        "solid": "Opak (parlak ışık)"
+      },
+      "grid": {
+        "label": "Arka plan ızgarası",
+        "description": "Arka plandaki ince ızgara",
+        "off": "Kapalı",
+        "faint": "Soluk"
+      },
+      "halo": {
+        "label": "Hale ve parıltı",
+        "description": "Ekranın üstünden gelen yumuşak bir ışık ve karanlık modda parlayan durum noktaları"
+      },
+      "pillTabs": {
+        "label": "Hap sekmeler",
+        "description": "Web sitesinin gezinmesi gibi tamamen yuvarlatılmış sekme şeritleri"
+      }
+    }
+  }
+}

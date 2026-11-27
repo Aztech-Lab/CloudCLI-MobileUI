@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Load environment variables before other imports execute.
 import './load-env.js';
+// [local] Server switches saved in Settings > MobileUI fill the environment variables the
+// configuration leaves unset. Must stay second, before any module reads them at load time.
+import './modules/server-control/apply-setting-overrides.js';
 import fs, { promises as fsPromises } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -46,7 +49,7 @@ import {
 import providerRoutes from './modules/providers/provider.routes.js';
 import { codexAppServerRuntime } from './modules/providers/list/codex/codex-app-server.runtime.js';
 import { voiceRoutes } from './modules/voice/index.js';
-// [local] Settings > Server: control of a server started by scripts/server/.
+// [local] Settings > MobileUI > Server: control of a server started by scripts/server/.
 import { serverControlRoutes } from './modules/server-control/index.js';
 import {
     closeScheduledMessageDispatcher,
@@ -226,8 +229,9 @@ app.use('/api/agent', parsePublicBody, agentRoutes);
 
 app.use('/api/voice', authenticateToken, parseAuthenticatedBody, voiceRoutes);
 
-// [local] Server status, autostart, restart and stop (protected; Settings > Server)
-app.use('/api/server-control', authenticateToken, serverControlRoutes);
+// [local] Server status, autostart, restart, stop and server switches (protected; Settings > MobileUI).
+// Needs the body parser like every other route since 1.37.10 parses bodies per route.
+app.use('/api/server-control', authenticateToken, parseAuthenticatedBody, serverControlRoutes);
 
 // Serve public files (like api-docs.html)
 app.use(express.static(path.join(APP_ROOT, 'public')));

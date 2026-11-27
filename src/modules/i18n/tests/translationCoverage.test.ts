@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
 import { i18n } from '@/modules/i18n';
+import '@/shared/mobileUiI18n'; // [local] the fork's own namespace, registered from main.tsx
 import zhCNGit from '@/modules/i18n/locales/zh-CN/git.json';
 import zhTWGit from '@/modules/i18n/locales/zh-TW/git.json';
 

@@ -17,6 +17,7 @@ import WorkspaceStateView from '@/modules/project-workspace/WorkspaceStateView';
 import WorkspaceErrorBoundary from '@/modules/project-workspace/WorkspaceErrorBoundary';
 import { useWorkspaceTabs } from '@/modules/project-workspace/hooks/useWorkspaceTabs';
 import { useWorkspaceSwipeNavigation } from '@/modules/project-workspace/hooks/useWorkspaceSwipeNavigation';
+import { useMobileUiPreferences } from '@/shared/mobileUiPreferences';
 
 type WorkspaceMainProps = {
   selectedProject: Project | null;
@@ -141,8 +142,10 @@ function WorkspaceMain({
   const { tabs } = useWorkspaceTabs(shouldShowTasksTab, shouldShowBrowserTab);
   const [swipeContainer, setSwipeContainer] = useState<HTMLDivElement | null>(null);
   const hasWorkspace = !isLoading && Boolean(selectedProject);
+  // [local] Settings > MobileUI can switch the gesture off.
+  const { swipeNavigation } = useMobileUiPreferences();
   useWorkspaceSwipeNavigation({
-    enabled: isMobile,
+    enabled: isMobile && swipeNavigation,
     container: swipeContainer,
     tabIds: hasWorkspace ? tabs.map((tab) => tab.id) : [],
     activeTab,

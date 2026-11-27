@@ -97,7 +97,7 @@ chamfered, …). Options are **declared as data**, in `SKIN_OPTIONS` in `src/sha
 { id: 'chamfers', kind: 'toggle', default: true },
 ```
 
-- The Settings › Appearance › Skin card renders the controls **from the declaration** (a toggle per `toggle`, a
+- The Settings › MobileUI › Look section renders the controls **from the declaration** (a toggle per `toggle`, a
   `<select>` per `select`); no UI code per option. A skin with no options shows no card.
 - Each option is applied as **`data-skin-<kebab-id>="<value>"` on `<html>`** (`dotField` → `data-skin-dot-field`),
   by `SkinProvider` and by the `index.html` boot script. The stylesheet keys on it:
@@ -116,9 +116,11 @@ chamfered, …). Options are **declared as data**, in `SKIN_OPTIONS` in `src/sha
 
 ### i18n
 
-Labels live in `src/modules/i18n/locales/<locale>/settings.json` under `appearanceSettings`:
+Labels live in the fork's own namespace, `src/modules/i18n/locales/<locale>/mobileui.json` (registered by
+`src/shared/mobileUiI18n.ts`):
 
-- `skin.<id>` — the skin's name in the Skin select (`skin.label` / `skin.description` are the select's own).
+- `skin.names.<id>` and `skin.descriptions.<id>` — the skin's card in Settings › MobileUI › Look (`skin.label` /
+  `skin.description` describe the card group).
 - `skinOptions.<skin>.<option>.label`, `.description`, and one key per select choice value
   (`skinOptions.otsr.dotField.faint`).
 
@@ -133,8 +135,8 @@ the key. Translate at least `en`, `zh-CN` and `zh-TW`.
    stable hooks (`role="tablist"`, `.chat-composer-shell`, `.chat-messages-pane`, …).
 3. `src/main.tsx`: `import '@/skins/<id>.css'` after `index.css`.
 4. `src/shared/skinOptions.ts`: add `SKIN_OPTIONS.<id>` (an empty array if the skin has no options).
-5. `src/modules/i18n/locales/*/settings.json`: `appearanceSettings.skin.<id>` and, if there are options,
-   `appearanceSettings.skinOptions.<id>.*`.
+5. `src/modules/i18n/locales/*/mobileui.json` (the fork's own namespace): `skin.names.<id>`, `skin.descriptions.<id>` and, if there are options,
+   `skinOptions.<id>.*`.
 6. Check contrast: run the components' real text/background pairs through the skin's resolved tokens (the OTSR
    skin did this; copper as text and white-on-copper both needed darker shades than the source design uses).
 7. Verify the default skin is untouched: build, strip the `[data-skin…]` rules from the output, and set-diff the

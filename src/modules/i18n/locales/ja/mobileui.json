@@ -1,0 +1,43 @@
+{
+  "autoExpandThinking": "思考を自動で展開",
+  "autoExpandThinkingDescription": "思考ブロックを最初から開いて表示します（ストリーミング中も含む）。個別に手動で閉じることもできます。",
+  "skin": {
+    "descriptions": {
+      "aztecan": "漆黒、シアン、ガラス"
+    }
+  },
+  "skinOptions": {
+    "aztecan": {
+      "stars": {
+        "label": "星空",
+        "description": "ガラスパネルの背後でゆっくり漂う星",
+        "off": "オフ",
+        "still": "静止",
+        "animated": "アニメーション"
+      },
+      "glassContrast": {
+        "label": "ガラスのコントラスト",
+        "description": "パネルや吹き出しが星空からどれだけはっきり浮かぶか",
+        "subtle": "控えめ",
+        "standard": "標準",
+        "strong": "強め",
+        "solid": "ソリッド（明るい場所向け）"
+      },
+      "grid": {
+        "label": "背景グリッド",
+        "description": "背景の細いグリッド",
+        "off": "オフ",
+        "faint": "淡い",
+        "normal": "標準"
+      },
+      "halo": {
+        "label": "ハローとグロー",
+        "description": "画面上部の柔らかな光と、ダークモードで光るステータスドット"
+      },
+      "pillTabs": {
+        "label": "ピル型タブ",
+        "description": "Web サイトのナビゲーションのように、タブ列を完全な角丸にします"
+      }
+    }
+  }
+}

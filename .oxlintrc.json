@@ -103,7 +103,10 @@
           "src/shared/assistantBubble.ts",
           "src/shared/skin.ts",
           "src/shared/skinOptions.ts",
-          "src/shared/aztecanStarfield.ts"
+          "src/shared/aztecanStarfield.ts",
+          "src/shared/mobileUiI18n.ts",
+          "src/shared/showIgnoredFiles.ts",
+          "src/shared/mobileUiPreferences.ts"
         ],
         "mode": "file"
       },

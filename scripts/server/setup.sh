@@ -156,5 +156,5 @@ fi
 step 'Done'
 echo "Open http://127.0.0.1:$PORT on this computer and create your account (the first one is the only one)."
 [ -n "$CFG_ALLOW" ] && echo "Other devices on $CFG_ALLOW use http://<this computer's address>:$PORT - create the account first."
-echo "Manage it with the scripts in $SCRIPT_DIR (status, restart, stop, autostart), or in Settings > Server."
+echo "Manage it with the scripts in $SCRIPT_DIR (status, restart, stop, autostart), or in Settings > MobileUI > Server."
 exit 0

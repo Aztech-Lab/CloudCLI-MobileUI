@@ -24,6 +24,8 @@ export type UserPreferences = {
   skinOptions: unknown;
   /** [local] How the agent's spoken replies are framed; see src/shared/assistantBubble.ts. */
   assistantBubble: string;
+  /** [local] Phone and navigation switches of Settings > MobileUI; see src/shared/mobileUiPreferences.ts. */
+  mobileUi: unknown;
   userLanguage: string;
   tasksEnabled: boolean;
   projectSortOrder: 'name' | 'date';
@@ -65,6 +67,7 @@ const LEGACY_STORAGE_KEYS: Record<UserPreferenceKey, string> = {
   skin: 'skin',
   skinOptions: 'skinOptions',
   assistantBubble: 'assistantBubble',
+  mobileUi: 'mobileUi',
   userLanguage: 'userLanguage',
   tasksEnabled: 'tasks-enabled',
   projectSortOrder: 'claude-settings',

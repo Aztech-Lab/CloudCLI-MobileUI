@@ -1,8 +1,9 @@
-// [local] Settings > Server: status and control of a server started by scripts/server/.
+// [local] Settings > MobileUI > Server: status and control of a server started by scripts/server/.
+import type { TFunction } from 'i18next';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api, readApiJson } from '@/shared/api';
-import type { ServerControlStatus } from '@/shared/types';
+import type { ServerActiveWork, ServerControlStatus } from '@/shared/types';
 
 type ServerControlOverview =
   | { managed: false }
@@ -136,4 +137,33 @@ export function useServerControl({ isOpen, isActive }: UseServerControlArgs) {
     restart,
     stop,
   };
+}
+
+export function hasWork(work: ServerActiveWork | null): work is ServerActiveWork {
+  return Boolean(work && (work.turns > 0 || work.backgroundSessions > 0 || work.backgroundTasks > 0));
+}
+
+export function describeActiveWork(t: TFunction, work: ServerActiveWork): string {
+  return t('serverSettings.activeWorkValue', {
+    turns: work.turns,
+    sessions: work.backgroundSessions,
+    tasks: work.backgroundTasks,
+  });
+}
+
+/**
+ * Asks before a restart or stop, with the latest running-work counts (work may have
+ * started since the last refresh). Also used by the server switches' "Restart now".
+ */
+export async function confirmServerAction(
+  serverControl: ReturnType<typeof useServerControl>,
+  action: 'restart' | 'stop',
+  t: TFunction,
+): Promise<boolean> {
+  const latest = await serverControl.refresh();
+  const fallback = serverControl.overview?.managed ? serverControl.overview.status.activeWork : null;
+  const work = latest?.managed ? latest.status.activeWork : fallback;
+  const lines = [t(action === 'restart' ? 'serverSettings.confirmRestart' : 'serverSettings.confirmStop')];
+  if (hasWork(work)) lines.push(t('serverSettings.confirmWork', { work: describeActiveWork(t, work) }));
+  return window.confirm(lines.join('\n\n'));
 }

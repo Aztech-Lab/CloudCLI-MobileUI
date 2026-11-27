@@ -1,0 +1,40 @@
+{
+  "autoExpandThinking": "Denken automatisch aufklappen",
+  "autoExpandThinkingDescription": "Denkblöcke standardmäßig geöffnet anzeigen, auch während sie gestreamt werden. Einzelne Blöcke lassen sich weiterhin zuklappen.",
+  "skin": {
+    "descriptions": {
+      "aztecan": "Fast-Schwarz, Cyan, Glas"
+    }
+  },
+  "skinOptions": {
+    "aztecan": {
+      "stars": {
+        "label": "Sternenfeld",
+        "description": "Langsam treibende Sterne hinter den Glasflächen",
+        "off": "Aus",
+        "animated": "Animiert"
+      },
+      "glassContrast": {
+        "label": "Glaskontrast",
+        "description": "Wie deutlich sich Flächen und Sprechblasen vom Sternenhimmel abheben",
+        "subtle": "Dezent",
+        "strong": "Stark",
+        "solid": "Massiv (helles Licht)"
+      },
+      "grid": {
+        "label": "Hintergrundraster",
+        "description": "Das feine Raster im Hintergrund",
+        "off": "Aus",
+        "faint": "Schwach"
+      },
+      "halo": {
+        "label": "Lichtschein",
+        "description": "Ein weiches Licht vom oberen Bildschirmrand und leuchtende Statuspunkte im dunklen Modus"
+      },
+      "pillTabs": {
+        "label": "Pillen-Tabs",
+        "description": "Vollständig abgerundete Tab-Leisten, wie die Navigation der Website"
+      }
+    }
+  }
+}

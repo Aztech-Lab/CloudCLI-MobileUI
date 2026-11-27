@@ -1,0 +1,42 @@
+{
+  "autoExpandThinking": "Déplier la réflexion automatiquement",
+  "autoExpandThinkingDescription": "Ouvrir les blocs de réflexion par défaut, y compris pendant leur diffusion. Vous pouvez toujours replier un bloc vous-même.",
+  "skin": {
+    "descriptions": {
+      "aztecan": "Quasi-noir, cyan, verre"
+    }
+  },
+  "skinOptions": {
+    "aztecan": {
+      "stars": {
+        "label": "Champ d’étoiles",
+        "description": "Des étoiles qui dérivent derrière les panneaux de verre",
+        "off": "Désactivé",
+        "still": "Fixe",
+        "animated": "Animé"
+      },
+      "glassContrast": {
+        "label": "Contraste du verre",
+        "description": "À quel point les panneaux et les bulles se détachent du ciel",
+        "subtle": "Discret",
+        "strong": "Fort",
+        "solid": "Opaque (forte lumière)"
+      },
+      "grid": {
+        "label": "Grille de fond",
+        "description": "La grille fine en arrière-plan",
+        "off": "Désactivée",
+        "faint": "Légère",
+        "normal": "Normale"
+      },
+      "halo": {
+        "label": "Halo et lueur",
+        "description": "Une lumière douce venue du haut de l’écran et des points d’état lumineux en mode sombre"
+      },
+      "pillTabs": {
+        "label": "Onglets en pilule",
+        "description": "Barres d’onglets entièrement arrondies, comme la navigation du site web"
+      }
+    }
+  }
+}

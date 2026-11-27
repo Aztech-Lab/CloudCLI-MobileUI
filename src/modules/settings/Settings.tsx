@@ -15,12 +15,11 @@ import NotificationsSettingsTab from '@/modules/settings/tabs/NotificationsSetti
 import TasksSettingsTab from '@/modules/settings/tabs/tasks-settings/TasksSettingsTab';
 import { PluginSettingsTab } from '@/modules/plugins';
 import AboutTab from '@/modules/settings/tabs/AboutTab';
-// [local] Settings > Server (only for a server started by scripts/server/)
-import ServerSettingsTab from '@/modules/settings/tabs/ServerSettingsTab';
-import { useServerControl } from '@/modules/settings/hooks/useServerControl';
+// [local] Settings > MobileUI: everything this edition adds, in one tab.
+import MobileUiSettingsTab from '@/modules/settings/tabs/mobileui-settings/MobileUiSettingsTab';
 import { useSettingsController } from '@/modules/settings/hooks/useSettingsController';
 import { useWebPush } from '@/modules/settings/hooks/useWebPush';
-import type { AgentSettingsProject, SettingsMainTab } from '@/shared/types';
+import type { AgentSettingsProject } from '@/shared/types';
 
 type SettingsProps = {
   isOpen: boolean;
@@ -28,9 +27,6 @@ type SettingsProps = {
   projects?: AgentSettingsProject[];
   initialTab?: string;
 };
-
-// [local] The Server tab is hidden unless the server was started by scripts/server/.
-const HIDDEN_WITHOUT_SERVER_CONTROL: SettingsMainTab[] = ['server'];
 
 type DesktopNotificationsState = {
   enabled: boolean;
@@ -75,9 +71,6 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }: Set
     isOpen,
     initialTab
   });
-
-  // [local] Loaded when Settings opens, to know whether the Server tab exists.
-  const serverControl = useServerControl({ isOpen, isActive: activeTab === 'server' });
 
   const {
     permission: pushPermission,
@@ -224,11 +217,7 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }: Set
 
         {/* Body: sidebar + content */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
-          <SettingsSidebar
-            activeTab={activeTab}
-            onChange={setActiveTab}
-            hiddenTabs={serverControl.managed ? undefined : HIDDEN_WITHOUT_SERVER_CONTROL}
-          />
+          <SettingsSidebar activeTab={activeTab} onChange={setActiveTab} />
 
           {/* Content */}
           <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
@@ -287,7 +276,8 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }: Set
 
               {activeTab === 'plugins' && <PluginSettingsTab />}
 
-              {activeTab === 'server' && <ServerSettingsTab serverControl={serverControl} />}
+              {/* [local] */}
+              {activeTab === 'mobileui' && <MobileUiSettingsTab initialTab={initialTab} />}
 
               {activeTab === 'about' && <AboutTab />}
             </div>

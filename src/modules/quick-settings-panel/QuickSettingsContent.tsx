@@ -40,7 +40,7 @@ const TOOL_DISPLAY_TOGGLES: PreferenceToggleItem[] = [
   // [local] Thinking blocks start open; only meaningful while thinking is shown.
   {
     key: 'autoExpandThinking',
-    labelKey: 'quickSettings.autoExpandThinking',
+    labelKey: 'mobileui:autoExpandThinking',
     icon: ChevronsUpDown,
     dependsOn: 'showThinking',
   },

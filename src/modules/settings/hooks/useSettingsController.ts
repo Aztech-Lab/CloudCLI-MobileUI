@@ -54,13 +54,17 @@ type NotificationPreferencesResponse = {
 
 type ActiveLoginProvider = AgentProvider | '';
 
-// [local] 'server' added (Settings > Server).
-const KNOWN_MAIN_TABS: SettingsMainTab[] = ['agents', 'appearance', 'git', 'api', 'tasks', 'browser', 'notifications', 'plugins', 'server', 'about'];
+// [local] 'mobileui' added (Settings > MobileUI).
+const KNOWN_MAIN_TABS: SettingsMainTab[] = ['agents', 'appearance', 'git', 'api', 'tasks', 'browser', 'notifications', 'plugins', 'mobileui', 'about'];
 
 const normalizeMainTab = (tab: string): SettingsMainTab => {
   // Keep backwards compatibility with older callers that still pass "tools".
   if (tab === 'tools') {
     return 'agents';
+  }
+  // [local] The former Server tab is a section of Settings > MobileUI now.
+  if (tab === 'server') {
+    return 'mobileui';
   }
 
   return KNOWN_MAIN_TABS.includes(tab as SettingsMainTab) ? (tab as SettingsMainTab) : 'agents';

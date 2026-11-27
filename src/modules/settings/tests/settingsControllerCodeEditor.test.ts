@@ -204,3 +204,13 @@ test('two edits in one batch both survive', async () => {
   assert.equal(result.current.codeEditorSettings.fontSize, '20');
   assert.equal(result.current.codeEditorSettings.wordWrap, true);
 });
+
+// [local] The former Settings > Server tab is a section of Settings > MobileUI now; old
+// links that still ask for 'server' land there.
+test('a request for the old server tab opens the MobileUI tab', async () => {
+  const { useSettingsController } = await import('@/modules/settings/hooks/useSettingsController');
+  const { result } = renderHook(() => useSettingsController({ isOpen: true, initialTab: 'server' }));
+  await waitFor(() => {
+    assert.equal(result.current.activeTab, 'mobileui');
+  });
+});

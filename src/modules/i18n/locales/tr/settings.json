@@ -75,8 +75,6 @@
     "darkMode": "Koyu Mod",
     "showRawParameters": "Ham parametreleri göster",
     "showThinking": "Düşünmeyi göster",
-    "autoExpandThinking": "Düşünmeyi otomatik genişlet",
-    "autoExpandThinkingDescription": "Düşünme blokları varsayılan olarak açık gösterilir, akış sırasında da. Bir bloğu yine elle daraltabilirsiniz.",
     "sendByCtrlEnter": "Ctrl+Enter ile gönder",
     "voiceEnabled": "Ses (mikrofon + sesli okuma)",
     "sendByCtrlEnterDescription": "Etkinleştirildiğinde, Ctrl+Enter'a basmak yalnız Enter yerine mesajı gönderir. IME (girdi metot düzenleyici) kullananlar için yanlışlıkla göndermeyi önler.",
@@ -236,69 +234,6 @@
       "light": "Açık",
       "dark": "Koyu",
       "system": "Sistem görünümünü izle"
-    },
-    "skin": {
-      "label": "Skin",
-      "description": "The visual style of the interface; light and dark work with every skin",
-      "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners",
-      "aztecan": "Aztecan — neredeyse siyah, camgöbeği, cam"
-    },
-    "skinOptions": {
-      "otsr": {
-        "dotField": {
-          "label": "Dot field",
-          "description": "The dotted texture behind the conversation",
-          "off": "Off",
-          "faint": "Faint",
-          "normal": "Normal",
-          "strong": "Strong"
-        },
-        "chamfers": {
-          "label": "Chamfered edges",
-          "description": "Cut corners on the tab strip, the composer and your messages"
-        },
-        "monoLabels": {
-          "label": "Monospace tab labels",
-          "description": "Uppercase instrument-style labels on the workspace tabs"
-        },
-        "squareMarks": {
-          "label": "Square status marks",
-          "description": "Square instead of round status indicators"
-        }
-      },
-      "aztecan": {
-        "stars": {
-          "label": "Yıldız alanı",
-          "description": "Cam panellerin arkasında süzülen yıldızlar",
-          "off": "Kapalı",
-          "still": "Sabit",
-          "animated": "Hareketli"
-        },
-        "glassContrast": {
-          "label": "Cam kontrastı",
-          "description": "Paneller ve balonların gökyüzünden ne kadar belirgin ayrıldığı",
-          "subtle": "Hafif",
-          "standard": "Standart",
-          "strong": "Güçlü",
-          "solid": "Opak (parlak ışık)"
-        },
-        "grid": {
-          "label": "Arka plan ızgarası",
-          "description": "Arka plandaki ince ızgara",
-          "off": "Kapalı",
-          "faint": "Soluk",
-          "normal": "Normal"
-        },
-        "halo": {
-          "label": "Hale ve parıltı",
-          "description": "Ekranın üstünden gelen yumuşak bir ışık ve karanlık modda parlayan durum noktaları"
-        },
-        "pillTabs": {
-          "label": "Hap sekmeler",
-          "description": "Web sitesinin gezinmesi gibi tamamen yuvarlatılmış sekme şeritleri"
-        }
-      }
     },
     "projectSorting": {
       "label": "Proje Sıralama",

@@ -1,0 +1,43 @@
+{
+  "autoExpandThinking": "הרחבה אוטומטית של החשיבה",
+  "autoExpandThinkingDescription": "בלוקי חשיבה נפתחים כברירת מחדל, גם בזמן הזרמה. עדיין אפשר לכווץ בלוק ידנית.",
+  "skin": {
+    "descriptions": {
+      "aztecan": "כמעט שחור, ציאן, זכוכית"
+    }
+  },
+  "skinOptions": {
+    "aztecan": {
+      "stars": {
+        "label": "שדה כוכבים",
+        "description": "כוכבים שנעים לאט מאחורי לוחות הזכוכית",
+        "off": "כבוי",
+        "still": "סטטי",
+        "animated": "מונפש"
+      },
+      "glassContrast": {
+        "label": "ניגודיות הזכוכית",
+        "description": "עד כמה הלוחות והבועות בולטים על רקע השמיים",
+        "subtle": "עדין",
+        "standard": "רגיל",
+        "strong": "חזק",
+        "solid": "אטום (אור חזק)"
+      },
+      "grid": {
+        "label": "רשת רקע",
+        "description": "הרשת הדקה ברקע",
+        "off": "כבוי",
+        "faint": "עדין",
+        "normal": "רגיל"
+      },
+      "halo": {
+        "label": "הילה וזוהר",
+        "description": "אור רך מראש המסך ונקודות סטטוס זוהרות במצב כהה"
+      },
+      "pillTabs": {
+        "label": "לשוניות גלולה",
+        "description": "פסי לשוניות מעוגלים לחלוטין, כמו הניווט באתר"
+      }
+    }
+  }
+}

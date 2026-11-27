@@ -671,13 +671,16 @@ export const api = {
     update: () => post('/api/system/update'),
   },
 
-  // [local] Settings > Server: a server started by scripts/server/.
+  // [local] Settings > MobileUI > Server: a server started by scripts/server/.
   serverControl: {
     availability: () => get('/api/server-control'),
     status: () => get('/api/server-control/status'),
     setAutostart: (enabled: boolean) => put('/api/server-control/autostart', { enabled }),
     restart: (deploy: boolean) => post('/api/server-control/restart', { deploy }),
     stop: () => post('/api/server-control/stop'),
+    // [local] Server switches of Settings > MobileUI (saved here, applied after a restart).
+    settings: () => get('/api/server-control/settings'),
+    saveSettings: (updates: Record<string, unknown>) => patch('/api/server-control/settings', updates),
   },
 };
 
