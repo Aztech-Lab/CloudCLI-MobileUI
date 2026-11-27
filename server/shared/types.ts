@@ -1723,12 +1723,35 @@ export type FileTreeRootScope = { sessionId: string; root: number };
 /** [local] One entry of the Files tab's root switcher. */
 export type FileTreeWorkspaceRoot = { index: number; name: string; path: string; exists: boolean };
 
+/**
+ * [local] Remembers listings by ETag while a filesystem watch confirms nothing
+ * changed; see `server/modules/file-tree/file-tree.change-tracker.ts`.
+ */
+export type FileTreeChangeTrackerGateway = {
+  arm(rootPath: string): Promise<string | null>;
+  remember(key: string, rootPath: string, token: string, etag: string, stamps: ReadonlyMap<string, string>): void;
+  unchangedEtag(
+    key: string,
+    rootPath: string,
+    candidateEtags: readonly string[],
+    stampOf: (absolutePath: string) => Promise<string | null>,
+  ): Promise<string | null>;
+  invalidateAll(): void;
+};
+
+/** [local] A listing for a conditional request: unchanged, or the serialized tree with its ETag. */
+export type FileTreeListingResult =
+  | { notModified: true; etag: string }
+  | { notModified: false; etag: string; body: string };
+
 export type FileTreeServiceDependencies = {
   fileSystem: FileTreeFileSystem;
   projects: FileTreeProjectGateway;
   workspace: FileTreeWorkspaceGateway;
   /** [local] Optional so a service without session lookups keeps the project root only. */
   sessions?: FileTreeSessionGateway;
+  /** [local] Watches listed folders so an unchanged tree can be confirmed without a walk (file-tree.change-tracker.ts). */
+  changeTracker?: FileTreeChangeTrackerGateway;
   resolveMimeType(filePath: string): string;
   fileSystemConcurrency: number;
   logger: FileTreeLogger;
@@ -1764,6 +1787,17 @@ export type FileTreeServices = {
       scope?: FileTreeRootScope | null;
     },
   ): Promise<FileTreeNode[]>;
+  /**
+   * [local] `listProjectFiles` for a conditional request: answers
+   * `notModified` when the listing still has one of `candidateEtags`, without
+   * walking the folder when a filesystem watch vouches for it. Optional so
+   * services without it keep the plain listing.
+   */
+  listProjectFilesIfChanged?(
+    projectId: string,
+    options: Parameters<FileTreeServices['listProjectFiles']>[1],
+    candidateEtags: readonly string[],
+  ): Promise<FileTreeListingResult>;
   /** [local] The roots the Files tab can switch between for one session. */
   listWorkspaceRoots(projectId: string, sessionId: string | null): Promise<{ roots: FileTreeWorkspaceRoot[] }>;
   createEntry(input: {

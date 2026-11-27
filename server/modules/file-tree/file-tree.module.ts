@@ -6,6 +6,7 @@ import mime from 'mime-types';
 import multer from 'multer';
 
 import { projectsDb, sessionsDb } from '@/modules/database/index.js';
+import { createFileSystemChangeTracker } from '@/modules/file-tree/file-tree.change-tracker.js';
 import { createFileTreeRouter } from '@/modules/file-tree/file-tree.routes.js';
 import { createFileTreeService } from '@/modules/file-tree/file-tree.service.js';
 import type {
@@ -112,11 +113,37 @@ const fileTreeLogger: FileTreeLogger = {
   error: (message, error) => console.error(message, error),
 };
 
+/**
+ * [local] How long a listing confirmed by a filesystem watch is answered
+ * without walking the folder again (CLOUDCLI_FILE_TREE_WATCH_MAX_AGE_MS, 0 turns
+ * the watches off). Bounded because a file growing through a handle that stays
+ * open (a log being written) changes size without a watch event on Windows.
+ */
+function readWatchMaxAge(): number {
+  const configured = Number.parseInt(process.env.CLOUDCLI_FILE_TREE_WATCH_MAX_AGE_MS ?? '', 10);
+  return Number.isFinite(configured) && configured >= 0 ? configured : 2 * 60 * 1000;
+}
+
+/**
+ * [local] Recursive watches are native (one handle per folder) on Windows and
+ * macOS. Elsewhere Node emulates them by walking the tree and watching every
+ * directory, which misses changes until the walk is done; there the ETag is
+ * still checked, but always after walking the folder.
+ */
+function createFileTreeWatchTracker() {
+  const maxSnapshotAgeMs = readWatchMaxAge();
+  if (maxSnapshotAgeMs === 0 || (process.platform !== 'win32' && process.platform !== 'darwin')) {
+    return undefined;
+  }
+  return createFileSystemChangeTracker(maxSnapshotAgeMs);
+}
+
 const fileTreeServices = createFileTreeService({
   fileSystem: fileTreeFileSystem,
   projects: fileTreeProjects,
   workspace: fileTreeWorkspace,
   sessions: fileTreeSessions,
+  changeTracker: createFileTreeWatchTracker(),
   resolveMimeType: (filePath) => mime.lookup(filePath) || 'application/octet-stream',
   fileSystemConcurrency: readFileSystemConcurrency(),
   logger: fileTreeLogger,
