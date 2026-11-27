@@ -28,9 +28,10 @@ afterEach(() => {
 });
 
 describe('skin ids', () => {
-  it('knows the default and the OTSR skin, nothing else', () => {
-    expect(SKIN_IDS).toEqual(['default', 'otsr']);
+  it('knows the default, OTSR and Aztecan skins, nothing else', () => {
+    expect(SKIN_IDS).toEqual(['default', 'otsr', 'aztecan']);
     expect(isSkinId('otsr')).toBe(true);
+    expect(isSkinId('aztecan')).toBe(true);
     expect(isSkinId('neon')).toBe(false);
     expect(isSkinId(null)).toBe(false);
   });
@@ -46,6 +47,8 @@ describe('skin ids', () => {
   it('applies a skin as a document attribute and removes it for the default', () => {
     applySkin('otsr');
     expect(skinAttribute()).toBe('otsr');
+    applySkin('aztecan');
+    expect(skinAttribute()).toBe('aztecan');
     applySkin('default');
     expect(skinAttribute()).toBeNull();
   });

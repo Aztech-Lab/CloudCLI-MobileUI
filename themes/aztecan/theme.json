@@ -1,0 +1,102 @@
+{
+  "name": "Aztecan",
+  "id": "aztecan",
+  "version": "1.0.0",
+  "source": "https://aztecan.net/ (styles.bundle.css: shared/design.css and styles.css; shared/particles.js), read 2026-11-25",
+  "summary": "A starfield under a white halo, frosted glass panels floating over it with lit hairline edges, a cyan signal with mint and violet beside it; Inter; 8px panels, pill-shaped controls; a fine 80px grid that fades at the edges.",
+  "modes": ["dark", "light"],
+  "_modes": "The site is dark only. Its design system names a white sister site (the team portal) that shares type and shape but not colour; that portal is not public. The light values below are derived, and every derived value says so in its role.",
+
+  "color": {
+    "_note": "Hex sRGB. A fill tone is for areas, strokes and marks; a text tone is the same hue at >= 4.5:1 on surface.base and surface.raised. Translucent site values are also given flattened over surface.base.",
+    "surface": {
+      "base":    { "light": "#f5f5f7", "dark": "#08080b", "role": "page. Dark: the site's --bg #030305 lifted off pure black (halation, large black areas). Light (derived): the site's --text, so the light base is the dark ink" },
+      "sunken":  { "light": "#ebebef", "dark": "#141417", "role": "inputs, secondary areas. Dark: white 4.5% on base (.secondary-action rgba(255,255,255,.045))" },
+      "raised":  { "light": "#ffffff", "dark": "#0e0e12", "role": "panels, cards. Dark: --panel rgba(18,18,22,.72) flattened on base" },
+      "overlay": { "light": "#ffffff", "dark": "#0d0e13", "role": "menus, popovers. Dark: the mobile menu rgba(13,14,19,.97)" },
+      "hover":   { "light": "#e8edf7", "dark": "#1b1b1e", "role": "hover fill. Dark: .nav a:hover, white 8% on base. Light (derived): the site's --accent silver" },
+      "glass":   { "light": "rgba(246,246,249,0.6)", "dark": "rgba(19,19,22,0.5)", "filter": { "light": "blur(32px) saturate(180%)", "dark": "blur(32px) saturate(180%) brightness(0.8)" }, "strong": { "light": "rgba(246,246,249,0.72) over blur(40px) saturate(180%)", "dark": "rgba(19,19,22,0.62) over blur(40px) saturate(160%) brightness(0.65)" }, "shadow": { "light": "0 16px 44px rgba(20,30,60,0.12)", "dark": "0 16px 48px rgba(0,0,0,0.4)" }, "role": "borderless frosted glass, modelled on the header view switcher (a pill of --muted at 50% over blurred content): a translucent neutral fill over a hard blur, a soft drop shadow, no border, rim or inner highlight. Strong for dialogs, menus and side panels over the app itself" },
+      "glassCard": { "light": "rgba(246,246,249,0.6)", "dark": "rgba(19,19,22,0.5)", "filter": "blur(24px) saturate(180%), plus brightness(0.8) in dark", "shadow": { "light": "0 6px 20px rgba(20,30,60,0.08)", "dark": "0 8px 24px rgba(0,0,0,0.28)" }, "role": "message bubbles and cards: glass tiles with their own blur and a small soft shadow, no edge" }
+    },
+    "ink": {
+      "text":    { "light": "#0b0b0f", "dark": "#ebebef", "role": "body and headings. Dark: the site's --text #f5f5f7 capped against halation; >= 9:1 and Lc >= 87 on every surface" },
+      "muted":   { "light": "#4f4f58", "dark": "#c6c6ce", "role": "secondary text. Dark: the site's --muted #a1a1aa raised to Lc >= 60 on the glass; light >= 6.9:1, Lc >= 77" },
+      "soft":    { "light": "#5c5c66", "dark": "#b4b4be", "role": "fine print, dates, placeholders in dark. The site's --soft #72727c raised to >= 5.3:1, Lc >= 54" },
+      "softText":{ "light": "#6a6a74", "dark": "#b4b4be", "role": "placeholders and icons (light gray-400): >= 5:1, Lc >= 72" }
+    },
+    "line": {
+      "default": { "light": "#dcdce2", "dark": "rgba(255,255,255,0.11)", "flat": { "dark": "#1f1f22" }, "role": "hairlines, panel edges. Dark: --line" },
+      "bright":  { "light": "#8a8a94", "dark": "#8a8a94", "role": "the --input token. In the borderless look no control draws it at rest: fields are a fill (white 10% / ink 6%), toggles a filled track (white 20% / ink 16%), and focus a 2px --ring" }
+    },
+    "primary": {
+      "fill":    { "light": "#111114", "dark": "#e8edf7", "role": "the primary action. Dark: .primary-action, a white pill (linear-gradient #ffffff to #c9cbd1) with a white glow; flattened to --accent #e8edf7. Light (derived): inverted to near-black" },
+      "onFill":  { "light": "#f5f5f7", "dark": "#050507", "role": "label on the primary fill. Dark: .primary-action color" }
+    },
+    "signal": {
+      "_note": "Cyan is the one colour that means 'look here': focus outlines, links, meta labels, range accents. Mint and violet are secondary accents used sparingly (status, a third series).",
+      "cyan":      { "light": "#76d8ff", "dark": "#76d8ff", "role": "accent fill and strokes. --cyan. In light mode only for marks and strokes, never under or as text" },
+      "cyanText":  { "light": "#0a6f9c", "dark": "#76d8ff", "role": "cyan carrying text, or under white text. Light (derived): 5.6:1 on white, 5.1:1 on base" },
+      "cyanBright":{ "light": "#0a78a8", "dark": "#a6e6ff", "role": "hover on a cyan fill; bright-blue ANSI slot" },
+      "onCyan":    { "light": "#ffffff", "dark": "#050507", "role": "text on a cyan fill: dark letters on the pale dark-mode cyan (12.6:1), as the site puts dark letters on its light pill" },
+      "mint":      { "light": "#0d7a4f", "dark": "#94f0c3", "role": "ok, running, success. --green. Light (derived): 5.4:1 on white" },
+      "violet":    { "light": null, "dark": "#b9a8ff", "role": "a third accent (background work). --violet. Light: no derived value yet; the host's own purple stays" },
+      "halo":      { "light": "rgba(118,216,255,0.14)", "dark": "rgba(255,255,255,0.12)", "role": "radial light at the top of the stage: radial-gradient(circle at 50% 0%, halo, transparent 27rem). Light (derived): a cyan tint, because white on white does not show" }
+    },
+    "status": {
+      "ok":      { "light": "#0d7a4f", "dark": "#94f0c3", "role": "signal.mint; dots glow in dark: box-shadow 0 0 18px rgba(148,240,195,.55)" },
+      "danger":  { "light": "#c62828", "dark": "#ff8a8a", "role": "error. Dark: between the site's error text #ffb4b4 and a red that still reads as a fill; dark letters on it (9:1)" },
+      "dangerText": { "light": "#c62828", "dark": "#ffb4b4", "role": "error text. Dark: .az-fsr-error" }
+    },
+    "texture": {
+      "grid": { "light": ["rgba(11,11,15,0.06)", "rgba(11,11,15,0.045)"], "dark": ["rgba(255,255,255,0.035)", "rgba(255,255,255,0.025)"], "size": "80px", "role": "horizontal then vertical 1px lines (body::before), masked to fade: transparent, black 18%, black 68%, transparent. Light (derived): about double the alpha, because dark lines on white read weaker" },
+      "particles": { "dark": { "dot": "rgba(255,255,255,0.42)", "line": "rgba(255,255,255,0.09)" }, "role": "the site: a drifting particle field on a canvas at 58% opacity (shared/particles.js): min(90, max(42, width/18)) dots of radius 0.4 to 2px, speed up to 0.11px a frame, lines between dots closer than 120px, drawn towards the pointer" },
+      "stars": { "light": { "dot": "rgba(48,60,100,0.42)", "bright": "rgba(10,111,156,0.5)" }, "dark": { "dot": "rgba(223,230,242,0.92)", "bright": "rgba(232,238,248,0.95)" }, "density": "one star per 3,400 px^2 (4,200 on phones)", "tiers": "dust 55% (r 0.45-0.7, a 0.35-0.6), small 28% (r 0.7-1, a 0.55-0.8), medium 12% (r 1-1.35, a 0.75-0.95), bright 5% (r 1.3-1.8 with a glow of 5r)", "role": "a random sky on every load: masks generated once, twinkle groups of 4.5-11s with their own phase, a drift of about 50px over 160s, a shooting star every 26-48s. Blue-white, never pure white" },
+      "glows": { "light": ["rgba(118,216,255,0.3)", "rgba(185,168,255,0.26)", "rgba(148,240,195,0.24)"], "dark": ["rgba(118,216,255,0.26)", "rgba(185,168,255,0.24)", "rgba(148,240,195,0.18)"], "role": "nebula: three large soft blobs (30x24rem at 14% 42%, 32x26rem at 80% 60%, 28x20rem at 46% 104%) from the site's console glows; they give the glass something to frost" }
+    },
+    "shadow": {
+      "float": { "light": "0 24px 64px rgba(11,11,15,0.14)", "dark": "0 32px 90px rgba(0,0,0,0.52)", "role": "floating layers. Dark: --shadow" },
+      "card":  { "dark": "inset 0 1px 0 rgba(255,255,255,.26), inset 0 -1px 0 rgba(255,255,255,.06), 0 10px 24px rgba(0,0,0,.32), 0 30px 70px rgba(0,0,0,.45)", "role": "the glass card (.update-card): a lit top edge plus two drop shadows" },
+      "dialog":{ "dark": "inset 0 1px 0 rgba(255,255,255,.16), 0 40px 100px rgba(0,0,0,.6)", "role": ".reader-panel" }
+    },
+    "chrome": { "light": "#f5f5f7", "dark": "#030305", "role": "browser theme-color: the base surface" }
+  },
+
+  "type": {
+    "sans": "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    "mono": "\"SF Mono\", Consolas, monospace",
+    "serif": "none: use sans",
+    "webFonts": "The site names Inter first but does not load it, so most visitors see their system UI font. Inter is OFL (Google Fonts); a target may load it to get the intended face.",
+    "headings": { "h1": "clamp(42px, 6.2vw, 72px) / 0.98, weight 760, letter-spacing 0", "h2": "clamp(32px, 5vw, 58px) / 1.05, weight 740", "h3": "20px" },
+    "body": { "size": "16px", "lead": "18px / 1.78, ink.muted", "paragraph": "line-height 1.75, ink.muted" },
+    "eyebrow": { "size": "12px", "weight": 700, "letterSpacing": "0.12em", "transform": "uppercase", "color": "ink.muted", "role": "section labels above headings; meta labels are 11.5px, cyan" },
+    "nav": { "size": "13px", "color": "ink.muted", "role": "navigation links; ink.text on hover" },
+    "button": { "size": "14px", "weight": 650 }
+  },
+
+  "shape": {
+    "radius": { "panel": "8px", "card": "10px to 12px", "floatingCard": "18px", "dialog": "22px", "pill": "999px" },
+    "_note": "Containers are softly rounded (8px); controls are pills: buttons, the navigation track and its links, chips. Icons sit in 1px-ringed circles.",
+    "border": { "width": "1px", "color": "line.default; line.bright on hover" }
+  },
+
+  "space": {
+    "control": { "height": "44px", "paddingX": "20px" },
+    "gutter": { "desktop": "20px", "phone": "14px" },
+    "breakpoints": ["1080px", "960px", "640px"]
+  },
+
+  "effects": {
+    "focus": "outline 2px signal.cyan, offset 4px",
+    "link": "signal.cyan, underlined, offset 3px",
+    "hover": "fill surface.hover and line.bright; cards lift 2px to 8px with a deeper shadow and a faint cyan glow (0 0 70px rgba(118,216,255,.12))",
+    "glass": "backdrop-filter blur(18px to 30px) saturate(140% to 165%)",
+    "motion": { "fast": "160ms ease (colour, background)", "medium": "280ms ease", "emphasis": "520ms cubic-bezier(0.22, 1, 0.36, 1) (rise, lift)" },
+    "glow": "status dots and the primary pill glow in their own colour; the dark mode only"
+  },
+
+  "terminal": {
+    "_note": "Only the base colours and the blue/green/magenta slots are the theme's; other ANSI colours stay as the host has them.",
+    "light": { "background": "#f5f5f7", "foreground": "#0b0b0f", "cursor": "#0a6f9c", "selectionBackground": "#b5e6fb", "blue": "#0a6f9c", "brightBlue": "#0a78a8" },
+    "dark":  { "background": "#030305", "foreground": "#f5f5f7", "cursor": "#76d8ff", "selectionBackground": "#12394c", "blue": "#76d8ff", "brightBlue": "#a6e6ff", "green": "#94f0c3", "magenta": "#b9a8ff" }
+  }
+}

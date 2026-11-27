@@ -238,7 +238,8 @@
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",
       "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners"
+      "otsr": "OTSR — lab white, copper, square corners",
+      "aztecan": "Aztecan — quase preto, ciano, vidro"
     },
     "skinOptions": {
       "otsr": {
@@ -261,6 +262,38 @@
         "squareMarks": {
           "label": "Square status marks",
           "description": "Square instead of round status indicators"
+        }
+      },
+      "aztecan": {
+        "stars": {
+          "label": "Campo de estrelas",
+          "description": "Estrelas que flutuam atrás dos painéis de vidro",
+          "off": "Desligado",
+          "still": "Parado",
+          "animated": "Animado"
+        },
+        "glassContrast": {
+          "label": "Contraste do vidro",
+          "description": "O quanto painéis e balões se destacam do céu",
+          "subtle": "Sutil",
+          "standard": "Padrão",
+          "strong": "Forte",
+          "solid": "Sólido (luz forte)"
+        },
+        "grid": {
+          "label": "Grade de fundo",
+          "description": "A grade fina no fundo",
+          "off": "Desligada",
+          "faint": "Suave",
+          "normal": "Normal"
+        },
+        "halo": {
+          "label": "Halo e brilho",
+          "description": "Uma luz suave vinda do topo da tela e pontos de status brilhantes no modo escuro"
+        },
+        "pillTabs": {
+          "label": "Abas em pílula",
+          "description": "Barras de abas totalmente arredondadas, como a navegação do site"
         }
       }
     },

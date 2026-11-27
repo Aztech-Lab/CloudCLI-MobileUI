@@ -64,6 +64,29 @@ The stylesheet keys on the attribute, with the app's normal `.dark` class for da
 
 `src/skins/otsr.css` is the complete worked example.
 
+The skins, and the designs they come from:
+
+| id | look | source | design package |
+|---|---|---|---|
+| `otsr` | lab white and near-black, copper, square corners | the [OTSR](https://github.com/Aztech-Lab/OTSR) application (`src/tokens.css`) | [`themes/otsr`](../../themes/otsr/README.md) |
+| `aztecan` | a starfield and halo behind frosted glass panels, cyan, Inter, pill tabs | the [Aztech Labs website](https://aztecan.net/) (`styles.bundle.css`); dark only on the site, light derived | [`themes/aztecan`](../../themes/aztecan/README.md) |
+
+A skin that puts something *behind* the app (the Aztecan starfield) needs the large
+containers to be see-through. They carry `data-surface` hooks for that, with no style of
+their own: `app-shell` (the root container), `sidebar`, `sidebar-drawer` (the mobile
+drawer), `quick-settings` and `quick-settings-body`. The header (`.pwa-header-safe`), the
+composer form and the settings dialog (`.modal-backdrop > [role="dialog"]`) already had
+stable hooks.
+
+A skin that needs generated content keeps it to one run per page load and lets CSS do the
+animating: the Aztecan sky is drawn by `src/shared/aztecanStarfield.ts` (seeded, tested in
+`src/shared/tests/aztecanStarfield.test.ts`) into `#aztecan-starfield`, which `SkinProvider` mounts
+while that skin is active and its stars option is not off.
+
+A skin may need a web font. Load it from Google Fonts in the existing `<link>` in `index.html`
+(the Aztecan skin adds Inter there): the browser downloads a face only when a rule uses it, so
+the other skins are unaffected. Use only freely licensed fonts (OFL or similar).
+
 ### Skin options
 
 A skin can expose dials for its own signature elements (how strong a background texture is, whether edges are

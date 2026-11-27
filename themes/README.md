@@ -34,3 +34,8 @@ Packages:
   [OTSR](https://github.com/Aztech-Lab/OTSR) application and its technical report.
   Applied here as the `otsr` skin (`src/skins/otsr.css`; see
   [`otsr/examples/cloudcli.md`](otsr/examples/cloudcli.md)).
+- [`aztecan/`](aztecan/README.md): a starfield under a white halo, frosted glass panels
+  floating over it, a cyan signal, Inter, pill controls and a fine fading grid. From the
+  [Aztech Labs website](https://aztecan.net/) (dark only; the light mode is derived).
+  Applied here as the `aztecan` skin (`src/skins/aztecan.css`; see
+  [`aztecan/examples/cloudcli.md`](aztecan/examples/cloudcli.md)).

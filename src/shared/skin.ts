@@ -11,7 +11,7 @@ import { readUserPreference, writeUserPreference } from '@/shared/userSettings';
  * exactly the unthemed stylesheet.
  */
 
-export const SKIN_IDS = ['default', 'otsr'] as const;
+export const SKIN_IDS = ['default', 'otsr', 'aztecan'] as const;
 
 export type SkinId = (typeof SKIN_IDS)[number];
 

@@ -238,7 +238,8 @@
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",
       "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners"
+      "otsr": "OTSR — lab white, copper, square corners",
+      "aztecan": "Aztecan — hampir hitam, sian, kaca"
     },
     "skinOptions": {
       "otsr": {
@@ -261,6 +262,38 @@
         "squareMarks": {
           "label": "Square status marks",
           "description": "Square instead of round status indicators"
+        }
+      },
+      "aztecan": {
+        "stars": {
+          "label": "Bidang bintang",
+          "description": "Bintang yang melayang di balik panel kaca",
+          "off": "Mati",
+          "still": "Diam",
+          "animated": "Bergerak"
+        },
+        "glassContrast": {
+          "label": "Kontras kaca",
+          "description": "Seberapa jelas panel dan gelembung menonjol dari langit",
+          "subtle": "Halus",
+          "standard": "Standar",
+          "strong": "Kuat",
+          "solid": "Padat (cahaya terang)"
+        },
+        "grid": {
+          "label": "Kisi latar",
+          "description": "Kisi halus di latar belakang",
+          "off": "Mati",
+          "faint": "Samar",
+          "normal": "Normal"
+        },
+        "halo": {
+          "label": "Halo dan pendar",
+          "description": "Cahaya lembut dari bagian atas layar dan titik status yang berpendar di mode gelap"
+        },
+        "pillTabs": {
+          "label": "Tab pil",
+          "description": "Strip tab yang sepenuhnya membulat, seperti navigasi situs web"
         }
       }
     },

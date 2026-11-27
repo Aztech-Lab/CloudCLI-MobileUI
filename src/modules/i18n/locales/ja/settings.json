@@ -212,7 +212,8 @@
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",
       "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners"
+      "otsr": "OTSR — lab white, copper, square corners",
+      "aztecan": "Aztecan — 漆黒、シアン、ガラス"
     },
     "skinOptions": {
       "otsr": {
@@ -235,6 +236,38 @@
         "squareMarks": {
           "label": "Square status marks",
           "description": "Square instead of round status indicators"
+        }
+      },
+      "aztecan": {
+        "stars": {
+          "label": "星空",
+          "description": "ガラスパネルの背後でゆっくり漂う星",
+          "off": "オフ",
+          "still": "静止",
+          "animated": "アニメーション"
+        },
+        "glassContrast": {
+          "label": "ガラスのコントラスト",
+          "description": "パネルや吹き出しが星空からどれだけはっきり浮かぶか",
+          "subtle": "控えめ",
+          "standard": "標準",
+          "strong": "強め",
+          "solid": "ソリッド（明るい場所向け）"
+        },
+        "grid": {
+          "label": "背景グリッド",
+          "description": "背景の細いグリッド",
+          "off": "オフ",
+          "faint": "淡い",
+          "normal": "標準"
+        },
+        "halo": {
+          "label": "ハローとグロー",
+          "description": "画面上部の柔らかな光と、ダークモードで光るステータスドット"
+        },
+        "pillTabs": {
+          "label": "ピル型タブ",
+          "description": "Web サイトのナビゲーションのように、タブ列を完全な角丸にします"
         }
       }
     },

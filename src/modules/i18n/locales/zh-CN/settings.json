@@ -245,7 +245,8 @@
       "label": "皮肤",
       "description": "界面的视觉风格；浅色和深色对每种皮肤都适用",
       "default": "默认",
-      "otsr": "OTSR — 实验室白、铜色、直角"
+      "otsr": "OTSR — 实验室白、铜色、直角",
+      "aztecan": "Aztecan — 近黑、青色、玻璃"
     },
     "skinOptions": {
       "otsr": {
@@ -268,6 +269,38 @@
         "squareMarks": {
           "label": "方形状态标记",
           "description": "状态指示用方块代替圆点"
+        }
+      },
+      "aztecan": {
+        "stars": {
+          "label": "星空背景",
+          "description": "玻璃面板背后缓缓漂移的星点",
+          "off": "关闭",
+          "still": "静止",
+          "animated": "动态"
+        },
+        "glassContrast": {
+          "label": "玻璃对比度",
+          "description": "面板和气泡与星空背景区分的明显程度",
+          "subtle": "轻柔",
+          "standard": "标准",
+          "strong": "强",
+          "solid": "实心（强光下）"
+        },
+        "grid": {
+          "label": "背景网格",
+          "description": "背景中的细网格",
+          "off": "关闭",
+          "faint": "淡",
+          "normal": "正常"
+        },
+        "halo": {
+          "label": "光晕",
+          "description": "屏幕顶部的柔光，以及深色模式下发光的状态圆点"
+        },
+        "pillTabs": {
+          "label": "胶囊标签",
+          "description": "标签条使用全圆角，和官网导航一样"
         }
       }
     },

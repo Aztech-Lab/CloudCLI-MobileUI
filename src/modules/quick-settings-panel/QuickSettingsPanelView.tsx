@@ -178,12 +178,13 @@ function QuickSettingsPanelView({ selectedProject, onInsertCommand }: QuickSetti
       {/* Docked: a layout column while open, gone while collapsed via the handle (the pin is kept). */}
       {isPinned ? (
         isOpen && (
-          <div className="relative h-full w-64 flex-shrink-0 border-l border-border bg-background">
+          <div data-surface="quick-settings" className="relative h-full w-64 flex-shrink-0 border-l border-border bg-background">
             {panelBody}
           </div>
         )
       ) : (
         <div
+          data-surface="quick-settings"
           className={`fixed right-0 top-0 z-[9999] h-full w-64 transform border-l border-border bg-background shadow-xl transition-transform duration-150 ease-out ${isOpen ? 'translate-x-0' : 'translate-x-full'} ${isMobile ? 'h-screen' : ''}`}
         >
           {panelBody}

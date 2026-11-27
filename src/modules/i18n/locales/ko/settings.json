@@ -238,7 +238,8 @@
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",
       "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners"
+      "otsr": "OTSR — lab white, copper, square corners",
+      "aztecan": "Aztecan — 짙은 검정, 시안, 유리"
     },
     "skinOptions": {
       "otsr": {
@@ -261,6 +262,38 @@
         "squareMarks": {
           "label": "Square status marks",
           "description": "Square instead of round status indicators"
+        }
+      },
+      "aztecan": {
+        "stars": {
+          "label": "별 배경",
+          "description": "유리 패널 뒤에서 천천히 떠다니는 별",
+          "off": "끄기",
+          "still": "정지",
+          "animated": "움직임"
+        },
+        "glassContrast": {
+          "label": "유리 대비",
+          "description": "패널과 말풍선이 별 배경에서 얼마나 뚜렷하게 구분되는지",
+          "subtle": "은은하게",
+          "standard": "표준",
+          "strong": "강하게",
+          "solid": "불투명(밝은 곳용)"
+        },
+        "grid": {
+          "label": "배경 격자",
+          "description": "배경의 가는 격자",
+          "off": "끄기",
+          "faint": "희미하게",
+          "normal": "보통"
+        },
+        "halo": {
+          "label": "헤일로와 광채",
+          "description": "화면 상단의 부드러운 빛과 다크 모드에서 빛나는 상태 점"
+        },
+        "pillTabs": {
+          "label": "알약형 탭",
+          "description": "웹사이트 내비게이션처럼 탭 줄을 완전히 둥글게 표시합니다"
         }
       }
     },

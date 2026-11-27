@@ -212,7 +212,8 @@
       "label": "Skin",
       "description": "The visual style of the interface; light and dark work with every skin",
       "default": "Default",
-      "otsr": "OTSR — lab white, copper, square corners"
+      "otsr": "OTSR — lab white, copper, square corners",
+      "aztecan": "Aztecan — Fast-Schwarz, Cyan, Glas"
     },
     "skinOptions": {
       "otsr": {
@@ -235,6 +236,38 @@
         "squareMarks": {
           "label": "Square status marks",
           "description": "Square instead of round status indicators"
+        }
+      },
+      "aztecan": {
+        "stars": {
+          "label": "Sternenfeld",
+          "description": "Langsam treibende Sterne hinter den Glasflächen",
+          "off": "Aus",
+          "still": "Still",
+          "animated": "Animiert"
+        },
+        "glassContrast": {
+          "label": "Glaskontrast",
+          "description": "Wie deutlich sich Flächen und Sprechblasen vom Sternenhimmel abheben",
+          "subtle": "Dezent",
+          "standard": "Standard",
+          "strong": "Stark",
+          "solid": "Massiv (helles Licht)"
+        },
+        "grid": {
+          "label": "Hintergrundraster",
+          "description": "Das feine Raster im Hintergrund",
+          "off": "Aus",
+          "faint": "Schwach",
+          "normal": "Normal"
+        },
+        "halo": {
+          "label": "Lichtschein",
+          "description": "Ein weiches Licht vom oberen Bildschirmrand und leuchtende Statuspunkte im dunklen Modus"
+        },
+        "pillTabs": {
+          "label": "Pillen-Tabs",
+          "description": "Vollständig abgerundete Tab-Leisten, wie die Navigation der Website"
         }
       }
     },
