@@ -24,6 +24,9 @@
   "stagingPort": null,
 
   // Environment for the server process. An empty value removes an inherited variable.
+  // CLAUDE_TOOL_APPROVAL_TIMEOUT_MS, CLOUDCLI_EXTRA_READ_ROOTS, CLOUDCLI_FILE_TREE_MAX_ENTRIES,
+  // CLOUDCLI_BG_MAX_HOLD_MS and CLOUDCLI_CODEX_RUNTIME can also be set in the web UI
+  // (Settings > MobileUI); a value set here wins over the UI and shows there as locked.
   "env": {
     // Claude Code executable to use; empty = "claude" from PATH.
     "CLAUDE_CLI_PATH": "",
