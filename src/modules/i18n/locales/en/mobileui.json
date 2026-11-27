@@ -7,7 +7,8 @@
     "look": "Look",
     "conversation": "Conversation",
     "files": "Files",
-    "about": "About this edition"
+    "about": "About this edition",
+    "phone": "Phone & navigation"
   },
   "autoExpandThinking": "Auto-expand thinking",
   "autoExpandThinkingDescription": "Open thinking blocks by default, also while they stream. You can still collapse a block yourself.",
@@ -138,5 +139,11 @@
     "basedOn": "CloudCLI-MobileUI, based on CloudCLI.",
     "repository": "Repository",
     "whatsNew": "What’s new"
+  },
+  "phone": {
+    "swipeNavigation": "Swipe between tabs",
+    "swipeNavigationDescription": "On a phone, swipe left or right to switch workspace tabs; swiping back from the first tab opens the menu.",
+    "homeRecents": "Recent conversations on the home screen",
+    "homeRecentsDescription": "With no project open, list the latest conversations and their projects. Off: the original “choose a project” screen."
   }
 }

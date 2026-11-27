@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import MobileMenuButton from '@/modules/project-workspace/MobileMenuButton';
 import WorkspaceHomeRecents from '@/modules/project-workspace/WorkspaceHomeRecents';
+import { useMobileUiPreferences } from '@/shared/mobileUiPreferences';
 
 type WorkspaceStateViewProps = {
   mode: 'loading' | 'empty';
@@ -15,6 +16,7 @@ export default function WorkspaceStateView({ mode, isMobile, onMenuClick }: Work
   const { t } = useTranslation();
 
   const isLoading = mode === 'loading';
+  const { homeRecents } = useMobileUiPreferences(); // [local]
 
   return (
     <div className="flex h-full flex-col">
@@ -41,9 +43,9 @@ export default function WorkspaceStateView({ mode, isMobile, onMenuClick }: Work
             <p className="text-sm">{t('mainContent.settingUpWorkspace')}</p>
           </div>
         </div>
-      ) : (
-        // [local] Home screen: recent conversations and projects when there are any,
-        // the original "choose a project" intro otherwise.
+      ) : homeRecents ? (
+        // [local] Home screen: recent conversations and projects when there are any, the
+        // original intro otherwise. Settings > MobileUI can switch back to the plain intro.
         <div className="flex min-h-0 flex-1 overflow-y-auto">
           <div className="m-auto w-full max-w-md px-6 py-8">
             <WorkspaceHomeRecents
@@ -62,6 +64,21 @@ export default function WorkspaceStateView({ mode, isMobile, onMenuClick }: Work
                 </div>
               )}
             />
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-1 items-center justify-center">
+          <div className="mx-auto max-w-md px-6 text-center">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/50">
+              <Folder className="h-7 w-7 text-muted-foreground" />
+            </div>
+            <h2 className="mb-2 text-xl font-semibold text-foreground">{t('mainContent.chooseProject')}</h2>
+            <p className="mb-5 text-sm leading-relaxed text-muted-foreground">{t('mainContent.selectProjectDescription')}</p>
+            <div className="rounded-xl border border-primary/10 bg-primary/5 p-3.5">
+              <p className="text-sm text-primary">
+                <strong>{t('mainContent.tip')}:</strong> {isMobile ? t('mainContent.createProjectMobile') : t('mainContent.createProjectDesktop')}
+              </p>
+            </div>
           </div>
         </div>
       )}

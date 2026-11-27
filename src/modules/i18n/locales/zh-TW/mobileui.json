@@ -7,7 +7,8 @@
     "look": "外觀",
     "conversation": "對話",
     "files": "檔案",
-    "about": "關於本版本"
+    "about": "關於本版本",
+    "phone": "手機與導覽"
   },
   "autoExpandThinking": "自動展開思考細節",
   "autoExpandThinkingDescription": "思考內容預設展開，串流輸出時也即時顯示。仍可手動收合單個思考區塊。",
@@ -138,5 +139,11 @@
     "basedOn": "CloudCLI-MobileUI，基於 CloudCLI。",
     "repository": "程式碼儲存庫",
     "whatsNew": "更新內容"
+  },
+  "phone": {
+    "swipeNavigation": "滑動切換分頁",
+    "swipeNavigationDescription": "在手機上左右滑動切換工作區分頁；在第一個分頁向回滑動會開啟選單。",
+    "homeRecents": "主畫面顯示最近對話",
+    "homeRecentsDescription": "未開啟專案時，列出最近的對話及其專案。關閉後顯示原版的「選擇專案」畫面。"
   }
 }

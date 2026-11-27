@@ -7,7 +7,8 @@
     "look": "外观",
     "conversation": "对话",
     "files": "文件",
-    "about": "关于本版本"
+    "about": "关于本版本",
+    "phone": "手机与导航"
   },
   "autoExpandThinking": "自动展开思考细节",
   "autoExpandThinkingDescription": "思考内容默认展开，流式输出时也实时显示。仍可手动收起单个思考块。",
@@ -138,5 +139,11 @@
     "basedOn": "CloudCLI-MobileUI，基于 CloudCLI。",
     "repository": "代码仓库",
     "whatsNew": "更新内容"
+  },
+  "phone": {
+    "swipeNavigation": "滑动切换标签页",
+    "swipeNavigationDescription": "在手机上左右滑动切换工作区标签页；在第一个标签页向回滑动会打开菜单。",
+    "homeRecents": "主屏显示最近对话",
+    "homeRecentsDescription": "未打开项目时，列出最近的对话及其项目。关闭后显示原版的“选择项目”页面。"
   }
 }

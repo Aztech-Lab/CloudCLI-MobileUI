@@ -10,6 +10,7 @@ import AboutEditionSection from '@/modules/settings/tabs/mobileui-settings/About
 import ConversationSection from '@/modules/settings/tabs/mobileui-settings/ConversationSection';
 import FilesSection from '@/modules/settings/tabs/mobileui-settings/FilesSection';
 import LookSection from '@/modules/settings/tabs/mobileui-settings/LookSection';
+import PhoneSection from '@/modules/settings/tabs/mobileui-settings/PhoneSection';
 
 /** DOM id of the Server section; Settings opened with the old 'server' tab scrolls to it. */
 export const MOBILEUI_SERVER_SECTION_ID = 'mobileui-section-server';
@@ -39,6 +40,7 @@ export default function MobileUiSettingsTab({ initialTab }: MobileUiSettingsTabP
       </p>
       <LookSection />
       <ConversationSection />
+      <PhoneSection />
       <FilesSection />
       {serverControl.managed && (
         <div id={MOBILEUI_SERVER_SECTION_ID} className="scroll-mt-4">

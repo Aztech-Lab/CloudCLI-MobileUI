@@ -73,7 +73,7 @@ describe('Settings > MobileUI', () => {
   it('renders its sections in order, without Server for an unmanaged server', async () => {
     renderTab();
     const headings = () => screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
-    expect(headings()).toEqual(expect.arrayContaining(['Look', 'Conversation', 'Files', 'About this edition']));
+    expect(headings()).toEqual(expect.arrayContaining(['Look', 'Conversation', 'Phone & navigation', 'Files', 'About this edition']));
     await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
     expect(screen.queryByText('Server')).toBeNull();
   });
@@ -97,6 +97,13 @@ describe('Settings > MobileUI', () => {
     expect(document.documentElement.getAttribute('data-skin')).toBe('otsr');
     // The OTSR options appear with it.
     expect(screen.getByRole('switch', { name: 'Chamfered edges' })).toBeTruthy();
+  });
+
+  it('stores the phone and navigation switches', () => {
+    renderTab();
+    fireEvent.click(screen.getByRole('switch', { name: 'Swipe between tabs' }));
+    expect(readUserPreference('mobileUi', null)).toEqual({ swipeNavigation: false });
+    expect(screen.getByRole('switch', { name: 'Swipe between tabs' }).getAttribute('aria-checked')).toBe('false');
   });
 
   it('stores the reply bubble style', () => {
