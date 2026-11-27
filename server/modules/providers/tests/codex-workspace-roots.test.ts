@@ -286,9 +286,9 @@ for (const withRoots of [true, false]) {
       await writeFile(logFile, '', 'utf8');
       await writeFile(script, fakeForkServerSource(logFile, forkPath), 'utf8');
 
-      const appServer = codexAppServer as unknown as { resolveLauncher: () => string };
-      const original = appServer.resolveLauncher;
-      appServer.resolveLauncher = () => script;
+      const appServer = codexAppServer as unknown as { resolveCommand: () => { command: string; args: string[]; env: NodeJS.ProcessEnv } };
+      const original = appServer.resolveCommand;
+      appServer.resolveCommand = () => ({ command: process.execPath, args: [script], env: process.env });
       try {
         await codexAppServer.forkThread({
           threadId: 'source-thread',
@@ -296,7 +296,7 @@ for (const withRoots of [true, false]) {
           ...(withRoots ? { workspaceRoots: ['F:\\data\\bench'] } : {}),
         });
       } finally {
-        appServer.resolveLauncher = original;
+        appServer.resolveCommand = original;
       }
 
       const requests = (await readFile(logFile, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));

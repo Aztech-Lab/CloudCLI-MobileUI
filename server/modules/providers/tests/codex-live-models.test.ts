@@ -195,9 +195,9 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
   process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: message.id, result }) + '\\n');
 });
 `, 'utf8');
-  const appServer = codexAppServer as unknown as { resolveLauncher: () => string };
-  const originalLauncher = appServer.resolveLauncher;
-  appServer.resolveLauncher = () => script;
+  const appServer = codexAppServer as unknown as { resolveCommand: () => { command: string; args: string[]; env: NodeJS.ProcessEnv } };
+  const originalLauncher = appServer.resolveCommand;
+  appServer.resolveCommand = () => ({ command: process.execPath, args: [script], env: process.env });
   try {
     const models = await codexAppServer.listModels();
     assert.equal(models.length, fixture.length);
@@ -207,7 +207,7 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
     assert.deepEqual(received[3].params, { includeHidden: false, cursor: 'page-2' });
     assert.ok(!received.some((line) => /^(thread|turn)\//.test(line.method)), 'starts no thread or turn');
   } finally {
-    appServer.resolveLauncher = originalLauncher;
+    appServer.resolveCommand = originalLauncher;
     await rm(dir, { recursive: true, force: true });
   }
 });

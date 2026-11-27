@@ -17,7 +17,9 @@ import readline from 'node:readline';
  * restarts it with a backoff after it dies.
  *
  * It never connects to the Codex desktop app's own app-server daemon: it only
- * ever spawns the bundled CLI as its own child.
+ * ever spawns its own child, of the Codex CLI chats run (the user's own when
+ * it is at least as new as the bundled one; see codex-cli.ts). The install is
+ * resolved when the child starts, so an update applies from the next restart.
  */
 
 /**
@@ -40,8 +42,11 @@ export type CodexAppServerExitHandler = (reason: string) => void;
 export type CodexAppServerRequestHandler = (method: string, params: unknown, requestId: number | string) => Promise<unknown> | unknown;
 
 export type CodexAppServerConnectionOptions = {
-  /** Path of the `codex.js` launcher to run with `node <launcher> app-server`. */
-  resolveLauncher: () => string;
+  /**
+   * How to start the Codex CLI, without its `app-server` argument: the same
+   * install chats, forks and the Shell tab run (see codex-cli.ts).
+   */
+  resolveCommand: () => { command: string; args: string[]; env: NodeJS.ProcessEnv };
   handleServerRequest: CodexAppServerRequestHandler;
   /** How long `initialize` and each request may take. */
   requestTimeoutMs?: number;
@@ -174,17 +179,17 @@ export class CodexAppServerConnection {
   }
 
   private async start(): Promise<void> {
-    let launcher: string;
+    let launch: { command: string; args: string[]; env: NodeJS.ProcessEnv };
     try {
-      launcher = this.options.resolveLauncher();
+      launch = this.options.resolveCommand();
     } catch (error) {
       this.recordFailure(error instanceof Error ? error.message : String(error));
       throw new CodexAppServerUnavailableError(this.lastFailure ?? 'Codex CLI not found');
     }
 
     const generation = ++this.generation;
-    const child = spawn(process.execPath, [launcher, 'app-server'], {
-      env: process.env,
+    const child = spawn(launch.command, [...launch.args, 'app-server'], {
+      env: launch.env,
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     });

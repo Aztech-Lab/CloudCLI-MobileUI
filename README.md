@@ -9,7 +9,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-b8793c?style=flat-square)](LICENSE)
 [![Node.js 22+](https://img.shields.io/badge/node-22%2B-4f7a4a?style=flat-square)](https://nodejs.org)
-[![Based on CloudCLI 1.37.9](https://img.shields.io/badge/based%20on-CloudCLI%201.37.9-6f726a?style=flat-square)](https://github.com/siteboon/claudecodeui)
+[![Based on CloudCLI 1.37.10](https://img.shields.io/badge/based%20on-CloudCLI%201.37.10-6f726a?style=flat-square)](https://github.com/siteboon/claudecodeui)
 [![Last commit](https://img.shields.io/github/last-commit/Aztech-Lab/CloudCLI-MobileUI?style=flat-square&color=6f726a)](https://github.com/Aztech-Lab/CloudCLI-MobileUI/commits/main)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-b8793c?style=flat-square)](CONTRIBUTING.md)
 
@@ -174,6 +174,11 @@ gitGraph
 Make one branch per change, starting from `main`, and open a pull request in this repository. The template asks what changed, why, and how you tested it. A maintainer reviews and merges it and writes it up under "What's new". [CONTRIBUTING.md](CONTRIBUTING.md) has the details, including how to set up a development copy.
 
 ## What's new
+
+**27 November 2026**
+- Updated to CloudCLI 1.37.10. From CloudCLI 1.37.10: pin conversations to the top of the sidebar; tables in replies size their columns better and keep line breaks; files the composer refuses (too large, too many) are listed with the reason; the docked code editor no longer jumps in width when you grab its resize handle; the app no longer waits for web fonts when they cannot be reached; the model picker shows the model a session really runs on, also when that is the default; and API key and token checks were hardened, with request bodies read only after sign-in is checked. On a wide screen the conversation now uses 80% of the pane instead of a fixed width; phones keep the full width.
+- Codex now runs your own installed Codex when it is at least as new as the one CloudCLI ships (from CloudCLI 1.37.10), and Settings can update it. The app-server mode, the live model list and the Shell tab use that same Codex.
+- Claude conversations use Claude Agent SDK 0.3.332 (Claude Code 2.1.332). If Claude Code cannot save part of a conversation because the disk is full, the chat now says so.
 
 **26 November 2026**
 - A second skin, Aztecan, takes its look from [aztecan.net](https://aztecan.net/): borderless frosted glass floating over a starfield that is different every time you open the app. A glass contrast setting (subtle, standard, strong, solid) keeps text easy to read, and the stars can be still or turned off ([#14](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/14)).
