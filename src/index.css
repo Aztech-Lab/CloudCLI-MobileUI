@@ -816,6 +816,14 @@
     max-width: 80%;
   }
 
+  /* [local] Phones (the app's mobile breakpoint, below 768px): the transcript and
+     composer keep the whole pane width; side margins there only cost text. */
+  @media (max-width: 767px) {
+    .chat-content-width {
+      max-width: none;
+    }
+  }
+
   /* Text wrapping improvements */
   .chat-message {
     word-wrap: break-word;
