@@ -27,6 +27,8 @@ vi.mock('@/shared/api', () => ({
 // Real English strings, so the wording is what is checked.
 await import('@/modules/i18n');
 const { default: FileTree } = await import('@/modules/file-tree/FileTree');
+const { clearFileTreeCache } = await import('@/modules/file-tree/utils/fileTreeStateCache');
+const { forgetWorkspaceRoots } = await import('@/modules/file-tree/hooks/useWorkspaceRoots');
 
 const project: Project = { projectId: 'p1', displayName: 'project', fullPath: ROOT, path: ROOT };
 const codexSession: ProjectSession = { id: 's-codex', provider: 'codex' };
@@ -42,6 +44,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  clearFileTreeCache(); // the Files tab remembers its tree and root across mounts
+  forgetWorkspaceRoots();
   getFiles.mockReset();
   getWorkspaceRoots.mockReset();
 });
@@ -70,6 +74,29 @@ test('a Codex session with extra roots shows the switcher and lists the chosen r
   for (const call of getFiles.mock.calls) {
     assert.ok(!JSON.stringify(call[3] ?? null).includes(EXTRA));
   }
+});
+
+test('the chosen root is still chosen when the Files tab is opened again', async () => {
+  getWorkspaceRoots.mockResolvedValue(jsonResponse({
+    roots: [
+      { index: 0, name: 'project', path: ROOT, exists: true },
+      { index: 1, name: 'extra', path: EXTRA, exists: true },
+    ],
+  }));
+
+  const first = render(<FileTree selectedProject={project} selectedSession={codexSession} />);
+  const switcher = await screen.findByTestId('file-tree-root-switcher');
+  fireEvent.click(switcher.querySelector('button') as HTMLButtonElement);
+  fireEvent.click(await screen.findByTitle(EXTRA));
+  await waitFor(() => assert.ok(screen.getByText('table.csv')));
+  first.unmount();
+
+  getFiles.mockClear();
+  render(<FileTree selectedProject={project} selectedSession={codexSession} />);
+  // Shown at once from memory; the project folder is never listed in between.
+  assert.ok(screen.getByText('table.csv'));
+  await waitFor(() => assert.equal(getFiles.mock.calls.length, 1));
+  assert.deepEqual(getFiles.mock.calls[0]?.[3], { sessionId: 's-codex', root: 1 });
 });
 
 test('a Codex session without extra roots shows no switcher', async () => {

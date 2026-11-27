@@ -4,6 +4,7 @@ import { api } from '@/shared/api';
 import type { FileOpenHandler, GitApiErrorResponse, GitCommitSummary, GitDiffMap, GitFileDiffResponse, GitOperationResponse, GitPanelView, GitRemoteStatus, GitStatusResponse, Project } from '@/shared/types';
 import { getAllChangedFiles } from '@/modules/git-panel/utils/gitPanelUtils';
 import { useSelectedProvider } from '@/shared/hooks/useSelectedProvider';
+import { readGitPanelSnapshot, writeGitPanelSnapshot } from '@/modules/git-panel/utils/gitPanelStateCache';
 
 const DEFAULT_BRANCH = 'main';
 // High enough for the commit graph to show meaningful branch structure.
@@ -103,24 +104,29 @@ export function useGitPanelController({
   activeView,
   onFileOpen,
 }: UseGitPanelControllerOptions): GitPanelController {
-  const [gitStatus, setGitStatus] = useState<GitStatusResponse | null>(null);
-  const [gitDiff, setGitDiff] = useState<GitDiffMap>({});
+  // [local] Start from what this project's tab showed last time (see gitPanelStateCache).
+  const [remembered] = useState(() => readGitPanelSnapshot(selectedProject?.projectId));
+  const [gitStatus, setGitStatus] = useState<GitStatusResponse | null>(remembered?.gitStatus ?? null);
+  const [gitDiff, setGitDiff] = useState<GitDiffMap>(remembered?.gitDiff ?? {});
   const [isLoading, setIsLoading] = useState(false);
-  const [currentBranch, setCurrentBranch] = useState('');
-  const [branches, setBranches] = useState<string[]>([]);
-  const [recentCommits, setRecentCommits] = useState<GitCommitSummary[]>([]);
+  const [currentBranch, setCurrentBranch] = useState(remembered?.currentBranch ?? '');
+  const [branches, setBranches] = useState<string[]>(remembered?.branches ?? []);
+  const [recentCommits, setRecentCommits] = useState<GitCommitSummary[]>(remembered?.recentCommits ?? []);
   // Separate from `isLoading` (status) so History never flashes "No commits
   // found" while the commits request is still in flight.
   const [isLoadingCommits, setIsLoadingCommits] = useState(false);
-  const [hasLoadedCommits, setHasLoadedCommits] = useState(false);
+  const [hasLoadedCommits, setHasLoadedCommits] = useState(remembered?.hasLoadedCommits ?? false);
   const [commitDiffs, setCommitDiffs] = useState<GitDiffMap>({});
-  const [remoteStatus, setRemoteStatus] = useState<GitRemoteStatus | null>(null);
-  const [localBranches, setLocalBranches] = useState<string[]>([]);
-  const [remoteBranches, setRemoteBranches] = useState<string[]>([]);
+  const [remoteStatus, setRemoteStatus] = useState<GitRemoteStatus | null>(remembered?.remoteStatus ?? null);
+  const [localBranches, setLocalBranches] = useState<string[]>(remembered?.localBranches ?? []);
+  const [remoteBranches, setRemoteBranches] = useState<string[]>(remembered?.remoteBranches ?? []);
   // Unambiguous remote-tracking refs for the Compare tab's base selector;
   // `remoteBranches` strips the remote prefix and drops names shadowed by a
   // local branch, so it cannot serve as a diff base.
-  const [remoteRefs, setRemoteRefs] = useState<string[]>([]);
+  const [remoteRefs, setRemoteRefs] = useState<string[]>(remembered?.remoteRefs ?? []);
+  // [local] The project the repository state above belongs to; it trails a project
+  // switch by one render, so the snapshot below never files one project's state under another.
+  const [stateProjectId, setStateProjectId] = useState<string | null>(selectedProject?.projectId ?? null);
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
@@ -178,7 +184,8 @@ export function useGitPanelController({
     [selectedProject],
   );
 
-  const fetchGitStatus = useCallback(async (signal?: AbortSignal) => {
+  // [local] `quiet` refreshes a remembered status in the background, without the spinner.
+  const fetchGitStatus = useCallback(async (signal?: AbortSignal, quiet = false) => {
     if (!selectedProject) {
       return;
     }
@@ -186,7 +193,7 @@ export function useGitPanelController({
     // `project` query param carries the DB projectId everywhere now.
     const projectId = selectedProject.projectId;
 
-    setIsLoading(true);
+    if (!quiet) setIsLoading(true);
     try {
       const response = await api.git.status(projectId, { signal });
       const data = await readJson<GitStatusResponse>(response, signal);
@@ -770,19 +777,22 @@ export function useGitPanelController({
     const controller = new AbortController();
 
     // Reset repository-scoped state when project changes to avoid stale UI.
-    setCurrentBranch('');
-    setBranches([]);
-    setLocalBranches([]);
-    setRemoteBranches([]);
-    setRemoteRefs([]);
-    setGitStatus(null);
-    setRemoteStatus(null);
-    setGitDiff({});
-    setRecentCommits([]);
+    // [local] ...to what this project showed last time, if anything.
+    const snapshot = readGitPanelSnapshot(selectedProject?.projectId);
+    setStateProjectId(selectedProject?.projectId ?? null);
+    setCurrentBranch(snapshot?.currentBranch ?? '');
+    setBranches(snapshot?.branches ?? []);
+    setLocalBranches(snapshot?.localBranches ?? []);
+    setRemoteBranches(snapshot?.remoteBranches ?? []);
+    setRemoteRefs(snapshot?.remoteRefs ?? []);
+    setGitStatus(snapshot?.gitStatus ?? null);
+    setRemoteStatus(snapshot?.remoteStatus ?? null);
+    setGitDiff(snapshot?.gitDiff ?? {});
+    setRecentCommits(snapshot?.recentCommits ?? []);
     setCommitDiffs({});
     setIsLoading(false);
     setIsLoadingCommits(false);
-    setHasLoadedCommits(false);
+    setHasLoadedCommits(snapshot?.hasLoadedCommits ?? false);
     setOperationError(null);
 
     if (!selectedProject) {
@@ -791,7 +801,7 @@ export function useGitPanelController({
       };
     }
 
-    void fetchGitStatus(controller.signal);
+    void fetchGitStatus(controller.signal, Boolean(snapshot?.gitStatus)); // [local] quiet when remembered
     void fetchBranches();
     void fetchRemoteStatus();
 
@@ -799,6 +809,26 @@ export function useGitPanelController({
       controller.abort();
     };
   }, [fetchBranches, fetchGitStatus, fetchRemoteStatus, selectedProject]);
+
+  // [local] Remember the repository state, so reopening the tab starts from it.
+  useEffect(() => {
+    if (!stateProjectId) return;
+    writeGitPanelSnapshot(stateProjectId, {
+      gitStatus,
+      gitDiff,
+      currentBranch,
+      branches,
+      localBranches,
+      remoteBranches,
+      remoteRefs,
+      remoteStatus,
+      recentCommits,
+      hasLoadedCommits,
+    });
+  }, [
+    stateProjectId, gitStatus, gitDiff, currentBranch, branches, localBranches,
+    remoteBranches, remoteRefs, remoteStatus, recentCommits, hasLoadedCommits,
+  ]);
 
   useEffect(() => {
     if (!selectedProject || activeView !== 'history') {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
-import { render, screen, waitFor } from '@testing-library/react';
-import { test, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, test, vi } from 'vitest';
 
 import type { Project } from '@/shared/types';
 
@@ -30,6 +30,10 @@ vi.mock('@/shared/api', () => ({
 }));
 
 const { default: FileTree } = await import('@/modules/file-tree/FileTree');
+const { clearFileTreeCache } = await import('@/modules/file-tree/utils/fileTreeStateCache');
+
+// The Files tab remembers opened folders across mounts; each case starts fresh.
+afterEach(() => clearFileTreeCache());
 
 const project: Project = { projectId: 'p1', displayName: 'personal', fullPath: ROOT, path: ROOT };
 
@@ -46,4 +50,17 @@ test('a folder nobody asked for stays closed', async () => {
 
   await waitFor(() => assert.ok(screen.getByText('decisions')));
   assert.equal(screen.queryByText('0001-first.md'), null);
+});
+
+test('[local] a served reveal is not repeated when the Files tab is opened again', async () => {
+  const request = { path: 'decisions/' };
+  const first = render(<FileTree selectedProject={project} revealDirectory={request} />);
+  await waitFor(() => assert.ok(screen.getByText('0001-first.md')));
+  fireEvent.click(screen.getByText('decisions')); // the user folds it again
+  assert.ok(!screen.queryByText('0001-first.md'));
+  first.unmount();
+
+  render(<FileTree selectedProject={project} revealDirectory={request} />);
+  await waitFor(() => assert.ok(screen.getByText('decisions')));
+  assert.ok(!screen.queryByText('0001-first.md'));
 });

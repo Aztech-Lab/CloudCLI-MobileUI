@@ -20,6 +20,25 @@ type UseWorkspaceRootsResult = {
   scope: WorkspaceRootScope | null;
 };
 
+// [local] The Files tab unmounts when another tab opens; remember each session's roots and
+// chosen root here so it comes back on the same root without waiting for the request.
+const REMEMBERED_SESSIONS_LIMIT = 20;
+const rememberedRoots = new Map<string, { roots?: WorkspaceRoot[]; root?: number }>();
+
+function rememberRoots(key: string, patch: { roots?: WorkspaceRoot[]; root?: number }): void {
+  const entry = { ...rememberedRoots.get(key), ...patch };
+  rememberedRoots.delete(key);
+  rememberedRoots.set(key, entry);
+  if (rememberedRoots.size > REMEMBERED_SESSIONS_LIMIT) {
+    rememberedRoots.delete(rememberedRoots.keys().next().value as string);
+  }
+}
+
+/** [local] Forget every remembered root list and choice (tests). */
+export function forgetWorkspaceRoots(): void {
+  rememberedRoots.clear();
+}
+
 /**
  * [local] Loads the workspace roots a Codex conversation recorded (a Codex
  * project with several folders) and keeps which one the Files tab shows.
@@ -35,7 +54,9 @@ export function useWorkspaceRoots(
   const [loaded, setLoaded] = useState<{ key: string; roots: WorkspaceRoot[] }>({ key: '', roots: [] });
   const [selection, setSelection] = useState<{ key: string; root: number }>({ key: '', root: 0 });
   const key = `${projectId ?? ''}|${sessionId ?? ''}`;
-  const roots = enabled && loaded.key === key ? loaded.roots : [];
+  // [local] Fall back to what an earlier mount remembered for this session.
+  const remembered = rememberedRoots.get(key);
+  const roots = enabled ? (loaded.key === key ? loaded.roots : remembered?.roots ?? []) : [];
 
   useEffect(() => {
     if (!enabled || !projectId || !sessionId) {
@@ -49,6 +70,7 @@ export function useWorkspaceRoots(
         if (!response.ok) return;
         const body = (await response.json()) as { roots?: WorkspaceRoot[] };
         if (active && Array.isArray(body.roots)) {
+          rememberRoots(`${projectId}|${sessionId}`, { roots: body.roots });
           setLoaded({ key: `${projectId}|${sessionId}`, roots: body.roots });
         }
       } catch {
@@ -61,9 +83,14 @@ export function useWorkspaceRoots(
     };
   }, [enabled, projectId, sessionId]);
 
-  // A different session or project starts at its project folder again.
-  const selectedRoot = selection.key === key && selection.root < roots.length ? selection.root : 0;
-  const selectRoot = useCallback((index: number) => setSelection({ key, root: index }), [key]);
+  // A different session or project starts at its project folder again, unless it was
+  // shown before (see rememberedRoots).
+  const chosenRoot = selection.key === key ? selection.root : remembered?.root ?? 0; // [local]
+  const selectedRoot = chosenRoot < roots.length ? chosenRoot : 0;
+  const selectRoot = useCallback((index: number) => {
+    rememberRoots(key, { root: index });
+    setSelection({ key, root: index });
+  }, [key]);
 
   return {
     roots,

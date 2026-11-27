@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 
+import { useFileTreeCachedState } from '@/modules/file-tree/hooks/useFileTreeCachedState';
 import { collectExpandedDirectoryPaths, filterFileTree } from '@/modules/file-tree/utils/fileTreeUtils';
 import type { FileTreeNode } from '@/shared/types';
 
 type UseFileTreeSearchArgs = {
   files: FileTreeNode[];
   expandDirectories: (paths: string[]) => void;
+  /** [local] Files tab state cache key; the query is remembered there. */
+  cacheKey: string | null;
 };
 
 type UseFileTreeSearchResult = {
@@ -17,8 +20,9 @@ type UseFileTreeSearchResult = {
 export function useFileTreeSearch({
   files,
   expandDirectories,
+  cacheKey,
 }: UseFileTreeSearchArgs): UseFileTreeSearchResult {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useFileTreeCachedState(cacheKey, 'searchQuery', ''); // [local]
 
   // Derived, not stored: mirroring the filter into state made every keystroke
   // (and every tree refresh) cost an extra render, and left `filteredFiles` one

@@ -5,6 +5,7 @@ import { useGitPanelController } from '@/modules/git-panel/hooks/useGitPanelCont
 import { useRevertLocalCommit } from '@/modules/git-panel/hooks/useRevertLocalCommit';
 import type { ConfirmationRequest, FileOpenHandler, GitPanelView, Project } from '@/shared/types';
 import { getChangedFileCount } from '@/modules/git-panel/utils/gitPanelUtils';
+import { readLastGitPanelView, rememberGitPanelView } from '@/modules/git-panel/utils/gitPanelStateCache';
 import ChangesView from '@/modules/git-panel/changes/ChangesView';
 import CompareView from '@/modules/git-panel/compare/CompareView';
 import HistoryView from '@/modules/git-panel/history/HistoryView';
@@ -34,7 +35,12 @@ export default function GitPanel({
   onProjectsRefresh,
 }: GitPanelProps) {
   const { t } = useTranslation();
-  const [activeView, setActiveView] = useState<GitPanelView>('changes');
+  // [local] Reopening the tab returns to the view it was left on.
+  const [activeView, setActiveViewState] = useState<GitPanelView>(readLastGitPanelView);
+  const setActiveView = useCallback((view: GitPanelView) => {
+    rememberGitPanelView(view);
+    setActiveViewState(view);
+  }, []);
   const [wrapText, setWrapText] = useState(true);
   const [hasExpandedFiles, setHasExpandedFiles] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmationRequest | null>(null);

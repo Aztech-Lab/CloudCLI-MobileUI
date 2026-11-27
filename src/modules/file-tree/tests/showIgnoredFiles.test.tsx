@@ -24,6 +24,7 @@ vi.mock('@/shared/api', () => ({
 
 await import('@/modules/i18n');
 const { default: FileTree } = await import('@/modules/file-tree/FileTree');
+const { clearFileTreeCache } = await import('@/modules/file-tree/utils/fileTreeStateCache');
 const { withoutIgnoredEntries } = await import('@/modules/file-tree/utils/fileTreeUtils');
 
 const project: Project = { projectId: 'p1', displayName: 'project', fullPath: ROOT, path: ROOT };
@@ -52,6 +53,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  clearFileTreeCache(); // the Files tab remembers its tree across mounts
   getFiles.mockReset();
   localStorage.clear();
 });
