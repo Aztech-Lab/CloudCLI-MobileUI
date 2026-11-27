@@ -89,7 +89,7 @@ The model picker lists exactly the models your Claude Code account offers. Proje
 
 **Your own look**
 
-A skin setting changes how the whole interface looks. The first skin, OTSR, takes its look from the [OTSR design](https://github.com/Aztech-Lab/OTSR): a quiet lab-white (or near-black) design with a copper accent and square edges, and you can tune its details, such as the dotted background, to taste.
+A skin setting changes how the whole interface looks. The first skin, OTSR, takes its look from the [OTSR design](https://github.com/Aztech-Lab/OTSR): a quiet lab-white (or near-black) design with a copper accent and square edges, and you can tune its details, such as the dotted background, to taste. The second, Aztecan, takes its look from [aztecan.net](https://aztecan.net/): frosted glass over a starfield.
 
 </td>
 <td width="50%" valign="top">
@@ -173,6 +173,11 @@ gitGraph
 Make one branch per change, starting from `main`, and open a pull request in this repository. The template asks what changed, why, and how you tested it. A maintainer reviews and merges it and writes it up under "What's new". [CONTRIBUTING.md](CONTRIBUTING.md) has the details, including how to set up a development copy.
 
 ## What's new
+
+**26 November 2026**
+- A second skin, Aztecan, takes its look from [aztecan.net](https://aztecan.net/): borderless frosted glass floating over a starfield that is different every time you open the app. A glass contrast setting (subtle, standard, strong, solid) keeps text easy to read, and the stars can be still or turned off ([#14](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/14)).
+- One setup script installs and runs the server on Windows, macOS and Linux, keeps it running in the background, and starts it again when you log in; on Windows the entry shows in Task Manager's startup apps, where you can turn it off. **Settings → Server** shows its status and can restart or stop it ([#15](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/15)).
+- The Files and Source Control tabs open instantly when you come back to them, with the same folders open and the same scroll position, and refresh quietly in the background ([#16](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/16)).
 
 **21 November 2026**
 - The Codex model picker lists the models your Codex account actually offers, with each model's own effort levels, instead of a fixed list ([#13](https://github.com/Aztech-Lab/CloudCLI-MobileUI/pull/13)).
