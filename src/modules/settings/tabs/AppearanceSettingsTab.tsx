@@ -177,6 +177,31 @@ export default function AppearanceSettingsTab({
         </SettingsCard>
       </SettingsSection>
 
+      {/* [local] Thinking display, mirrored from Quick Settings so it is reachable here too. */}
+      <SettingsSection title={t('quickSettings.sections.toolDisplay')}>
+        <SettingsCard divided>
+          <SettingsRow label={t('quickSettings.showThinking')}>
+            <SettingsToggle
+              checked={preferences.showThinking}
+              onChange={(value) => setPreference('showThinking', value)}
+              ariaLabel={t('quickSettings.showThinking')}
+            />
+          </SettingsRow>
+          <SettingsRow
+            label={t('quickSettings.autoExpandThinking')}
+            description={t('quickSettings.autoExpandThinkingDescription')}
+            className={preferences.showThinking ? undefined : 'opacity-50'}
+          >
+            <SettingsToggle
+              checked={preferences.autoExpandThinking}
+              onChange={(value) => setPreference('autoExpandThinking', value)}
+              ariaLabel={t('quickSettings.autoExpandThinking')}
+              disabled={!preferences.showThinking}
+            />
+          </SettingsRow>
+        </SettingsCard>
+      </SettingsSection>
+
       <SettingsSection title={t('appearanceSettings.codeEditor.title')}>
         <SettingsCard divided>
           <SettingsRow

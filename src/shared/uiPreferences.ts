@@ -12,6 +12,8 @@ import { readUserPreference } from '@/shared/userSettings';
 export type UiPreferences = {
   showRawParameters: boolean;
   showThinking: boolean;
+  /** [local] Open thinking blocks by default instead of collapsed. */
+  autoExpandThinking: boolean;
   sendByCtrlEnter: boolean;
   sidebarVisible: boolean;
   keepProjectsExpanded: boolean;
@@ -27,6 +29,7 @@ export type UiPreferencesAction =
 const DEFAULTS: UiPreferences = {
   showRawParameters: false,
   showThinking: true,
+  autoExpandThinking: false,
   sendByCtrlEnter: false,
   sidebarVisible: true,
   keepProjectsExpanded: false,

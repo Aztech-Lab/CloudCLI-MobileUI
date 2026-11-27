@@ -34,6 +34,7 @@ test('a fresh install gets the documented defaults', () => {
   assert.deepEqual(readStoredUiPreferences(), {
     showRawParameters: false,
     showThinking: true,
+    autoExpandThinking: false,
     sendByCtrlEnter: false,
     sidebarVisible: true,
     keepProjectsExpanded: false,
@@ -48,6 +49,16 @@ test('the stored blob is read back', () => {
   assert.equal(preferences.showThinking, false);
   assert.equal(preferences.voiceEnabled, true);
   assert.equal(preferences.sidebarVisible, true, 'unlisted keys keep their default');
+});
+
+test('auto-expand thinking is off until the user turns it on, then persists', () => {
+  assert.equal(readStoredUiPreferences().autoExpandThinking, false);
+
+  storeUiPreferences({ autoExpandThinking: true });
+  assert.equal(readStoredUiPreferences().autoExpandThinking, true);
+
+  const next = uiPreferencesReducer(baseline(), { type: 'set', key: 'autoExpandThinking', value: false });
+  assert.equal(next.autoExpandThinking, false);
 });
 
 test('values stored as strings are coerced, as older versions wrote them', () => {

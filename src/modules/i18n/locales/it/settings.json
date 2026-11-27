@@ -59,6 +59,8 @@
     "darkMode": "Modalità scura",
     "showRawParameters": "Mostra parametri grezzi",
     "showThinking": "Mostra ragionamento",
+    "autoExpandThinking": "Espandi ragionamento automaticamente",
+    "autoExpandThinkingDescription": "Apre i blocchi di ragionamento per impostazione predefinita, anche durante lo streaming. Puoi comunque comprimere un blocco a mano.",
     "sendByCtrlEnter": "Invia con Ctrl+Invio",
     "sendByCtrlEnterDescription": "Se abilitato, premere Ctrl+Invio invierà il messaggio invece di Invio. Utile per gli utenti IME per evitare invii accidentali.",
     "dragHandle": {

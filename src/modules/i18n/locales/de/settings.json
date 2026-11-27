@@ -59,6 +59,8 @@
     "darkMode": "Darkmode",
     "showRawParameters": "Rohe Parameter anzeigen",
     "showThinking": "Denken anzeigen",
+    "autoExpandThinking": "Denken automatisch aufklappen",
+    "autoExpandThinkingDescription": "Denkblöcke standardmäßig geöffnet anzeigen, auch während sie gestreamt werden. Einzelne Blöcke lassen sich weiterhin zuklappen.",
     "sendByCtrlEnter": "Mit Strg+Enter senden",
     "sendByCtrlEnterDescription": "Wenn aktiviert, sendet Strg+Enter die Nachricht anstelle von Enter. Dies ist nützlich für IME-Benutzer:innen, um versehentliches Senden zu vermeiden.",
     "dragHandle": {

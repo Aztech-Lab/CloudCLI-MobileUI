@@ -74,6 +74,8 @@ type ChatMessagesPaneProps = {
   onGrantToolPermission: (suggestion: { entry: string; toolName: string }) => { success: boolean };
   showRawParameters?: boolean;
   showThinking?: boolean;
+  /** [local] Thinking blocks start open (the autoExpandThinking preference). */
+  autoExpandThinking?: boolean;
   selectedProject: Project;
   /** Loads an already-sent message back into the composer; absent when the provider cannot re-run from a point. */
   onEditMessage?: (message: ChatMessage) => void;
@@ -144,6 +146,7 @@ function ChatMessagesPane({
   onGrantToolPermission,
   showRawParameters,
   showThinking,
+  autoExpandThinking,
   selectedProject,
 }: ChatMessagesPaneProps) {
   const { t } = useTranslation('chat');
@@ -324,6 +327,7 @@ function ChatMessagesPane({
                       onGrantToolPermission={onGrantToolPermission}
                       showRawParameters={showRawParameters}
                       showThinking={showThinking}
+                      autoExpandThinking={autoExpandThinking}
                       selectedProject={selectedProject}
                       provider={provider}
                     />
@@ -353,6 +357,7 @@ function ChatMessagesPane({
                     onGrantToolPermission={onGrantToolPermission}
                     showRawParameters={showRawParameters}
                     showThinking={showThinking}
+                    autoExpandThinking={autoExpandThinking}
                     selectedProject={selectedProject}
                     provider={provider}
                     onEditMessage={onEditMessage}

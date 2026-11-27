@@ -32,6 +32,11 @@ export type ReasoningProps = {
   isStreaming?: boolean;
   open?: boolean;
   defaultOpen?: boolean;
+  /**
+   * [local] Live default open state (the "auto-expand thinking" preference):
+   * the block follows it until the user opens or closes this block by hand.
+   */
+  autoOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   duration?: number;
 } & React.HTMLAttributes<HTMLDivElement>;
@@ -43,6 +48,7 @@ export const Reasoning = React.memo<ReasoningProps>(
     isStreaming = false,
     open: controlledOpen,
     defaultOpen,
+    autoOpen,
     onOpenChange,
     duration: durationProp,
     children,
@@ -53,14 +59,25 @@ export const Reasoning = React.memo<ReasoningProps>(
 
     // Controllable open state
     const [internalOpen, setInternalOpen] = React.useState(resolvedDefaultOpen);
+    // [local] Follow autoOpen until the user toggles this block themselves.
+    const [userToggled, setUserToggled] = React.useState(false);
     const isControlled = controlledOpen !== undefined;
-    const isOpen = isControlled ? controlledOpen : internalOpen;
+    const followsAutoOpen = autoOpen !== undefined && !userToggled;
+    const isOpen = isControlled ? controlledOpen : followsAutoOpen ? autoOpen : internalOpen;
     const setIsOpen = React.useCallback(
       (next: boolean) => {
         if (!isControlled) setInternalOpen(next);
         onOpenChange?.(next);
       },
       [isControlled, onOpenChange]
+    );
+    // [local] A click on the trigger takes the block off autoOpen.
+    const handleUserOpenChange = React.useCallback(
+      (next: boolean) => {
+        setUserToggled(true);
+        setIsOpen(next);
+      },
+      [setIsOpen]
     );
 
     // Duration tracking
@@ -114,7 +131,7 @@ export const Reasoning = React.memo<ReasoningProps>(
       <ReasoningContext.Provider value={contextValue}>
         <Collapsible
           open={isOpen}
-          onOpenChange={setIsOpen}
+          onOpenChange={handleUserOpenChange}
           className={cn('not-prose', className)}
           {...props}
         >
