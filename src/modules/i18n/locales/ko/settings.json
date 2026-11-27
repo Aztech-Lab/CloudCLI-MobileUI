@@ -75,6 +75,8 @@
     "darkMode": "다크 모드",
     "showRawParameters": "Raw 파라미터 표시",
     "showThinking": "생각 과정 표시",
+    "autoExpandThinking": "생각 과정 자동 펼치기",
+    "autoExpandThinkingDescription": "생각 블록을 기본으로 펼쳐 표시합니다(스트리밍 중 포함). 각 블록은 직접 접을 수 있습니다.",
     "sendByCtrlEnter": "Ctrl+Enter로 전송",
     "voiceEnabled": "음성 (마이크 + 소리 내어 읽기)",
     "sendByCtrlEnterDescription": "활성화하면 Enter 대신 Ctrl+Enter로 메시지를 전송합니다. IME 사용자가 실수로 전송하는 것을 방지하는 데 유용합니다.",

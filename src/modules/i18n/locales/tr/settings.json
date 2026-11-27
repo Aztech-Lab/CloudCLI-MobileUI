@@ -75,6 +75,8 @@
     "darkMode": "Koyu Mod",
     "showRawParameters": "Ham parametreleri göster",
     "showThinking": "Düşünmeyi göster",
+    "autoExpandThinking": "Düşünmeyi otomatik genişlet",
+    "autoExpandThinkingDescription": "Düşünme blokları varsayılan olarak açık gösterilir, akış sırasında da. Bir bloğu yine elle daraltabilirsiniz.",
     "sendByCtrlEnter": "Ctrl+Enter ile gönder",
     "voiceEnabled": "Ses (mikrofon + sesli okuma)",
     "sendByCtrlEnterDescription": "Etkinleştirildiğinde, Ctrl+Enter'a basmak yalnız Enter yerine mesajı gönderir. IME (girdi metot düzenleyici) kullananlar için yanlışlıkla göndermeyi önler.",

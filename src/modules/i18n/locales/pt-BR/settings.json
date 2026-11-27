@@ -75,6 +75,8 @@
     "darkMode": "Modo escuro",
     "showRawParameters": "Mostrar parâmetros brutos",
     "showThinking": "Mostrar raciocínio",
+    "autoExpandThinking": "Expandir raciocínio automaticamente",
+    "autoExpandThinkingDescription": "Abre os blocos de raciocínio por padrão, inclusive durante a transmissão. Você ainda pode recolher um bloco manualmente.",
     "sendByCtrlEnter": "Enviar com Ctrl+Enter",
     "voiceEnabled": "Voz (microfone + leitura em voz alta)",
     "sendByCtrlEnterDescription": "Quando ativado, pressionar Ctrl+Enter envia a mensagem em vez de apenas Enter. Isso é útil para usuários de IME evitarem envios acidentais.",

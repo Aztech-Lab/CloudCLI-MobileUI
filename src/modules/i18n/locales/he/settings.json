@@ -75,6 +75,8 @@
     "darkMode": "מצב כהה",
     "showRawParameters": "הצגת פרמטרים גולמיים",
     "showThinking": "הצגת חשיבה",
+    "autoExpandThinking": "הרחבה אוטומטית של החשיבה",
+    "autoExpandThinkingDescription": "בלוקי חשיבה נפתחים כברירת מחדל, גם בזמן הזרמה. עדיין אפשר לכווץ בלוק ידנית.",
     "sendByCtrlEnter": "שליחה ב-Ctrl+Enter",
     "voiceEnabled": "קול (מיקרופון + הקראה)",
     "sendByCtrlEnterDescription": "כשהאפשרות מופעלת, הודעה נשלחת ב-Ctrl+Enter במקום ב-Enter בלבד. שימושי למשתמשי IME כדי למנוע שליחה בטעות.",

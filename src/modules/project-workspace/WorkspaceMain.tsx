@@ -62,7 +62,7 @@ function WorkspaceMain({
   onRenameSession,
 }: WorkspaceMainProps) {
   const preferences = useUiPreferences();
-  const { showRawParameters, showThinking, sendByCtrlEnter } = preferences;
+  const { showRawParameters, showThinking, autoExpandThinking, sendByCtrlEnter } = preferences; // [local] autoExpandThinking
 
   const { tasksEnabled, isTaskMasterInstalled } = useTasksSettings();
   const browserUseEnabled = useBrowserUseEnabled();
@@ -196,6 +196,7 @@ function WorkspaceMain({
                 onShowSettings={onShowSettings}
                 showRawParameters={showRawParameters}
                 showThinking={showThinking}
+                autoExpandThinking={autoExpandThinking}
                 sendByCtrlEnter={sendByCtrlEnter}
                 externalMessageUpdate={externalMessageUpdate}
                 newSessionTrigger={newSessionTrigger}

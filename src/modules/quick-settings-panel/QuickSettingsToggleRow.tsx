@@ -12,6 +12,8 @@ type QuickSettingsToggleRowProps = {
   label: string;
   icon: LucideIcon;
   checked: boolean;
+  /** [local] Greys the row out and blocks the checkbox. */
+  disabled?: boolean;
   onCheckedChange: (checked: boolean) => void;
 };
 
@@ -20,10 +22,11 @@ function QuickSettingsToggleRow({
   label,
   icon: Icon,
   checked,
+  disabled,
   onCheckedChange,
 }: QuickSettingsToggleRowProps) {
   return (
-    <label className={TOGGLE_ROW_CLASS}>
+    <label className={disabled ? `${SETTING_ROW_CLASS} cursor-not-allowed opacity-50` : TOGGLE_ROW_CLASS}>
       <span className="flex items-center gap-2 text-sm text-foreground">
         <Icon className="h-4 w-4 text-muted-foreground" />
         {label}
@@ -31,6 +34,7 @@ function QuickSettingsToggleRow({
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(event) => onCheckedChange(event.target.checked)}
         className={CHECKBOX_CLASS}
       />

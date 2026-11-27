@@ -1,5 +1,6 @@
 import {
   Brain,
+  ChevronsUpDown,
   Eye,
   Languages,
   Mic,
@@ -21,6 +22,8 @@ type PreferenceToggleItem = {
   key: PreferenceToggleKey;
   labelKey: string;
   icon: LucideIcon;
+  /** [local] Greyed out while this other preference is off. */
+  dependsOn?: PreferenceToggleKey;
 };
 
 const TOOL_DISPLAY_TOGGLES: PreferenceToggleItem[] = [
@@ -33,6 +36,13 @@ const TOOL_DISPLAY_TOGGLES: PreferenceToggleItem[] = [
     key: 'showThinking',
     labelKey: 'quickSettings.showThinking',
     icon: Brain,
+  },
+  // [local] Thinking blocks start open; only meaningful while thinking is shown.
+  {
+    key: 'autoExpandThinking',
+    labelKey: 'quickSettings.autoExpandThinking',
+    icon: ChevronsUpDown,
+    dependsOn: 'showThinking',
   },
 ];
 
@@ -67,12 +77,13 @@ export default function QuickSettingsContent({
     : INPUT_SETTING_TOGGLES.filter(({ key }) => key !== 'voiceEnabled');
 
   const renderToggleRows = (items: PreferenceToggleItem[]) => (
-    items.map(({ key, labelKey, icon }) => (
+    items.map(({ key, labelKey, icon, dependsOn }) => (
       <QuickSettingsToggleRow
         key={key}
         label={t(labelKey)}
         icon={icon}
         checked={preferences[key]}
+        disabled={dependsOn ? !preferences[dependsOn] : undefined}
         onCheckedChange={(value) => onPreferenceChange(key, value)}
       />
     ))

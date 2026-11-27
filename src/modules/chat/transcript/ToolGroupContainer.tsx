@@ -18,6 +18,8 @@ type ToolGroupContainerProps = {
   onGrantToolPermission?: (suggestion: ClaudePermissionSuggestion) => PermissionGrantResult | null | undefined;
   showRawParameters?: boolean;
   showThinking?: boolean;
+  /** [local] Thinking blocks start open (the autoExpandThinking preference). */
+  autoExpandThinking?: boolean;
   selectedProject?: Project | null;
   provider: LLMProvider | string;
 };
@@ -83,6 +85,7 @@ function ToolGroupContainer({
   onGrantToolPermission,
   showRawParameters,
   showThinking,
+  autoExpandThinking,
   selectedProject,
   provider,
 }: ToolGroupContainerProps) {
@@ -154,6 +157,7 @@ function ToolGroupContainer({
               onGrantToolPermission={onGrantToolPermission}
               showRawParameters={showRawParameters}
               showThinking={showThinking}
+              autoExpandThinking={autoExpandThinking}
               selectedProject={selectedProject}
               provider={provider}
             />

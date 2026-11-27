@@ -29,6 +29,8 @@ type MessageComponentProps = {
   onGrantToolPermission?: (suggestion: ClaudePermissionSuggestion) => PermissionGrantResult | null | undefined;
   showRawParameters?: boolean;
   showThinking?: boolean;
+  /** [local] Thinking blocks start open (the autoExpandThinking preference). */
+  autoExpandThinking?: boolean;
   selectedProject?: Project | null;
   provider: LLMProvider | string;
   /**
@@ -81,7 +83,7 @@ function SideQuestionDismissButton({ label, onDismiss }: { label: string; onDism
  * Rendered by chat's ChatMessagesPane and ToolGroupContainer to draw one
  * transcript entry — user turn, assistant turn, or a tool call and its result.
  */
-const MessageComponent = memo(({ message, prevMessage, createDiff, onFileOpen, showRawParameters, showThinking, selectedProject, provider, onEditMessage, onForkFromMessage }: MessageComponentProps) => {
+const MessageComponent = memo(({ message, prevMessage, createDiff, onFileOpen, showRawParameters, showThinking, autoExpandThinking, selectedProject, provider, onEditMessage, onForkFromMessage }: MessageComponentProps) => {
   const { t } = useTranslation('chat');
   // A side question never groups with its neighbours: it is drawn as its own
   // tinted aside regardless of what came before or after it.
@@ -453,7 +455,8 @@ const MessageComponent = memo(({ message, prevMessage, createDiff, onFileOpen, s
               </>
             ) : message.isThinking ? (
               /* Thinking messages — Reasoning component (ai-elements pattern) */
-              <Reasoning defaultOpen={isExporting}>
+              // [local] autoOpen: the auto-expand thinking preference.
+              <Reasoning defaultOpen={isExporting} autoOpen={isExporting || Boolean(autoExpandThinking)}>
                 <ReasoningTrigger />
                 <ReasoningContent>
                   <Markdown className="prose prose-sm prose-gray max-w-none font-serif dark:prose-invert">
@@ -468,9 +471,9 @@ const MessageComponent = memo(({ message, prevMessage, createDiff, onFileOpen, s
               </Reasoning>
             ) : (
               <div dir="auto" className="text-sm text-gray-700 dark:text-gray-300">
-                {/* Reasoning accordion */}
+                {/* Reasoning accordion ([local] autoOpen: the auto-expand thinking preference) */}
                 {showThinking && message.reasoning && (
-                  <Reasoning className="mb-3" defaultOpen={false}>
+                  <Reasoning className="mb-3" defaultOpen={false} autoOpen={Boolean(autoExpandThinking)}>
                     <ReasoningTrigger />
                     <ReasoningContent>
                       <div className="whitespace-pre-wrap">

@@ -45,6 +45,8 @@ type ChatInterfaceProps = {
   onShowSettings?: () => void;
   showRawParameters?: boolean;
   showThinking?: boolean;
+  /** [local] Thinking blocks start open (the autoExpandThinking preference). */
+  autoExpandThinking?: boolean;
   sendByCtrlEnter?: boolean;
   externalMessageUpdate?: number;
   newSessionTrigger?: number;
@@ -69,6 +71,7 @@ function ChatInterface({
   onShowSettings,
   showRawParameters,
   showThinking,
+  autoExpandThinking,
   sendByCtrlEnter,
   externalMessageUpdate,
   newSessionTrigger,
@@ -592,6 +595,7 @@ function ChatInterface({
               onGrantToolPermission={handleGrantToolPermission}
               showRawParameters={showRawParameters}
               showThinking={showThinking}
+              autoExpandThinking={autoExpandThinking}
               selectedProject={selectedProject}
               // Editing replaces the turn and everything after it, so it is only
               // offered when the session is idle — a half-truncated transcript with
