@@ -28,7 +28,7 @@ import type { ProviderRuntimeContext } from '@/shared/index.js';
  * `codexRuntime` exactly as a chat message is, against a fake
  * `codex app-server`: a node script speaking newline-delimited JSON-RPC that
  * plays a scripted turn per `turn/start` and logs every line it receives. It
- * is installed through `codexAppServer.resolveLauncher`, so no Codex binary
+ * is installed through `codexAppServer.resolveCommand`, so no Codex binary
  * starts and no model is called. Message shapes follow the protocol generated
  * from Codex 0.169 (`v2/ThreadItem`, `TurnCompletedNotification`, …), and the
  * lifecycle details (writer error text, interrupt reply, unknown-method error)
@@ -301,10 +301,10 @@ async function withFake(config: FakeConfig, run: (fake: Fake) => Promise<void>, 
   const script = path.join(dir, 'fake-app-server.cjs');
   await writeFile(script, fakeAppServerSource(config, files), 'utf8');
 
-  const appServer = codexAppServer as unknown as { resolveLauncher: () => string };
-  const originalLauncher = appServer.resolveLauncher;
+  const appServer = codexAppServer as unknown as { resolveCommand: () => { command: string; args: string[]; env: NodeJS.ProcessEnv } };
+  const originalLauncher = appServer.resolveCommand;
   const originalMode = process.env.CLOUDCLI_CODEX_RUNTIME;
-  appServer.resolveLauncher = () => script;
+  appServer.resolveCommand = () => ({ command: process.execPath, args: [script], env: process.env });
   if (runtimeMode === null) {
     delete process.env.CLOUDCLI_CODEX_RUNTIME;
   } else {
@@ -330,7 +330,7 @@ async function withFake(config: FakeConfig, run: (fake: Fake) => Promise<void>, 
         }
       });
     }
-    appServer.resolveLauncher = originalLauncher;
+    appServer.resolveCommand = originalLauncher;
     if (originalMode === undefined) {
       delete process.env.CLOUDCLI_CODEX_RUNTIME;
     } else {

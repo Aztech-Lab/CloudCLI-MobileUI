@@ -49,6 +49,7 @@ export {
   isCodexThreadActiveWriterError,
   mapPermissionModeToCodexOptions,
 } from './codex-runtime.shared.js';
+import { createCodexProcessEnv, resolveCodexCli } from './codex-cli.js';
 
 type ActiveCodexSession = {
   thread: Thread;
@@ -295,7 +296,14 @@ async function queryCodex(
   const sessionKey = () => sessionId || capturedSessionId || null;
 
   try {
-    codex = codexConfig ? new Codex({ config: codexConfig }) : new Codex();
+    // The SDK finds the bundled CLI by itself; the user's own Codex is handed
+    // over with the PATH helpers the SDK would otherwise add for the bundle.
+    // [local] Plus the config overrides of the permission mode.
+    const cli = resolveCodexCli();
+    codex = new Codex({
+      ...(cli?.source === 'user' ? { codexPathOverride: cli.executablePath, env: createCodexProcessEnv(cli) } : {}),
+      ...(codexConfig ? { config: codexConfig } : {}),
+    });
 
     const threadOptions: ThreadOptions = {
       workingDirectory,

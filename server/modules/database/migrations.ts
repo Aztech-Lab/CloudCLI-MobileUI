@@ -1,4 +1,4 @@
-import { Database } from 'better-sqlite3';
+import type { Database } from 'better-sqlite3';
 
 import {
   APP_CONFIG_TABLE_SCHEMA_SQL,
@@ -12,6 +12,7 @@ import {
   SCHEDULED_MESSAGES_TABLE_SCHEMA_SQL,
   SESSIONS_TABLE_SCHEMA_SQL,
   SESSION_TRANSCRIPT_NOTES_TABLE_SCHEMA_SQL,
+  SESSION_PINS_TABLE_SCHEMA_SQL,
   USER_PREFERENCES_TABLE_SCHEMA_SQL,
   USER_NOTIFICATION_PREFERENCES_TABLE_SCHEMA_SQL,
   VAPID_KEYS_TABLE_SCHEMA_SQL,
@@ -582,6 +583,8 @@ export const runMigrations = (db: Database) => {
     addSessionEffortColumn(db);
     addForkedFromSessionIdColumn(db);
     addSessionWorkspaceRootsColumn(db);
+    // Create after legacy session-table repairs so the foreign key names the canonical app id.
+    db.exec(SESSION_PINS_TABLE_SCHEMA_SQL);
     ensureProjectsForSessionPaths(db);
     db.exec(SCHEDULED_MESSAGES_TABLE_SCHEMA_SQL);
 

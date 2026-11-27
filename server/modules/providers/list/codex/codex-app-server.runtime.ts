@@ -278,7 +278,7 @@ async function handleServerRequest(method: string, params: unknown, rpcId: numbe
 const connection = new CodexAppServerConnection({
   // Through the exported client object so tests swap in a fake app-server
   // script the same way they do for forks and side questions.
-  resolveLauncher: () => codexAppServer.resolveLauncher(),
+  resolveCommand: () => codexAppServer.resolveCommand(),
   handleServerRequest,
   // Getters, so a change to `settings` (tests) applies to the next request.
   get requestTimeoutMs() { return settings.requestTimeoutMs; },
