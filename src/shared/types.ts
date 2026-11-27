@@ -1107,6 +1107,8 @@ export type FileTreeNode = {
   incomplete?: boolean;
   /** [local] Matched by the root's .gitignore; rendered dimmed, hidden by the toolbar toggle. */
   ignored?: boolean;
+  /** [local] Client only: ETag of the on-demand listing `children` came from, sent back to ask "changed?". */
+  listingEtag?: string;
   [key: string]: unknown;
 };
 

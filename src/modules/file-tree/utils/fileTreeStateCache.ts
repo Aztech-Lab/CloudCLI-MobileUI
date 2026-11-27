@@ -10,6 +10,8 @@ import type { FileTreeNode } from '@/shared/types';
 export type FileTreeCacheEntry = {
   /** The last tree, including folders loaded on demand. Unset: never loaded. */
   files?: FileTreeNode[];
+  /** ETag of the listing `files` was built from; a refresh sends it and keeps the tree on 304. */
+  etag?: string;
   expandedDirs?: Set<string>;
   searchQuery?: string;
   scrollTop?: number;
@@ -90,7 +92,10 @@ export function mergeRefreshedTree(previous: FileTreeNode[], next: FileTreeNode[
     if (!earlier?.children) return node;
     if (node.incomplete && !node.children) {
       changed = true;
-      return { ...node, children: earlier.children };
+      // [local] The kept children still match the ETag of the listing they came from.
+      return earlier.listingEtag
+        ? { ...node, children: earlier.children, listingEtag: earlier.listingEtag }
+        : { ...node, children: earlier.children };
     }
     if (node.children) {
       const children = mergeRefreshedTree(earlier.children, node.children);
@@ -101,4 +106,37 @@ export function mergeRefreshedTree(previous: FileTreeNode[], next: FileTreeNode[
     return node;
   });
   return changed ? merged : next;
+}
+
+/**
+ * [local] After the server confirmed the tree unchanged (304): folders loaded
+ * on demand lie outside what that answer covers (beyond the entry budget or
+ * gitignored), so flag them `incomplete` again, keeping their children. An
+ * open one is then asked again quietly with its own ETag, a closed one when it
+ * is next opened, as after a full refresh.
+ */
+export function markLoadedDirectoriesStale(nodes: FileTreeNode[]): FileTreeNode[] {
+  let changed = false;
+  const next = nodes.map((node) => {
+    if (node.type !== 'directory' || !node.children) return node;
+    const children = markLoadedDirectoriesStale(node.children);
+    const stale = Boolean(node.listingEtag) && !node.incomplete;
+    if (!stale && children === node.children) return node;
+    changed = true;
+    return { ...node, children, ...(stale ? { incomplete: true } : {}) };
+  });
+  return changed ? next : nodes;
+}
+
+/** [local] The directory node at `directoryPath`, if the tree holds it. */
+export function findDirectoryNode(nodes: FileTreeNode[] | undefined, directoryPath: string): FileTreeNode | undefined {
+  for (const node of nodes ?? []) {
+    if (node.type !== 'directory') continue;
+    if (node.path === directoryPath) return node;
+    if (node.children && directoryPath.startsWith(node.path)) {
+      const found = findDirectoryNode(node.children, directoryPath);
+      if (found) return found;
+    }
+  }
+  return undefined;
 }

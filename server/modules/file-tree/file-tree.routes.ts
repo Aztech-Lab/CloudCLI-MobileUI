@@ -1,3 +1,6 @@
+import { promisify } from 'node:util';
+import zlib from 'node:zlib';
+
 import express from 'express';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 
@@ -113,6 +116,53 @@ function normalizeUploadedFiles(request: UploadedRequest): FileTreeUploadedFile[
     : [];
 }
 
+/** [local] The entity tags of an `If-None-Match` header (`*` is not used by any client and ignored). */
+function readIfNoneMatch(request: Request): string[] {
+  const header = request.headers['if-none-match'];
+  if (typeof header !== 'string' || !header) {
+    return [];
+  }
+  return header.split(',').map((tag) => tag.trim()).filter((tag) => tag && tag !== '*');
+}
+
+const COMPRESSION_THRESHOLD_BYTES = 1024;
+const brotliCompress = promisify(zlib.brotliCompress);
+const gzip = promisify(zlib.gzip);
+const zlibConstants = zlib.constants;
+
+/**
+ * [local] Sends a JSON body brotli- or gzip-compressed when the client accepts
+ * it. The server has no compression middleware; a big project's tree shrinks
+ * from megabytes to a few hundred kilobytes.
+ */
+async function sendCompressedJson(request: Request, response: Response, body: string): Promise<void> {
+  response.setHeader('Content-Type', 'application/json; charset=utf-8');
+  response.vary('Accept-Encoding');
+  const raw = Buffer.from(body, 'utf8');
+  // Brotli when offered at all (it is ~20% smaller here), even if listed after gzip.
+  const encoding = raw.length < COMPRESSION_THRESHOLD_BYTES
+    ? false
+    : request.acceptsEncodings('br') ? 'br' : request.acceptsEncodings('gzip');
+  if (encoding === 'br') {
+    const compressed = await brotliCompress(raw, {
+      params: {
+        [zlibConstants.BROTLI_PARAM_QUALITY]: 4,
+        [zlibConstants.BROTLI_PARAM_SIZE_HINT]: raw.length,
+      },
+    });
+    response.setHeader('Content-Encoding', 'br');
+    response.end(compressed);
+    return;
+  }
+  if (encoding === 'gzip') {
+    const compressed = await gzip(raw);
+    response.setHeader('Content-Encoding', 'gzip');
+    response.end(compressed);
+    return;
+  }
+  response.end(raw);
+}
+
 function createRouteHandler(
   operation: (request: Request, response: Response) => void | Promise<void>,
   logger: FileTreeLogger,
@@ -200,13 +250,32 @@ export function createFileTreeRouter(
 
   router.get('/projects/:projectId/files', createRouteHandler(async (request, response) => {
     const subPath = readOptionalString(request.query.path);
-    response.json(await services.listProjectFiles(readProjectId(request), {
+    const options = {
       respectGitignore: request.query.respectGitignore === 'true',
       // [local] Only the Files tab asks for gitignored entries; other callers keep them dropped.
       ...(request.query.includeIgnored === 'true' ? { includeIgnored: true } : {}),
       ...(subPath ? { subPath } : {}),
       ...withRootScope(request.query as Record<string, unknown>),
-    }));
+    };
+    // [local] Conditional and compressed: a client that sends the ETag of the
+    // tree it holds gets 304 when nothing changed, and a full tree (several MB
+    // of JSON for a big project) travels compressed.
+    if (services.listProjectFilesIfChanged) {
+      const listing = await services.listProjectFilesIfChanged(
+        readProjectId(request),
+        options,
+        readIfNoneMatch(request),
+      );
+      response.setHeader('ETag', listing.etag);
+      response.setHeader('Cache-Control', 'private, no-cache');
+      if (listing.notModified) {
+        response.status(304).end();
+        return;
+      }
+      await sendCompressedJson(request, response, listing.body);
+      return;
+    }
+    response.json(await services.listProjectFiles(readProjectId(request), options));
   }, logger));
 
   // [local] The workspace roots the Files tab can switch between for a session.
