@@ -39,6 +39,7 @@ export function writeGitPanelSnapshot(projectId: string, snapshot: GitPanelSnaps
 
 export function clearGitPanelSnapshots(): void {
   snapshots.clear();
+  scrollPositions.clear();
   lastView = 'changes';
 }
 
@@ -51,4 +52,21 @@ export function readLastGitPanelView(): GitPanelView {
 
 export function rememberGitPanelView(view: GitPanelView): void {
   lastView = view;
+}
+
+// How far each sub-view was scrolled, per project (`<projectId>:<view>`), like the
+// Files tab remembers its scroll position.
+const scrollPositions = new Map<string, number>();
+
+export function readGitPanelScroll(key: string): number {
+  return scrollPositions.get(key) ?? 0;
+}
+
+export function rememberGitPanelScroll(key: string, scrollTop: number): void {
+  scrollPositions.delete(key);
+  scrollPositions.set(key, scrollTop);
+  // A handful of projects times five views is plenty.
+  while (scrollPositions.size > GIT_PANEL_CACHE_LIMIT * 5) {
+    scrollPositions.delete(scrollPositions.keys().next().value as string);
+  }
 }

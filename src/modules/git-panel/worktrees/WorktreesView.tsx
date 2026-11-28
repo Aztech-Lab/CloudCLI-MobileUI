@@ -242,7 +242,7 @@ export default function WorktreesView({
       )}
 
       {/* Worktree list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" data-git-panel-scroll /* [local] scroll position is remembered */>
         {worktrees.map((worktree) => (
           <WorktreeRow
             key={worktree.path}

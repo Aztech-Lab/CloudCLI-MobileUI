@@ -1,12 +1,55 @@
 {
+  "tab": {
+    "label": "MobileUI",
+    "description": "Semua yang ditambahkan edisi ini ke CloudCLI, di satu tempat."
+  },
+  "sections": {
+    "look": "Tampilan",
+    "conversation": "Percakapan",
+    "files": "File",
+    "about": "Tentang edisi ini",
+    "phone": "Ponsel & navigasi",
+    "agents": "Agen & latar belakang"
+  },
   "autoExpandThinking": "Otomatis bentangkan proses berpikir",
   "autoExpandThinkingDescription": "Blok proses berpikir terbuka secara default, termasuk saat sedang di-stream. Anda tetap bisa menutup blok secara manual.",
   "skin": {
+    "label": "Skin",
+    "description": "Gaya visual antarmuka; mode terang dan gelap berfungsi di setiap skin",
+    "names": {
+      "default": "Default",
+      "otsr": "OTSR",
+      "aztecan": "Aztecan"
+    },
     "descriptions": {
-      "aztecan": "Hampir hitam, sian, kaca"
+      "otsr": "Putih lab, tembaga, sudut persegi",
+      "aztecan": "Hampir hitam, sian, kaca",
+      "default": "Tampilan asli CloudCLI"
     }
   },
   "skinOptions": {
+    "otsr": {
+      "dotField": {
+        "label": "Pola titik",
+        "description": "Tekstur titik-titik di belakang percakapan",
+        "off": "Mati",
+        "faint": "Samar",
+        "normal": "Normal",
+        "strong": "Kuat"
+      },
+      "chamfers": {
+        "label": "Tepi terpotong",
+        "description": "Sudut terpotong pada strip tab, kotak penulisan pesan, dan pesan Anda"
+      },
+      "monoLabels": {
+        "label": "Label tab monospace",
+        "description": "Label huruf kapital bergaya instrumen pada tab workspace"
+      },
+      "squareMarks": {
+        "label": "Penanda status persegi",
+        "description": "Indikator status berbentuk persegi, bukan bulat"
+      }
+    },
     "aztecan": {
       "stars": {
         "label": "Bidang bintang",
@@ -27,7 +70,8 @@
         "label": "Kisi latar",
         "description": "Kisi halus di latar belakang",
         "off": "Mati",
-        "faint": "Samar"
+        "faint": "Samar",
+        "normal": "Normal"
       },
       "halo": {
         "label": "Halo dan pendar",
@@ -37,6 +81,112 @@
         "label": "Tab pil",
         "description": "Strip tab yang sepenuhnya membulat, seperti navigasi situs web"
       }
+    }
+  },
+  "assistantBubble": {
+    "label": "Gelembung balasan agen",
+    "description": "Cara balasan tertulis agen dibingkai dalam percakapan",
+    "off": "Tanpa gelembung",
+    "translucent": "Tembus pandang",
+    "solid": "Padat"
+  },
+  "serverSettings": {
+    "title": "Server",
+    "description": "Server CloudCLI di komputer ini, dijalankan oleh skrip di scripts/server.",
+    "testPortal": "Ini adalah portal uji (port {{port}}). Mulai Ulang dan Hentikan hanya berlaku untuk portal ini.",
+    "loading": "Memuat status server…",
+    "unavailable": "Server ini tidak dijalankan oleh skrip di scripts/server, sehingga tidak dapat dikendalikan dari sini.",
+    "status": "Status",
+    "running": "Berjalan di port {{port}}",
+    "runningPid": "Berjalan di port {{port}} (PID {{pid}})",
+    "stopped": "Tidak berjalan",
+    "version": "Versi {{version}}",
+    "build": "Build",
+    "buildValue": "{{branch}} {{commit}}, dibuat {{builtAt}}",
+    "buildDirty": "dengan perubahan yang belum di-commit",
+    "noBuildInfo": "Tidak ada informasi build",
+    "pendingBuild": "Build yang disiapkan",
+    "pendingBuildHint": "Siap diaktifkan: setelah dimulai ulang, build ini menjadi build yang berjalan.",
+    "activeWork": "Pekerjaan berjalan",
+    "activeWorkNone": "Tidak ada",
+    "activeWorkValue": "Balasan yang sedang ditulis: {{turns}} · sesi dengan pekerjaan latar belakang: {{sessions}} · tugas latar belakang: {{tasks}}",
+    "autostart": "Mulai saat login",
+    "autostartDescription": "Jalankan server di latar belakang saat Anda login ke komputer ini.",
+    "autostartDisabled": "Dimatikan oleh sistem (di Windows: Task Manager > Startup apps). Mengaktifkannya di sini akan menyalakannya kembali.",
+    "autostartUnsupported": "Tidak tersedia di sistem ini.",
+    "autostartLiveOnly": "Hanya berlaku untuk server live; ubah di sana.",
+    "actionsTitle": "Mulai ulang atau hentikan",
+    "actionsDescription": "Keduanya mengakhiri setiap balasan yang sedang ditulis dan semua tugas latar belakang, dan halaman ini kehilangan koneksi. Setelah dimulai ulang, halaman tersambung kembali dengan sendirinya; setelah dihentikan, server harus dijalankan lagi di komputer.",
+    "activateBuild": "Aktifkan build yang disiapkan",
+    "restart": "Mulai Ulang",
+    "stop": "Hentikan",
+    "working": "Memproses…",
+    "confirmRestart": "Mulai ulang server sekarang? Halaman ini akan kehilangan koneksi sebentar.",
+    "confirmStop": "Hentikan server? Halaman ini tidak akan berfungsi sampai server dijalankan lagi di komputer.",
+    "confirmWork": "Pekerjaan yang sedang berjalan akan diakhiri dan tidak dapat dilanjutkan. {{work}}",
+    "restartScheduled": "Memulai ulang… Halaman ini akan tersambung kembali saat server aktif lagi.",
+    "stopScheduled": "Server sedang dihentikan. Jalankan lagi di komputer (scripts/server/start)."
+  },
+  "showThinking": {
+    "label": "Tampilkan proses berpikir",
+    "description": "Sakelar yang sama seperti di Pengaturan Cepat."
+  },
+  "files": {
+    "showIgnored": "Tampilkan file yang di-gitignore",
+    "showIgnoredDescription": "Tampilkan file dan folder yang di-gitignore di tab File secara redup. Sama dengan tombol mata di sana; hanya diingat di perangkat ini."
+  },
+  "about": {
+    "basedOnVersion": "CloudCLI-MobileUI, berbasis CloudCLI {{version}}.",
+    "basedOn": "CloudCLI-MobileUI, berbasis CloudCLI.",
+    "repository": "Repositori",
+    "whatsNew": "Yang baru"
+  },
+  "phone": {
+    "swipeNavigation": "Geser antar-tab",
+    "swipeNavigationDescription": "Di ponsel, geser ke kiri atau kanan untuk berpindah tab workspace; menggeser kembali dari tab pertama membuka menu.",
+    "homeRecents": "Percakapan terbaru di layar beranda",
+    "homeRecentsDescription": "Saat tidak ada proyek yang terbuka, tampilkan percakapan terbaru beserta proyeknya. Mati: layar “pilih proyek” yang asli."
+  },
+  "serverSwitches": {
+    "intro": "Sakelar server: disimpan di server dan digunakan sejak server dimulai ulang berikutnya. Nilai yang diatur di konfigurasi server selalu diutamakan.",
+    "stagingNote": "Ini adalah portal uji: sakelar ini hanya memengaruhi portal uji (yang memiliki database sendiri).",
+    "source": {
+      "default": "Default",
+      "ui": "Diatur di sini",
+      "config": "Dikunci oleh konfigurasi server"
+    },
+    "lockedHint": "Diatur di konfigurasi server ({{key}}), yang selalu diutamakan. Ubah di _server/config.json.",
+    "appliesAfterRestart": "Tersimpan. Berlaku setelah server dimulai ulang.",
+    "restartNow": "Mulai ulang sekarang",
+    "restartManually": "Mulai ulang server di komputer untuk menggunakannya.",
+    "experimental": "Eksperimental",
+    "defaultValue": "Default ({{value}})",
+    "save": "Simpan",
+    "codexRuntime": {
+      "label": "Runtime Codex",
+      "description": "Cara percakapan Codex dijalankan: satu proses per pesan (exec, default), atau app server yang berjalan terus dengan persetujuan dan terminal latar belakang.",
+      "exec": "exec (default)",
+      "appserver": "appserver (eksperimental)"
+    },
+    "approvalTimeout": {
+      "label": "Batas waktu persetujuan",
+      "description": "Berapa lama persetujuan tool menunggu jawaban Anda sebelum ditolak."
+    },
+    "backgroundHold": {
+      "label": "Batas pekerjaan latar belakang",
+      "description": "Berapa lama sesi yang masih memiliki tugas latar belakang boleh diam sebelum tugas-tugas itu dihentikan."
+    },
+    "fileTreeMaxEntries": {
+      "label": "Batas pohon file",
+      "description": "Jumlah entri yang dimuat tab File sekaligus dalam proyek yang sangat besar (default {{value}}). Folder di luar batas itu dimuat saat dibuka."
+    },
+    "extraReadRoots": {
+      "label": "Folder hanya-baca tambahan",
+      "description": "Folder di luar proyek yang boleh dibuka oleh penampil file di chat, dalam mode hanya-baca. Path absolut folder yang sudah ada, maksimal 20.",
+      "placeholder": "Path absolut folder",
+      "add": "Tambah folder",
+      "remove": "Hapus {{path}}",
+      "confirm": "Siapa pun yang masuk ke server ini akan dapat membaca setiap file di dalam\n{{path}}\ndari chat. Tambahkan?"
     }
   }
 }

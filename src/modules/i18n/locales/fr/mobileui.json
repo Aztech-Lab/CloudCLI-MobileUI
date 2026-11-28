@@ -1,12 +1,55 @@
 {
+  "tab": {
+    "label": "MobileUI",
+    "description": "Tout ce que cette édition ajoute à CloudCLI, au même endroit."
+  },
+  "sections": {
+    "look": "Apparence",
+    "conversation": "Conversation",
+    "files": "Fichiers",
+    "about": "À propos de cette édition",
+    "phone": "Téléphone et navigation",
+    "agents": "Agents et arrière-plan"
+  },
   "autoExpandThinking": "Déplier la réflexion automatiquement",
   "autoExpandThinkingDescription": "Ouvrir les blocs de réflexion par défaut, y compris pendant leur diffusion. Vous pouvez toujours replier un bloc vous-même.",
   "skin": {
+    "label": "Habillage",
+    "description": "Le style visuel de l’interface ; les modes clair et sombre fonctionnent avec chaque habillage",
+    "names": {
+      "default": "Par défaut",
+      "otsr": "OTSR",
+      "aztecan": "Aztecan"
+    },
     "descriptions": {
-      "aztecan": "Quasi-noir, cyan, verre"
+      "otsr": "Blanc laboratoire, cuivre, angles droits",
+      "aztecan": "Quasi-noir, cyan, verre",
+      "default": "L’apparence d’origine de CloudCLI"
     }
   },
   "skinOptions": {
+    "otsr": {
+      "dotField": {
+        "label": "Trame de points",
+        "description": "La texture pointillée derrière la conversation",
+        "off": "Désactivée",
+        "faint": "Légère",
+        "normal": "Normale",
+        "strong": "Forte"
+      },
+      "chamfers": {
+        "label": "Bords chanfreinés",
+        "description": "Angles coupés sur la barre d’onglets, la zone de saisie et vos messages"
+      },
+      "monoLabels": {
+        "label": "Libellés d’onglets à chasse fixe",
+        "description": "Libellés en majuscules façon instrument sur les onglets de l’espace de travail"
+      },
+      "squareMarks": {
+        "label": "Indicateurs d’état carrés",
+        "description": "Indicateurs d’état carrés au lieu de ronds"
+      }
+    },
     "aztecan": {
       "stars": {
         "label": "Champ d’étoiles",
@@ -19,6 +62,7 @@
         "label": "Contraste du verre",
         "description": "À quel point les panneaux et les bulles se détachent du ciel",
         "subtle": "Discret",
+        "standard": "Standard",
         "strong": "Fort",
         "solid": "Opaque (forte lumière)"
       },
@@ -37,6 +81,112 @@
         "label": "Onglets en pilule",
         "description": "Barres d’onglets entièrement arrondies, comme la navigation du site web"
       }
+    }
+  },
+  "assistantBubble": {
+    "label": "Bulle des réponses de l’agent",
+    "description": "Comment les réponses écrites de l’agent sont encadrées dans la conversation",
+    "off": "Sans bulle",
+    "translucent": "Translucide",
+    "solid": "Opaque"
+  },
+  "serverSettings": {
+    "title": "Serveur",
+    "description": "Le serveur CloudCLI de cet ordinateur, lancé par les scripts de scripts/server.",
+    "testPortal": "Ceci est le portail de test (port {{port}}). Redémarrer et Arrêter n’agissent que sur lui.",
+    "loading": "Chargement de l’état du serveur…",
+    "unavailable": "Ce serveur n’a pas été lancé par les scripts de scripts/server ; il ne peut donc pas être contrôlé ici.",
+    "status": "État",
+    "running": "En cours d’exécution sur le port {{port}}",
+    "runningPid": "En cours d’exécution sur le port {{port}} (PID {{pid}})",
+    "stopped": "Arrêté",
+    "version": "Version {{version}}",
+    "build": "Build",
+    "buildValue": "{{branch}} {{commit}}, compilé le {{builtAt}}",
+    "buildDirty": "avec des modifications non validées",
+    "noBuildInfo": "Aucune information de build",
+    "pendingBuild": "Build préparé",
+    "pendingBuildHint": "Prêt à être activé : un redémarrage en fait le build en cours d’exécution.",
+    "activeWork": "Travail en cours",
+    "activeWorkNone": "Aucun",
+    "activeWorkValue": "Réponses en cours de rédaction : {{turns}} · sessions avec travail en arrière-plan : {{sessions}} · tâches en arrière-plan : {{tasks}}",
+    "autostart": "Lancer à l’ouverture de session",
+    "autostartDescription": "Lancer le serveur en arrière-plan lorsque vous ouvrez une session sur cet ordinateur.",
+    "autostartDisabled": "Désactivé par le système (sous Windows : Gestionnaire des tâches > Applications de démarrage). L’activer ici le réactive.",
+    "autostartUnsupported": "Non disponible sur ce système.",
+    "autostartLiveOnly": "S’applique uniquement au serveur de production ; modifiez-le là-bas.",
+    "actionsTitle": "Redémarrer ou arrêter",
+    "actionsDescription": "Les deux interrompent toutes les réponses en cours de rédaction et toutes les tâches en arrière-plan, et cette page perd sa connexion. Après un redémarrage, elle se reconnecte d’elle-même ; après un arrêt, le serveur doit être relancé sur l’ordinateur.",
+    "activateBuild": "Activer le build préparé",
+    "restart": "Redémarrer",
+    "stop": "Arrêter",
+    "working": "En cours…",
+    "confirmRestart": "Redémarrer le serveur maintenant ? Cette page perdra brièvement sa connexion.",
+    "confirmStop": "Arrêter le serveur ? Cette page ne fonctionnera plus tant que le serveur n’aura pas été relancé sur l’ordinateur.",
+    "confirmWork": "Le travail en cours sera interrompu et ne pourra pas être repris. {{work}}",
+    "restartScheduled": "Redémarrage… Cette page se reconnectera dès que le serveur sera de retour.",
+    "stopScheduled": "Le serveur s’arrête. Relancez-le sur l’ordinateur (scripts/server/start)."
+  },
+  "showThinking": {
+    "label": "Afficher la réflexion",
+    "description": "Le même interrupteur que dans les paramètres rapides."
+  },
+  "files": {
+    "showIgnored": "Afficher les fichiers exclus par gitignore",
+    "showIgnoredDescription": "Afficher, estompés, les fichiers et dossiers exclus par gitignore dans l’onglet Fichiers. Équivaut au bouton en forme d’œil de cet onglet ; mémorisé sur cet appareil uniquement."
+  },
+  "about": {
+    "basedOnVersion": "CloudCLI-MobileUI, basé sur CloudCLI {{version}}.",
+    "basedOn": "CloudCLI-MobileUI, basé sur CloudCLI.",
+    "repository": "Dépôt",
+    "whatsNew": "Nouveautés"
+  },
+  "phone": {
+    "swipeNavigation": "Balayer entre les onglets",
+    "swipeNavigationDescription": "Sur un téléphone, balayez vers la gauche ou la droite pour changer d’onglet de l’espace de travail ; un balayage retour depuis le premier onglet ouvre le menu.",
+    "homeRecents": "Conversations récentes sur l’écran d’accueil",
+    "homeRecentsDescription": "Lorsqu’aucun projet n’est ouvert, afficher les dernières conversations et leurs projets. Désactivé : l’écran d’origine « Choisir un projet »."
+  },
+  "serverSwitches": {
+    "intro": "Options du serveur : enregistrées sur le serveur et utilisées à partir de son prochain redémarrage. Une valeur définie dans la configuration du serveur l’emporte toujours.",
+    "stagingNote": "Ceci est le portail de test : ces options n’affectent que le portail de test (il possède sa propre base de données).",
+    "source": {
+      "default": "Par défaut",
+      "ui": "Défini ici",
+      "config": "Verrouillé par la configuration du serveur"
+    },
+    "lockedHint": "Défini dans la configuration du serveur ({{key}}), qui l’emporte toujours. Modifiez-le dans _server/config.json.",
+    "appliesAfterRestart": "Enregistré. S’applique après le redémarrage du serveur.",
+    "restartNow": "Redémarrer maintenant",
+    "restartManually": "Redémarrez le serveur sur l’ordinateur pour l’appliquer.",
+    "experimental": "Expérimental",
+    "defaultValue": "Par défaut ({{value}})",
+    "save": "Enregistrer",
+    "codexRuntime": {
+      "label": "Environnement d’exécution Codex",
+      "description": "Comment les conversations Codex s’exécutent : un processus par message (exec, par défaut) ou un app server permanent avec approbations et terminaux en arrière-plan.",
+      "exec": "exec (par défaut)",
+      "appserver": "appserver (expérimental)"
+    },
+    "approvalTimeout": {
+      "label": "Délai d’approbation",
+      "description": "Combien de temps une demande d’approbation d’outil attend votre réponse avant d’être refusée."
+    },
+    "backgroundHold": {
+      "label": "Limite du travail en arrière-plan",
+      "description": "Combien de temps une session dont des tâches en arrière-plan sont encore en cours peut rester silencieuse avant que ces tâches soient arrêtées."
+    },
+    "fileTreeMaxEntries": {
+      "label": "Limite de l’arborescence",
+      "description": "Nombre d’entrées que l’onglet Fichiers charge à la fois dans un très grand projet (par défaut {{value}}). Les dossiers au-delà se chargent à leur ouverture."
+    },
+    "extraReadRoots": {
+      "label": "Dossiers supplémentaires en lecture seule",
+      "description": "Dossiers hors du projet que la visionneuse de fichiers du chat peut ouvrir, en lecture seule. Chemins absolus de dossiers existants, 20 au maximum.",
+      "placeholder": "Chemin absolu du dossier",
+      "add": "Ajouter un dossier",
+      "remove": "Retirer {{path}}",
+      "confirm": "Toute personne connectée à ce serveur pourra lire chaque fichier situé sous\n{{path}}\ndepuis le chat. L’ajouter ?"
     }
   }
 }

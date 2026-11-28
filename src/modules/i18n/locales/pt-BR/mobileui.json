@@ -1,12 +1,55 @@
 {
+  "tab": {
+    "label": "MobileUI",
+    "description": "Tudo o que esta edição adiciona ao CloudCLI, em um só lugar."
+  },
+  "sections": {
+    "look": "Aparência",
+    "conversation": "Conversa",
+    "files": "Arquivos",
+    "about": "Sobre esta edição",
+    "phone": "Celular e navegação",
+    "agents": "Agentes e segundo plano"
+  },
   "autoExpandThinking": "Expandir raciocínio automaticamente",
   "autoExpandThinkingDescription": "Abre os blocos de raciocínio por padrão, inclusive durante a transmissão. Você ainda pode recolher um bloco manualmente.",
   "skin": {
+    "label": "Skin",
+    "description": "O estilo visual da interface; os modos claro e escuro funcionam com todas as skins",
+    "names": {
+      "default": "Padrão",
+      "otsr": "OTSR",
+      "aztecan": "Aztecan"
+    },
     "descriptions": {
-      "aztecan": "Quase preto, ciano, vidro"
+      "otsr": "Branco de laboratório, cobre, cantos retos",
+      "aztecan": "Quase preto, ciano, vidro",
+      "default": "O visual original do CloudCLI"
     }
   },
   "skinOptions": {
+    "otsr": {
+      "dotField": {
+        "label": "Campo de pontos",
+        "description": "A textura pontilhada atrás da conversa",
+        "off": "Desligado",
+        "faint": "Suave",
+        "normal": "Normal",
+        "strong": "Forte"
+      },
+      "chamfers": {
+        "label": "Bordas chanfradas",
+        "description": "Cantos cortados na barra de abas, no campo de mensagem e nas suas mensagens"
+      },
+      "monoLabels": {
+        "label": "Rótulos de aba monoespaçados",
+        "description": "Rótulos em maiúsculas, estilo instrumento, nas abas do espaço de trabalho"
+      },
+      "squareMarks": {
+        "label": "Marcadores de status quadrados",
+        "description": "Indicadores de status quadrados em vez de redondos"
+      }
+    },
     "aztecan": {
       "stars": {
         "label": "Campo de estrelas",
@@ -27,7 +70,8 @@
         "label": "Grade de fundo",
         "description": "A grade fina no fundo",
         "off": "Desligada",
-        "faint": "Suave"
+        "faint": "Suave",
+        "normal": "Normal"
       },
       "halo": {
         "label": "Halo e brilho",
@@ -37,6 +81,112 @@
         "label": "Abas em pílula",
         "description": "Barras de abas totalmente arredondadas, como a navegação do site"
       }
+    }
+  },
+  "assistantBubble": {
+    "label": "Balão de resposta do agente",
+    "description": "Como as respostas escritas do agente são emolduradas na conversa",
+    "off": "Sem balão",
+    "translucent": "Translúcido",
+    "solid": "Sólido"
+  },
+  "serverSettings": {
+    "title": "Servidor",
+    "description": "O servidor CloudCLI neste computador, iniciado pelos scripts em scripts/server.",
+    "testPortal": "Este é o portal de teste (porta {{port}}). Reiniciar e Parar afetam apenas ele.",
+    "loading": "Carregando o status do servidor…",
+    "unavailable": "Este servidor não foi iniciado pelos scripts em scripts/server, então não pode ser controlado aqui.",
+    "status": "Status",
+    "running": "Em execução na porta {{port}}",
+    "runningPid": "Em execução na porta {{port}} (PID {{pid}})",
+    "stopped": "Parado",
+    "version": "Versão {{version}}",
+    "build": "Build",
+    "buildValue": "{{branch}} {{commit}}, gerado em {{builtAt}}",
+    "buildDirty": "com alterações não commitadas",
+    "noBuildInfo": "Sem informações de build",
+    "pendingBuild": "Build preparado",
+    "pendingBuildHint": "Pronto para entrar no ar: ao reiniciar, ele passa a ser o build em execução.",
+    "activeWork": "Trabalho em andamento",
+    "activeWorkNone": "Nenhum",
+    "activeWorkValue": "Respostas sendo escritas: {{turns}} · sessões com trabalho em segundo plano: {{sessions}} · tarefas em segundo plano: {{tasks}}",
+    "autostart": "Iniciar ao entrar",
+    "autostartDescription": "Inicia o servidor em segundo plano quando você entra neste computador.",
+    "autostartDisabled": "Desativado pelo sistema (no Windows: Gerenciador de Tarefas > Aplicativos de inicialização). Ativar aqui o reativa.",
+    "autostartUnsupported": "Não disponível neste sistema.",
+    "autostartLiveOnly": "Vale apenas para o servidor de produção; altere lá.",
+    "actionsTitle": "Reiniciar ou parar",
+    "actionsDescription": "Ambos encerram todas as respostas sendo escritas e todas as tarefas em segundo plano, e esta página perde a conexão. Após reiniciar, ela se reconecta sozinha; após parar, o servidor precisa ser iniciado novamente no computador.",
+    "activateBuild": "Ativar o build preparado",
+    "restart": "Reiniciar",
+    "stop": "Parar",
+    "working": "Processando…",
+    "confirmRestart": "Reiniciar o servidor agora? Esta página perde a conexão por um instante.",
+    "confirmStop": "Parar o servidor? Esta página deixa de funcionar até o servidor ser iniciado novamente no computador.",
+    "confirmWork": "O trabalho em andamento será encerrado e não poderá ser retomado. {{work}}",
+    "restartScheduled": "Reiniciando… Esta página se reconecta quando o servidor voltar.",
+    "stopScheduled": "O servidor está parando. Inicie-o novamente no computador (scripts/server/start)."
+  },
+  "showThinking": {
+    "label": "Mostrar raciocínio",
+    "description": "O mesmo botão das configurações rápidas."
+  },
+  "files": {
+    "showIgnored": "Mostrar arquivos do gitignore",
+    "showIgnoredDescription": "Lista, esmaecidos, os arquivos e pastas ignorados pelo gitignore na aba Arquivos. Igual ao botão de olho de lá; lembrado apenas neste dispositivo."
+  },
+  "about": {
+    "basedOnVersion": "CloudCLI-MobileUI, baseado no CloudCLI {{version}}.",
+    "basedOn": "CloudCLI-MobileUI, baseado no CloudCLI.",
+    "repository": "Repositório",
+    "whatsNew": "Novidades"
+  },
+  "phone": {
+    "swipeNavigation": "Deslizar entre abas",
+    "swipeNavigationDescription": "No celular, deslize para a esquerda ou direita para trocar de aba do espaço de trabalho; deslizar para trás a partir da primeira aba abre o menu.",
+    "homeRecents": "Conversas recentes na tela inicial",
+    "homeRecentsDescription": "Sem projeto aberto, lista as conversas mais recentes e seus projetos. Desligado: a tela original “escolha um projeto”."
+  },
+  "serverSwitches": {
+    "intro": "Opções do servidor: salvas no servidor e usadas a partir da próxima reinicialização. Um valor definido na configuração do servidor sempre prevalece.",
+    "stagingNote": "Este é o portal de teste: estas opções afetam apenas o portal de teste (ele tem seu próprio banco de dados).",
+    "source": {
+      "default": "Padrão",
+      "ui": "Definido aqui",
+      "config": "Bloqueado pela configuração do servidor"
+    },
+    "lockedHint": "Definido na configuração do servidor ({{key}}), que sempre prevalece. Altere em _server/config.json.",
+    "appliesAfterRestart": "Salvo. Vale após o servidor reiniciar.",
+    "restartNow": "Reiniciar agora",
+    "restartManually": "Reinicie o servidor no computador para aplicar.",
+    "experimental": "Experimental",
+    "defaultValue": "Padrão ({{value}})",
+    "save": "Salvar",
+    "codexRuntime": {
+      "label": "Runtime do Codex",
+      "description": "Como as conversas do Codex rodam: um processo por mensagem (exec, o padrão) ou um app server de longa duração com aprovações e terminais em segundo plano.",
+      "exec": "exec (padrão)",
+      "appserver": "appserver (experimental)"
+    },
+    "approvalTimeout": {
+      "label": "Tempo limite de aprovação",
+      "description": "Quanto tempo uma aprovação de ferramenta espera sua resposta antes de ser recusada."
+    },
+    "backgroundHold": {
+      "label": "Limite de trabalho em segundo plano",
+      "description": "Por quanto tempo uma sessão com tarefas em segundo plano ainda em execução pode ficar em silêncio antes que essas tarefas sejam interrompidas."
+    },
+    "fileTreeMaxEntries": {
+      "label": "Limite da árvore de arquivos",
+      "description": "Quantos itens a aba Arquivos carrega de uma vez em um projeto muito grande (padrão {{value}}). Pastas além disso carregam quando abertas."
+    },
+    "extraReadRoots": {
+      "label": "Pastas extras somente leitura",
+      "description": "Pastas fora do projeto que o visualizador de arquivos do chat pode abrir, somente leitura. Caminhos absolutos de pastas existentes, até 20.",
+      "placeholder": "Caminho absoluto da pasta",
+      "add": "Adicionar pasta",
+      "remove": "Remover {{path}}",
+      "confirm": "Qualquer pessoa conectada a este servidor poderá ler todos os arquivos em\n{{path}}\npelo chat. Adicionar?"
     }
   }
 }

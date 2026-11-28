@@ -7,10 +7,16 @@
 // <after.css> declares on `:root` but <before.css> does not is treated as a new theme
 // token: its declarations are dropped, and every `var(--token)` / `var(--token, x)`
 // in the remaining rules is replaced by the token's default. Colours are normalised
-// (hex, rgb(), rgba(), space or comma syntax) before comparing. The rule lists must
-// then match one to one, in order, inside the same at-rules. Exit code 1 on any
-// difference.
-
+// (hex, rgb(), rgba(), space or comma syntax) before comparing.
+//
+// The comparison is per selector, not per position: each declaration is filed under
+// its at-rule chain and each single selector of its rule (`a,b{...}` counts for `a`
+// and for `b`), and the declaration lists of a selector present in both files must
+// match. Rule order, and how the minifier groups selectors, therefore do not matter,
+// so utility classes added or dropped elsewhere in the build do not show up as
+// differences. Selectors that exist in only one of the two files are listed for
+// information (they come from markup changes, not from tokens) and do not fail the
+// check. Exit code 1 on any difference.
 import fs from 'node:fs';
 
 import postcss from 'postcss';
@@ -85,23 +91,34 @@ function normalise(value) {
 
 function context(node) {
   const chain = [];
-  for (let parent = node.parent; parent && parent.type !== 'root'; parent = parent.parent) {
+  for (let parent = node.parent?.parent; parent && parent.type !== 'root'; parent = parent.parent) {
     chain.unshift(parent.type === 'atrule' ? `@${parent.name} ${parent.params}` : parent.selector);
   }
   return chain.join(' > ');
 }
 
+const singleSelectors = (rule) => rule.selectors.map((selector) => selector.replace(/\s+/g, ' ').trim());
+
+/** Maps `[<at-rule chain> | ]<selector>` to its declarations (`prop: value`), in source order. */
 function entries(root, { dropTokens }) {
-  const list = [];
+  const bySelector = new Map();
   root.walkDecls((decl) => {
-    if (dropTokens && tokens.has(decl.prop) && decl.parent?.selector?.trim() === ':root') return;
+    const rule = decl.parent;
+    if (!rule || rule.type !== 'rule') return;
+    if (dropTokens && tokens.has(decl.prop) && rule.selector.trim() === ':root') return;
     let value = normalise(decl.value);
     // Quotes around a family name are optional ("Encode Sans" == Encode Sans); the
     // minifier drops them in rules but keeps them inside custom property values.
     if (decl.prop === 'font-family') value = value.replace(/["']/g, '');
-    list.push(`${context(decl)} { ${decl.prop}: ${value}${decl.important ? ' !important' : ''} }`);
+    const text = `${decl.prop}: ${value}${decl.important ? ' !important' : ''}`;
+    const scope = context(decl);
+    for (const selector of singleSelectors(rule)) {
+      const key = scope ? `${scope} | ${selector}` : selector;
+      if (!bySelector.has(key)) bySelector.set(key, []);
+      bySelector.get(key).push(text);
+    }
   });
-  return list;
+  return bySelector;
 }
 
 const beforeEntries = entries(before, { dropTokens: false });
@@ -126,25 +143,69 @@ function onlyAlphaQuantised(left, right) {
   });
 }
 
+/**
+ * Pairs the declarations of one selector by property (in source order per property,
+ * which keeps fallbacks such as two `background` lines apart) and returns the pairs
+ * that differ by more than the alpha rounding, plus how many only differ by it.
+ */
+function compareDeclarations(left, right) {
+  const group = (list) => {
+    const byProp = new Map();
+    for (const text of list) {
+      const prop = text.slice(0, text.indexOf(':'));
+      if (!byProp.has(prop)) byProp.set(prop, []);
+      byProp.get(prop).push(text);
+    }
+    return byProp;
+  };
+  const leftByProp = group(left);
+  const rightByProp = group(right);
+  const differing = [];
+  let quantisedHere = 0;
+  for (const prop of new Set([...leftByProp.keys(), ...rightByProp.keys()])) {
+    const leftValues = leftByProp.get(prop) ?? [];
+    const rightValues = rightByProp.get(prop) ?? [];
+    for (let index = 0; index < Math.max(leftValues.length, rightValues.length); index += 1) {
+      const before = leftValues[index];
+      const after = rightValues[index];
+      if (before === after) continue;
+      if (before !== undefined && after !== undefined && onlyAlphaQuantised(before, after)) {
+        quantisedHere += 1;
+        continue;
+      }
+      differing.push({ before, after });
+    }
+  }
+  return { differing, quantised: quantisedHere };
+}
+
 let quantised = 0;
 let differences = 0;
-const length = Math.max(beforeEntries.length, afterEntries.length);
-for (let index = 0; index < length; index += 1) {
-  const left = beforeEntries[index];
-  const right = afterEntries[index];
-  if (left === right) continue;
-  if (left !== undefined && right !== undefined && onlyAlphaQuantised(left, right)) {
-    quantised += 1;
-    continue;
-  }
-  differences += 1;
-  if (differences <= 20) {
-    console.log(`#${index}\n  before: ${left}\n  after:  ${right}`);
+let compared = 0;
+for (const [key, left] of beforeEntries) {
+  const right = afterEntries.get(key);
+  if (right === undefined) continue;
+  compared += 1;
+  const result = compareDeclarations(left, right);
+  quantised += result.quantised;
+  for (const { before: leftText, after: rightText } of result.differing) {
+    differences += 1;
+    if (differences <= 20) {
+      console.log(`${key}
+  before: ${leftText ?? '(none)'}
+  after:  ${rightText ?? '(none)'}`);
+    }
   }
 }
 
+const onlyBefore = [...beforeEntries.keys()].filter((key) => !afterEntries.has(key));
+const onlyAfter = [...afterEntries.keys()].filter((key) => !beforeEntries.has(key));
+const listed = (keys) => (keys.length === 0 ? '0' : `${keys.length} (${keys.slice(0, 5).join(', ')}${keys.length > 5 ? ', ...' : ''})`);
+
 console.log(`new tokens: ${tokens.size}`);
-console.log(`declarations compared: before ${beforeEntries.length}, after ${afterEntries.length}`);
+console.log(`selectors compared: ${compared} (before ${beforeEntries.size}, after ${afterEntries.size})`);
+console.log(`selectors only in before, not compared: ${listed(onlyBefore)}`);
+console.log(`selectors only in after, not compared: ${listed(onlyAfter)}`);
 console.log(`alpha only differs by the minifier's 8-bit rounding (< half a step): ${quantised}`);
 console.log(differences === 0 ? 'EQUIVALENT: no visible change' : `DIFFERENT: ${differences} declaration(s) differ`);
 process.exit(differences === 0 ? 0 : 1);

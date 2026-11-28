@@ -1,4 +1,192 @@
 {
+  "tab": {
+    "label": "MobileUI",
+    "description": "Vše, co tato edice přidává do CloudCLI, na jednom místě."
+  },
+  "sections": {
+    "look": "Vzhled",
+    "conversation": "Konverzace",
+    "files": "Soubory",
+    "about": "O této edici",
+    "phone": "Telefon a navigace",
+    "agents": "Agenti a běh na pozadí"
+  },
   "autoExpandThinking": "Automaticky rozbalit přemýšlení",
-  "autoExpandThinkingDescription": "Bloky přemýšlení se ve výchozím stavu zobrazí rozbalené, i během streamování. Jednotlivý blok můžete stále sbalit ručně."
+  "autoExpandThinkingDescription": "Bloky přemýšlení se ve výchozím stavu zobrazí rozbalené, i během streamování. Jednotlivý blok můžete stále sbalit ručně.",
+  "skin": {
+    "label": "Styl",
+    "description": "Vizuální styl rozhraní; světlý i tmavý režim fungují s každým stylem",
+    "names": {
+      "default": "Výchozí",
+      "otsr": "OTSR",
+      "aztecan": "Aztecan"
+    },
+    "descriptions": {
+      "otsr": "Laboratorní bílá, měď, hranaté rohy",
+      "aztecan": "Téměř černá, azurová, sklo",
+      "default": "Původní vzhled CloudCLI"
+    }
+  },
+  "skinOptions": {
+    "otsr": {
+      "dotField": {
+        "label": "Tečkované pole",
+        "description": "Tečkovaná textura za konverzací",
+        "off": "Vypnuto",
+        "faint": "Slabé",
+        "normal": "Normální",
+        "strong": "Výrazné"
+      },
+      "chamfers": {
+        "label": "Zkosené hrany",
+        "description": "Seříznuté rohy na liště karet, v poli pro zprávu a u vašich zpráv"
+      },
+      "monoLabels": {
+        "label": "Neproporcionální popisky karet",
+        "description": "Popisky velkými písmeny ve stylu přístrojů na kartách pracovního prostoru"
+      },
+      "squareMarks": {
+        "label": "Hranaté stavové značky",
+        "description": "Hranaté místo kulatých indikátorů stavu"
+      }
+    },
+    "aztecan": {
+      "stars": {
+        "label": "Hvězdné pole",
+        "description": "Plující hvězdy za skleněnými panely",
+        "off": "Vypnuto",
+        "still": "Nehybné",
+        "animated": "Animované"
+      },
+      "glassContrast": {
+        "label": "Kontrast skla",
+        "description": "Jak výrazně panely a bubliny vystupují z oblohy",
+        "subtle": "Jemný",
+        "standard": "Standardní",
+        "strong": "Silný",
+        "solid": "Plný (jasné světlo)"
+      },
+      "grid": {
+        "label": "Mřížka na pozadí",
+        "description": "Jemná mřížka v pozadí",
+        "off": "Vypnuto",
+        "faint": "Slabá",
+        "normal": "Normální"
+      },
+      "halo": {
+        "label": "Záře a svit",
+        "description": "Jemné světlo z horního okraje obrazovky a svítící stavové tečky v tmavém režimu"
+      },
+      "pillTabs": {
+        "label": "Oblé karty",
+        "description": "Zcela zaoblené lišty karet, jako navigace na webu"
+      }
+    }
+  },
+  "assistantBubble": {
+    "label": "Bublina odpovědí agenta",
+    "description": "Jak jsou psané odpovědi agenta v konverzaci orámovány",
+    "off": "Bez bubliny",
+    "translucent": "Průsvitná",
+    "solid": "Plná"
+  },
+  "serverSettings": {
+    "title": "Server",
+    "description": "Server CloudCLI na tomto počítači, spuštěný skripty ve složce scripts/server.",
+    "testPortal": "Toto je testovací portál (port {{port}}). Restartovat a Zastavit působí jen na něj.",
+    "loading": "Načítání stavu serveru…",
+    "unavailable": "Tento server nebyl spuštěn skripty ze složky scripts/server, proto ho zde nelze ovládat.",
+    "status": "Stav",
+    "running": "Běží na portu {{port}}",
+    "runningPid": "Běží na portu {{port}} (PID {{pid}})",
+    "stopped": "Neběží",
+    "version": "Verze {{version}}",
+    "build": "Sestavení",
+    "buildValue": "{{branch}} {{commit}}, sestaveno {{builtAt}}",
+    "buildDirty": "s necommitnutými změnami",
+    "noBuildInfo": "Žádné informace o sestavení",
+    "pendingBuild": "Připravené sestavení",
+    "pendingBuildHint": "Připraveno k nasazení: po restartu se z něj stane běžící sestavení.",
+    "activeWork": "Probíhající práce",
+    "activeWorkNone": "Žádná",
+    "activeWorkValue": "Rozepsané odpovědi: {{turns}} · relace s prací na pozadí: {{sessions}} · úlohy na pozadí: {{tasks}}",
+    "autostart": "Spustit po přihlášení",
+    "autostartDescription": "Spustit server na pozadí, když se přihlásíte k tomuto počítači.",
+    "autostartDisabled": "Vypnuto systémem (ve Windows: Správce úloh > Aplikace po spuštění). Zapnutím zde se znovu zapne.",
+    "autostartUnsupported": "V tomto systému není k dispozici.",
+    "autostartLiveOnly": "Platí jen pro ostrý server; změňte to tam.",
+    "actionsTitle": "Restartovat nebo zastavit",
+    "actionsDescription": "Obojí ukončí všechny rozepsané odpovědi a všechny úlohy na pozadí a tato stránka ztratí spojení. Po restartu se znovu připojí sama; po zastavení je nutné server na počítači znovu spustit.",
+    "activateBuild": "Aktivovat připravené sestavení",
+    "restart": "Restartovat",
+    "stop": "Zastavit",
+    "working": "Probíhá…",
+    "confirmRestart": "Restartovat server nyní? Tato stránka na chvíli ztratí spojení.",
+    "confirmStop": "Zastavit server? Tato stránka nebude fungovat, dokud server na počítači znovu nespustíte.",
+    "confirmWork": "Probíhající práce bude ukončena a nepůjde obnovit. {{work}}",
+    "restartScheduled": "Restartování… Tato stránka se znovu připojí, jakmile server opět poběží.",
+    "stopScheduled": "Server se zastavuje. Znovu ho spusťte na počítači (scripts/server/start)."
+  },
+  "showThinking": {
+    "label": "Zobrazit přemýšlení",
+    "description": "Stejný přepínač jako v rychlém nastavení."
+  },
+  "files": {
+    "showIgnored": "Zobrazit soubory ignorované přes gitignore",
+    "showIgnoredDescription": "Zobrazit na kartě Soubory ztlumeně soubory a složky ignorované přes gitignore. Totéž jako tlačítko s okem na této kartě; pamatuje se jen na tomto zařízení."
+  },
+  "about": {
+    "basedOnVersion": "CloudCLI-MobileUI, založeno na CloudCLI {{version}}.",
+    "basedOn": "CloudCLI-MobileUI, založeno na CloudCLI.",
+    "repository": "Repozitář",
+    "whatsNew": "Co je nového"
+  },
+  "phone": {
+    "swipeNavigation": "Přejíždění mezi kartami",
+    "swipeNavigationDescription": "Na telefonu přejeďte doleva nebo doprava pro přepnutí karet pracovního prostoru; přejetí zpět z první karty otevře nabídku.",
+    "homeRecents": "Nedávné konverzace na úvodní obrazovce",
+    "homeRecentsDescription": "Když není otevřený žádný projekt, zobrazit poslední konverzace a jejich projekty. Vypnuto: původní obrazovka „Vyberte projekt“."
+  },
+  "serverSwitches": {
+    "intro": "Přepínače serveru: ukládají se na serveru a použijí se od jeho příštího restartu. Hodnota nastavená v konfiguraci serveru má vždy přednost.",
+    "stagingNote": "Toto je testovací portál: tyto přepínače ovlivňují jen testovací portál (má vlastní databázi).",
+    "source": {
+      "default": "Výchozí",
+      "ui": "Nastaveno zde",
+      "config": "Uzamčeno konfigurací serveru"
+    },
+    "lockedHint": "Nastaveno v konfiguraci serveru ({{key}}), která má vždy přednost. Změňte to v _server/config.json.",
+    "appliesAfterRestart": "Uloženo. Projeví se po restartu serveru.",
+    "restartNow": "Restartovat nyní",
+    "restartManually": "Aby se změna projevila, restartujte server na počítači.",
+    "experimental": "Experimentální",
+    "defaultValue": "Výchozí ({{value}})",
+    "save": "Uložit",
+    "codexRuntime": {
+      "label": "Běhové prostředí Codex",
+      "description": "Jak běží konverzace Codex: jeden proces na zprávu (exec, výchozí), nebo dlouhodobě běžící app server se schvalováním a terminály na pozadí.",
+      "exec": "exec (výchozí)",
+      "appserver": "appserver (experimentální)"
+    },
+    "approvalTimeout": {
+      "label": "Časový limit schválení",
+      "description": "Jak dlouho žádost o schválení nástroje čeká na vaši odpověď, než je zamítnuta."
+    },
+    "backgroundHold": {
+      "label": "Limit práce na pozadí",
+      "description": "Jak dlouho smí relace s dosud běžícími úlohami na pozadí zůstat bez odezvy, než budou tyto úlohy zastaveny."
+    },
+    "fileTreeMaxEntries": {
+      "label": "Limit stromu souborů",
+      "description": "Kolik položek karta Soubory načte najednou ve velmi velkém projektu (výchozí {{value}}). Další složky se načtou při otevření."
+    },
+    "extraReadRoots": {
+      "label": "Další složky jen pro čtení",
+      "description": "Složky mimo projekt, které smí prohlížeč souborů v chatu otevřít, a to jen pro čtení. Absolutní cesty existujících složek, nejvýše 20.",
+      "placeholder": "Absolutní cesta ke složce",
+      "add": "Přidat složku",
+      "remove": "Odebrat {{path}}",
+      "confirm": "Kdokoli přihlášený k tomuto serveru bude moci z chatu číst každý soubor ve složce\n{{path}}\nPřidat ji?"
+    }
+  }
 }

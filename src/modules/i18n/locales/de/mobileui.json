@@ -1,23 +1,68 @@
 {
+  "tab": {
+    "label": "MobileUI",
+    "description": "Alles, was diese Edition zu CloudCLI hinzufügt, an einem Ort."
+  },
+  "sections": {
+    "look": "Aussehen",
+    "conversation": "Unterhaltung",
+    "files": "Dateien",
+    "about": "Über diese Edition",
+    "phone": "Smartphone & Navigation",
+    "agents": "Agenten & Hintergrund"
+  },
   "autoExpandThinking": "Denken automatisch aufklappen",
   "autoExpandThinkingDescription": "Denkblöcke standardmäßig geöffnet anzeigen, auch während sie gestreamt werden. Einzelne Blöcke lassen sich weiterhin zuklappen.",
   "skin": {
+    "label": "Skin",
+    "description": "Der visuelle Stil der Oberfläche; Hell und Dunkel funktionieren mit jedem Skin",
+    "names": {
+      "default": "Standard",
+      "otsr": "OTSR",
+      "aztecan": "Aztecan"
+    },
     "descriptions": {
-      "aztecan": "Fast-Schwarz, Cyan, Glas"
+      "otsr": "Laborweiß, Kupfer, eckige Kanten",
+      "aztecan": "Fast-Schwarz, Cyan, Glas",
+      "default": "Das ursprüngliche CloudCLI-Aussehen"
     }
   },
   "skinOptions": {
+    "otsr": {
+      "dotField": {
+        "label": "Punktraster",
+        "description": "Die gepunktete Textur hinter der Unterhaltung",
+        "off": "Aus",
+        "faint": "Schwach",
+        "normal": "Normal",
+        "strong": "Stark"
+      },
+      "chamfers": {
+        "label": "Abgeschrägte Ecken",
+        "description": "Abgeschnittene Ecken an der Tab-Leiste, am Eingabefeld und an deinen Nachrichten"
+      },
+      "monoLabels": {
+        "label": "Monospace-Tab-Beschriftungen",
+        "description": "Großgeschriebene Beschriftungen im Instrumentenstil auf den Arbeitsbereich-Tabs"
+      },
+      "squareMarks": {
+        "label": "Eckige Statusmarken",
+        "description": "Eckige statt runde Statusanzeigen"
+      }
+    },
     "aztecan": {
       "stars": {
         "label": "Sternenfeld",
         "description": "Langsam treibende Sterne hinter den Glasflächen",
         "off": "Aus",
+        "still": "Unbewegt",
         "animated": "Animiert"
       },
       "glassContrast": {
         "label": "Glaskontrast",
         "description": "Wie deutlich sich Flächen und Sprechblasen vom Sternenhimmel abheben",
         "subtle": "Dezent",
+        "standard": "Standard",
         "strong": "Stark",
         "solid": "Massiv (helles Licht)"
       },
@@ -25,7 +70,8 @@
         "label": "Hintergrundraster",
         "description": "Das feine Raster im Hintergrund",
         "off": "Aus",
-        "faint": "Schwach"
+        "faint": "Schwach",
+        "normal": "Normal"
       },
       "halo": {
         "label": "Lichtschein",
@@ -35,6 +81,112 @@
         "label": "Pillen-Tabs",
         "description": "Vollständig abgerundete Tab-Leisten, wie die Navigation der Website"
       }
+    }
+  },
+  "assistantBubble": {
+    "label": "Sprechblase für Agent-Antworten",
+    "description": "Wie die geschriebenen Antworten des Agenten in der Unterhaltung eingerahmt werden",
+    "off": "Keine Sprechblase",
+    "translucent": "Durchscheinend",
+    "solid": "Deckend"
+  },
+  "serverSettings": {
+    "title": "Server",
+    "description": "Der CloudCLI-Server auf diesem Rechner, gestartet über die Skripte in scripts/server.",
+    "testPortal": "Dies ist das Testportal (Port {{port}}). Neu starten und Stoppen wirken nur darauf.",
+    "loading": "Serverstatus wird geladen…",
+    "unavailable": "Dieser Server wurde nicht über die Skripte in scripts/server gestartet und kann daher hier nicht gesteuert werden.",
+    "status": "Status",
+    "running": "Läuft auf Port {{port}}",
+    "runningPid": "Läuft auf Port {{port}} (PID {{pid}})",
+    "stopped": "Läuft nicht",
+    "version": "Version {{version}}",
+    "build": "Build",
+    "buildValue": "{{branch}} {{commit}}, erstellt {{builtAt}}",
+    "buildDirty": "mit nicht committeten Änderungen",
+    "noBuildInfo": "Keine Build-Informationen",
+    "pendingBuild": "Vorbereiteter Build",
+    "pendingBuildHint": "Bereit zur Aktivierung: Nach einem Neustart läuft dieser Build.",
+    "activeWork": "Laufende Arbeit",
+    "activeWorkNone": "Keine",
+    "activeWorkValue": "Antworten in Arbeit: {{turns}} · Sitzungen mit Hintergrundarbeit: {{sessions}} · Hintergrundaufgaben: {{tasks}}",
+    "autostart": "Bei Anmeldung starten",
+    "autostartDescription": "Den Server im Hintergrund starten, wenn du dich an diesem Rechner anmeldest.",
+    "autostartDisabled": "Vom System deaktiviert (unter Windows: Task-Manager > Autostart-Apps). Wenn du es hier einschaltest, wird es dort wieder aktiviert.",
+    "autostartUnsupported": "Auf diesem System nicht verfügbar.",
+    "autostartLiveOnly": "Gilt nur für den Live-Server; ändere es dort.",
+    "actionsTitle": "Neu starten oder stoppen",
+    "actionsDescription": "Beides beendet alle Antworten, die gerade geschrieben werden, und alle Hintergrundaufgaben, und diese Seite verliert die Verbindung. Nach einem Neustart verbindet sie sich von selbst neu; nach einem Stopp muss der Server auf dem Rechner wieder gestartet werden.",
+    "activateBuild": "Vorbereiteten Build aktivieren",
+    "restart": "Neu starten",
+    "stop": "Stoppen",
+    "working": "Wird ausgeführt…",
+    "confirmRestart": "Server jetzt neu starten? Diese Seite verliert kurz die Verbindung.",
+    "confirmStop": "Server stoppen? Diese Seite funktioniert erst wieder, wenn der Server auf dem Rechner neu gestartet wird.",
+    "confirmWork": "Laufende Arbeit wird beendet und kann nicht fortgesetzt werden. {{work}}",
+    "restartScheduled": "Wird neu gestartet… Diese Seite verbindet sich neu, sobald der Server wieder läuft.",
+    "stopScheduled": "Der Server wird gestoppt. Starte ihn auf dem Rechner wieder (scripts/server/start)."
+  },
+  "showThinking": {
+    "label": "Denken anzeigen",
+    "description": "Derselbe Schalter wie in den Schnelleinstellungen."
+  },
+  "files": {
+    "showIgnored": "Von gitignore ausgeschlossene Dateien anzeigen",
+    "showIgnoredDescription": "Von gitignore ausgeschlossene Dateien und Ordner im Dateien-Tab abgeblendet anzeigen. Entspricht dem Augen-Button dort; wird nur auf diesem Gerät gespeichert."
+  },
+  "about": {
+    "basedOnVersion": "CloudCLI-MobileUI, basiert auf CloudCLI {{version}}.",
+    "basedOn": "CloudCLI-MobileUI, basiert auf CloudCLI.",
+    "repository": "Repository",
+    "whatsNew": "Neuigkeiten"
+  },
+  "phone": {
+    "swipeNavigation": "Zwischen Tabs wischen",
+    "swipeNavigationDescription": "Auf dem Smartphone nach links oder rechts wischen, um zwischen den Arbeitsbereich-Tabs zu wechseln; vom ersten Tab aus zurückwischen öffnet das Menü.",
+    "homeRecents": "Letzte Unterhaltungen auf dem Startbildschirm",
+    "homeRecentsDescription": "Wenn kein Projekt geöffnet ist, die neuesten Unterhaltungen mit ihren Projekten anzeigen. Aus: der ursprüngliche Bildschirm „Projekt auswählen“."
+  },
+  "serverSwitches": {
+    "intro": "Serverschalter: werden auf dem Server gespeichert und ab dem nächsten Neustart verwendet. Ein in der Serverkonfiguration gesetzter Wert hat immer Vorrang.",
+    "stagingNote": "Dies ist das Testportal: Diese Schalter wirken sich nur auf das Testportal aus (es hat eine eigene Datenbank).",
+    "source": {
+      "default": "Standard",
+      "ui": "Hier gesetzt",
+      "config": "Durch Serverkonfiguration gesperrt"
+    },
+    "lockedHint": "In der Serverkonfiguration gesetzt ({{key}}), die immer Vorrang hat. Ändere es in _server/config.json.",
+    "appliesAfterRestart": "Gespeichert. Gilt nach dem Neustart des Servers.",
+    "restartNow": "Jetzt neu starten",
+    "restartManually": "Starte den Server auf dem Rechner neu, um es zu übernehmen.",
+    "experimental": "Experimentell",
+    "defaultValue": "Standard ({{value}})",
+    "save": "Speichern",
+    "codexRuntime": {
+      "label": "Codex-Laufzeit",
+      "description": "Wie Codex-Unterhaltungen laufen: ein Prozess pro Nachricht (exec, der Standard) oder ein dauerhaft laufender App-Server mit Freigaben und Hintergrund-Terminals.",
+      "exec": "exec (Standard)",
+      "appserver": "appserver (experimentell)"
+    },
+    "approvalTimeout": {
+      "label": "Zeitlimit für Freigaben",
+      "description": "Wie lange eine Tool-Freigabe auf deine Antwort wartet, bevor sie abgelehnt wird."
+    },
+    "backgroundHold": {
+      "label": "Limit für Hintergrundarbeit",
+      "description": "Wie lange eine Sitzung mit noch laufenden Hintergrundaufgaben still bleiben darf, bevor diese Aufgaben gestoppt werden."
+    },
+    "fileTreeMaxEntries": {
+      "label": "Limit für Dateibaum",
+      "description": "Wie viele Einträge der Dateien-Tab in einem sehr großen Projekt auf einmal lädt (Standard {{value}}). Ordner darüber hinaus werden beim Öffnen geladen."
+    },
+    "extraReadRoots": {
+      "label": "Zusätzliche schreibgeschützte Ordner",
+      "description": "Ordner außerhalb des Projekts, die der Dateibetrachter im Chat schreibgeschützt öffnen darf. Absolute Pfade vorhandener Ordner, bis zu 20.",
+      "placeholder": "Absoluter Ordnerpfad",
+      "add": "Ordner hinzufügen",
+      "remove": "{{path}} entfernen",
+      "confirm": "Alle, die auf diesem Server angemeldet sind, können dann jede Datei unter\n{{path}}\nüber den Chat lesen. Hinzufügen?"
     }
   }
 }

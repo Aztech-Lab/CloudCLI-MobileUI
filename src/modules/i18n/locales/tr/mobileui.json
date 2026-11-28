@@ -1,12 +1,55 @@
 {
+  "tab": {
+    "label": "MobileUI",
+    "description": "Bu sürümün CloudCLI'ye eklediği her şey tek bir yerde."
+  },
+  "sections": {
+    "look": "Görünüm",
+    "conversation": "Sohbet",
+    "files": "Dosyalar",
+    "about": "Bu sürüm hakkında",
+    "phone": "Telefon ve gezinme",
+    "agents": "Ajanlar ve arka plan"
+  },
   "autoExpandThinking": "Düşünmeyi otomatik genişlet",
   "autoExpandThinkingDescription": "Düşünme blokları varsayılan olarak açık gösterilir, akış sırasında da. Bir bloğu yine elle daraltabilirsiniz.",
   "skin": {
+    "label": "Kaplama",
+    "description": "Arayüzün görsel stili; açık ve koyu mod her kaplamayla çalışır",
+    "names": {
+      "default": "Varsayılan",
+      "otsr": "OTSR",
+      "aztecan": "Aztecan"
+    },
     "descriptions": {
-      "aztecan": "Neredeyse siyah, camgöbeği, cam"
+      "otsr": "Laboratuvar beyazı, bakır, keskin köşeler",
+      "aztecan": "Neredeyse siyah, camgöbeği, cam",
+      "default": "Özgün CloudCLI görünümü"
     }
   },
   "skinOptions": {
+    "otsr": {
+      "dotField": {
+        "label": "Nokta deseni",
+        "description": "Sohbetin arkasındaki noktalı doku",
+        "off": "Kapalı",
+        "faint": "Soluk",
+        "normal": "Normal",
+        "strong": "Güçlü"
+      },
+      "chamfers": {
+        "label": "Pahlı kenarlar",
+        "description": "Sekme şeridinde, mesaj kutusunda ve mesajlarınızda kesik köşeler"
+      },
+      "monoLabels": {
+        "label": "Eş aralıklı sekme etiketleri",
+        "description": "Çalışma alanı sekmelerinde büyük harfli, gösterge tarzı etiketler"
+      },
+      "squareMarks": {
+        "label": "Kare durum işaretleri",
+        "description": "Yuvarlak yerine kare durum göstergeleri"
+      }
+    },
     "aztecan": {
       "stars": {
         "label": "Yıldız alanı",
@@ -27,7 +70,8 @@
         "label": "Arka plan ızgarası",
         "description": "Arka plandaki ince ızgara",
         "off": "Kapalı",
-        "faint": "Soluk"
+        "faint": "Soluk",
+        "normal": "Normal"
       },
       "halo": {
         "label": "Hale ve parıltı",
@@ -37,6 +81,112 @@
         "label": "Hap sekmeler",
         "description": "Web sitesinin gezinmesi gibi tamamen yuvarlatılmış sekme şeritleri"
       }
+    }
+  },
+  "assistantBubble": {
+    "label": "Ajan yanıt balonu",
+    "description": "Ajanın yazılı yanıtlarının sohbette nasıl çerçeveleneceği",
+    "off": "Balon yok",
+    "translucent": "Yarı saydam",
+    "solid": "Opak"
+  },
+  "serverSettings": {
+    "title": "Sunucu",
+    "description": "Bu bilgisayarda scripts/server içindeki betiklerle başlatılan CloudCLI sunucusu.",
+    "testPortal": "Bu test portalı (port {{port}}). Yeniden başlatma ve durdurma yalnızca bunu etkiler.",
+    "loading": "Sunucu durumu yükleniyor…",
+    "unavailable": "Bu sunucu scripts/server içindeki betiklerle başlatılmadığı için buradan yönetilemez.",
+    "status": "Durum",
+    "running": "{{port}} portunda çalışıyor",
+    "runningPid": "{{port}} portunda çalışıyor (PID {{pid}})",
+    "stopped": "Çalışmıyor",
+    "version": "Sürüm {{version}}",
+    "build": "Derleme",
+    "buildValue": "{{branch}} {{commit}}, derlenme: {{builtAt}}",
+    "buildDirty": "commit edilmemiş değişikliklerle",
+    "noBuildInfo": "Derleme bilgisi yok",
+    "pendingBuild": "Hazırlanan derleme",
+    "pendingBuildHint": "Yayına hazır: yeniden başlatınca çalışan derleme bu olur.",
+    "activeWork": "Süren işler",
+    "activeWorkNone": "Yok",
+    "activeWorkValue": "Yazılan yanıtlar: {{turns}} · arka plan işi olan oturumlar: {{sessions}} · arka plan görevleri: {{tasks}}",
+    "autostart": "Oturum açılınca başlat",
+    "autostartDescription": "Bu bilgisayarda oturum açtığınızda sunucuyu arka planda başlatır.",
+    "autostartDisabled": "Sistem tarafından kapatıldı (Windows'ta: Görev Yöneticisi > Başlangıç uygulamaları). Buradan açmak yeniden etkinleştirir.",
+    "autostartUnsupported": "Bu sistemde kullanılamaz.",
+    "autostartLiveOnly": "Yalnızca canlı sunucu için geçerlidir; orada değiştirin.",
+    "actionsTitle": "Yeniden başlat veya durdur",
+    "actionsDescription": "İkisi de yazılmakta olan tüm yanıtları ve tüm arka plan görevlerini sonlandırır; bu sayfanın bağlantısı kopar. Yeniden başlatmadan sonra sayfa kendiliğinden bağlanır; durdurmadan sonra sunucunun bilgisayarda yeniden başlatılması gerekir.",
+    "activateBuild": "Hazırlanan derlemeyi etkinleştir",
+    "restart": "Yeniden başlat",
+    "stop": "Durdur",
+    "working": "İşleniyor…",
+    "confirmRestart": "Sunucu şimdi yeniden başlatılsın mı? Bu sayfanın bağlantısı kısa süreliğine kopar.",
+    "confirmStop": "Sunucu durdurulsun mu? Sunucu bilgisayarda yeniden başlatılana kadar bu sayfa çalışmaz.",
+    "confirmWork": "Süren işler sonlandırılacak ve devam ettirilemeyecek. {{work}}",
+    "restartScheduled": "Yeniden başlatılıyor… Sunucu geri geldiğinde bu sayfa yeniden bağlanır.",
+    "stopScheduled": "Sunucu durduruluyor. Bilgisayarda yeniden başlatın (scripts/server/start)."
+  },
+  "showThinking": {
+    "label": "Düşünmeyi göster",
+    "description": "Hızlı ayarlardaki anahtarın aynısı."
+  },
+  "files": {
+    "showIgnored": "gitignore dosyalarını göster",
+    "showIgnoredDescription": "gitignore ile yok sayılan dosya ve klasörleri Dosyalar sekmesinde soluk olarak listeler. Oradaki göz düğmesiyle aynıdır; yalnızca bu cihazda hatırlanır."
+  },
+  "about": {
+    "basedOnVersion": "CloudCLI-MobileUI, CloudCLI {{version}} tabanlı.",
+    "basedOn": "CloudCLI-MobileUI, CloudCLI tabanlı.",
+    "repository": "Depo",
+    "whatsNew": "Yenilikler"
+  },
+  "phone": {
+    "swipeNavigation": "Sekmeler arasında kaydır",
+    "swipeNavigationDescription": "Telefonda çalışma alanı sekmeleri arasında geçmek için sola veya sağa kaydırın; ilk sekmeden geri kaydırmak menüyü açar.",
+    "homeRecents": "Ana ekranda son sohbetler",
+    "homeRecentsDescription": "Açık proje yokken en son sohbetleri ve projelerini listeler. Kapalıyken: özgün “Bir proje seçin” ekranı."
+  },
+  "serverSwitches": {
+    "intro": "Sunucu anahtarları: sunucuda kaydedilir ve bir sonraki yeniden başlatmadan itibaren kullanılır. Sunucu yapılandırmasında ayarlanan değer her zaman önceliklidir.",
+    "stagingNote": "Bu test portalı: bu anahtarlar yalnızca test portalını etkiler (kendi veritabanı vardır).",
+    "source": {
+      "default": "Varsayılan",
+      "ui": "Burada ayarlandı",
+      "config": "Sunucu yapılandırmasıyla kilitli"
+    },
+    "lockedHint": "Sunucu yapılandırmasında ayarlandı ({{key}}) ve her zaman önceliklidir. _server/config.json içinde değiştirin.",
+    "appliesAfterRestart": "Kaydedildi. Sunucu yeniden başlatıldıktan sonra geçerli olur.",
+    "restartNow": "Şimdi yeniden başlat",
+    "restartManually": "Uygulamak için sunucuyu bilgisayarda yeniden başlatın.",
+    "experimental": "Deneysel",
+    "defaultValue": "Varsayılan ({{value}})",
+    "save": "Kaydet",
+    "codexRuntime": {
+      "label": "Codex çalışma ortamı",
+      "description": "Codex sohbetlerinin nasıl çalıştığı: her mesaj için bir süreç (exec, varsayılan) ya da onaylar ve arka plan terminalleri sunan, sürekli çalışan bir app server.",
+      "exec": "exec (varsayılan)",
+      "appserver": "appserver (deneysel)"
+    },
+    "approvalTimeout": {
+      "label": "Onay zaman aşımı",
+      "description": "Bir araç onayının reddedilmeden önce yanıtınızı ne kadar bekleyeceği."
+    },
+    "backgroundHold": {
+      "label": "Arka plan işi sınırı",
+      "description": "Arka plan görevleri hâlâ çalışan bir oturumun, bu görevler durdurulmadan önce ne kadar sessiz kalabileceği."
+    },
+    "fileTreeMaxEntries": {
+      "label": "Dosya ağacı sınırı",
+      "description": "Çok büyük bir projede Dosyalar sekmesinin tek seferde yüklediği öğe sayısı (varsayılan {{value}}). Bunun ötesindeki klasörler açıldıklarında yüklenir."
+    },
+    "extraReadRoots": {
+      "label": "Ek salt okunur klasörler",
+      "description": "Sohbet içi dosya görüntüleyicinin salt okunur açabileceği, proje dışındaki klasörler. Var olan klasörlerin mutlak yolları, en fazla 20.",
+      "placeholder": "Mutlak klasör yolu",
+      "add": "Klasör ekle",
+      "remove": "{{path}} kaldır",
+      "confirm": "Bu sunucuda oturum açmış herkes sohbetten\n{{path}}\naltındaki tüm dosyaları okuyabilecek. Eklensin mi?"
     }
   }
 }

@@ -171,6 +171,9 @@ npm run build:client && node scripts/check-theme-equivalence.mjs /tmp/before.css
 ```
 
 The script substitutes every new `:root` token with its default, normalises colour syntax, and compares the two
-stylesheets declaration by declaration, in order. It reports `EQUIVALENT` or lists the differing declarations. The
+stylesheets selector by selector: the declarations of every selector present in both files must match, wherever
+the rule sits and however the minifier groups selectors. Rule order therefore does not matter, and selectors that
+exist in only one file (utility classes the change added or no longer uses) are listed for information but do not
+fail the check. It reports `EQUIVALENT` or lists the differing declarations. The
 only tolerated difference is the minifier's 8-bit alpha rounding (`#xxxxxx4d` = 0.302 before, exact 0.3 through a
 variable), which is below half a display step.

@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useGitPanelController } from '@/modules/git-panel/hooks/useGitPanelController';
 import { useRevertLocalCommit } from '@/modules/git-panel/hooks/useRevertLocalCommit';
+import { useGitPanelScrollMemory } from '@/modules/git-panel/hooks/useGitPanelScrollMemory';
 import type { ConfirmationRequest, FileOpenHandler, GitPanelView, Project } from '@/shared/types';
 import { getChangedFileCount } from '@/modules/git-panel/utils/gitPanelUtils';
 import { readLastGitPanelView, rememberGitPanelView } from '@/modules/git-panel/utils/gitPanelStateCache';
@@ -111,6 +112,14 @@ export default function GitPanel({
     }
   }, [confirmAction]);
 
+  // [local] Each view comes back scrolled where it was left, per project.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useGitPanelScrollMemory(
+    panelRef,
+    selectedProject?.projectId ? `${selectedProject.projectId}:${activeView}` : null,
+    !isLoading,
+  );
+
   const changeCount = getChangedFileCount(gitStatus);
   // Without a repository the branch/fetch/refresh header controls are all
   // meaningless — hide the whole header and let the init state own the panel.
@@ -125,7 +134,7 @@ export default function GitPanel({
   }
 
   return (
-    <div className="flex h-full flex-col bg-background">
+    <div ref={panelRef} className="flex h-full flex-col bg-background">
       {!isMissingRepository && (
         <GitPanelHeader
           isMobile={isMobile}

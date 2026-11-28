@@ -199,3 +199,55 @@ describe('locale bundles on disk match what i18n registers', () => {
     }
   });
 });
+
+/**
+ * [local] The fork's own `mobileui` namespace (Settings > MobileUI, skins, the
+ * server section) ships for every locale the app offers, so a non-English user
+ * never sees that tab half in English.
+ */
+describe('every locale ships a complete mobileui namespace', () => {
+  const locales = fs
+    .readdirSync(LOCALES_DIR)
+    .filter(locale => fs.existsSync(path.join(LOCALES_DIR, locale, 'settings.json')))
+    .filter(locale => locale !== 'en')
+    .sort();
+
+  const readBundle = (locale: string): unknown =>
+    JSON.parse(fs.readFileSync(path.join(LOCALES_DIR, locale, 'mobileui.json'), 'utf8'));
+
+  test('the locale list is not empty', () => {
+    expect(locales.length).toBeGreaterThan(10);
+  });
+
+  test.each(locales)('%s registers the mobileui namespace', locale => {
+    expect(fs.existsSync(path.join(LOCALES_DIR, locale, 'mobileui.json'))).toBe(true);
+    expect(i18n.hasResourceBundle(locale, 'mobileui')).toBe(true);
+  });
+
+  test.each(locales)('%s has every English mobileui key, no extras and no blanks', locale => {
+    const en = flatten(readBundle('en'));
+    const localized = flatten(readBundle(locale));
+
+    const missing = [...en.keys()].filter(key => !localized.has(key));
+    const extra = [...localized.keys()].filter(key => !en.has(key));
+    const blank = [...localized].filter(([, text]) => text.trim() === '').map(([key]) => key);
+
+    expect({ missing, extra, blank }).toEqual({ missing: [], extra: [], blank: [] });
+  });
+
+  test.each(locales)('%s keeps the mobileui placeholders and line breaks', locale => {
+    const en = flatten(readBundle('en'));
+    const localized = flatten(readBundle(locale));
+
+    const drifted = [...en].filter(([key, english]) => {
+      const translation = localized.get(key);
+      if (translation === undefined) return false;
+      return (
+        placeholdersOf(english).sort().join('|') !== placeholdersOf(translation).sort().join('|') ||
+        english.split('\n').length !== translation.split('\n').length
+      );
+    }).map(([key]) => key);
+
+    expect(drifted, `placeholder drift in ${locale}: ${drifted.join(', ')}`).toEqual([]);
+  });
+});

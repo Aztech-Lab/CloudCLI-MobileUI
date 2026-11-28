@@ -1,12 +1,55 @@
 {
+  "tab": {
+    "label": "MobileUI",
+    "description": "Tutto ciò che questa edizione aggiunge a CloudCLI, in un unico posto."
+  },
+  "sections": {
+    "look": "Aspetto",
+    "conversation": "Conversazione",
+    "files": "File",
+    "about": "Informazioni su questa edizione",
+    "phone": "Telefono e navigazione",
+    "agents": "Agenti e attività in background"
+  },
   "autoExpandThinking": "Espandi ragionamento automaticamente",
   "autoExpandThinkingDescription": "Apre i blocchi di ragionamento per impostazione predefinita, anche durante lo streaming. Puoi comunque comprimere un blocco a mano.",
   "skin": {
+    "label": "Skin",
+    "description": "Lo stile visivo dell’interfaccia; tema chiaro e scuro funzionano con ogni skin",
+    "names": {
+      "default": "Predefinita",
+      "otsr": "OTSR",
+      "aztecan": "Aztecan"
+    },
     "descriptions": {
-      "aztecan": "Quasi nero, ciano, vetro"
+      "otsr": "Bianco da laboratorio, rame, angoli squadrati",
+      "aztecan": "Quasi nero, ciano, vetro",
+      "default": "L’aspetto originale di CloudCLI"
     }
   },
   "skinOptions": {
+    "otsr": {
+      "dotField": {
+        "label": "Trama a punti",
+        "description": "La texture a punti dietro la conversazione",
+        "off": "Disattivata",
+        "faint": "Tenue",
+        "normal": "Normale",
+        "strong": "Marcata"
+      },
+      "chamfers": {
+        "label": "Bordi smussati",
+        "description": "Angoli tagliati sulla barra delle schede, sul compositore e sui tuoi messaggi"
+      },
+      "monoLabels": {
+        "label": "Etichette delle schede monospazio",
+        "description": "Etichette maiuscole in stile strumentazione sulle schede dello spazio di lavoro"
+      },
+      "squareMarks": {
+        "label": "Indicatori di stato quadrati",
+        "description": "Indicatori di stato quadrati anziché rotondi"
+      }
+    },
     "aztecan": {
       "stars": {
         "label": "Campo stellato",
@@ -19,6 +62,7 @@
         "label": "Contrasto del vetro",
         "description": "Quanto pannelli e fumetti risaltano sul cielo",
         "subtle": "Leggero",
+        "standard": "Standard",
         "strong": "Forte",
         "solid": "Pieno (luce intensa)"
       },
@@ -37,6 +81,112 @@
         "label": "Schede a pillola",
         "description": "Barre delle schede completamente arrotondate, come la navigazione del sito web"
       }
+    }
+  },
+  "assistantBubble": {
+    "label": "Fumetto delle risposte dell’agente",
+    "description": "Come sono incorniciate nella conversazione le risposte scritte dell’agente",
+    "off": "Nessun fumetto",
+    "translucent": "Traslucido",
+    "solid": "Pieno"
+  },
+  "serverSettings": {
+    "title": "Server",
+    "description": "Il server CloudCLI su questo computer, avviato dagli script in scripts/server.",
+    "testPortal": "Questo è il portale di test (porta {{port}}). Riavvia e Ferma agiscono solo su di esso.",
+    "loading": "Caricamento dello stato del server…",
+    "unavailable": "Questo server non è stato avviato dagli script in scripts/server, quindi non può essere controllato da qui.",
+    "status": "Stato",
+    "running": "In esecuzione sulla porta {{port}}",
+    "runningPid": "In esecuzione sulla porta {{port}} (PID {{pid}})",
+    "stopped": "Non in esecuzione",
+    "version": "Versione {{version}}",
+    "build": "Build",
+    "buildValue": "{{branch}} {{commit}}, compilata il {{builtAt}}",
+    "buildDirty": "con modifiche non committate",
+    "noBuildInfo": "Nessuna informazione sulla build",
+    "pendingBuild": "Build preparata",
+    "pendingBuildHint": "Pronta per andare live: un riavvio la rende la build in esecuzione.",
+    "activeWork": "Lavoro in corso",
+    "activeWorkNone": "Nessuno",
+    "activeWorkValue": "Risposte in scrittura: {{turns}} · sessioni con lavoro in background: {{sessions}} · attività in background: {{tasks}}",
+    "autostart": "Avvia all’accesso",
+    "autostartDescription": "Avvia il server in background quando accedi a questo computer.",
+    "autostartDisabled": "Disattivato dal sistema (su Windows: Gestione attività > App di avvio). Attivandolo qui lo riattivi.",
+    "autostartUnsupported": "Non disponibile su questo sistema.",
+    "autostartLiveOnly": "Vale solo per il server live; modificalo lì.",
+    "actionsTitle": "Riavvia o ferma",
+    "actionsDescription": "Entrambi terminano ogni risposta in scrittura e tutte le attività in background, e questa pagina perde la connessione. Dopo un riavvio si riconnette da sola; dopo un arresto il server deve essere riavviato sul computer.",
+    "activateBuild": "Attiva la build preparata",
+    "restart": "Riavvia",
+    "stop": "Ferma",
+    "working": "In corso…",
+    "confirmRestart": "Riavviare ora il server? Questa pagina perderà la connessione per un momento.",
+    "confirmStop": "Fermare il server? Questa pagina smetterà di funzionare finché il server non verrà riavviato sul computer.",
+    "confirmWork": "Il lavoro in corso verrà terminato e non potrà essere ripreso. {{work}}",
+    "restartScheduled": "Riavvio in corso… Questa pagina si riconnette quando il server torna disponibile.",
+    "stopScheduled": "Il server si sta fermando. Riavvialo sul computer (scripts/server/start)."
+  },
+  "showThinking": {
+    "label": "Mostra ragionamento",
+    "description": "Lo stesso interruttore delle impostazioni rapide."
+  },
+  "files": {
+    "showIgnored": "Mostra i file in gitignore",
+    "showIgnoredDescription": "Elenca, attenuati, i file e le cartelle in gitignore nella scheda File. Equivale al pulsante a forma di occhio lì presente; viene ricordato solo su questo dispositivo."
+  },
+  "about": {
+    "basedOnVersion": "CloudCLI-MobileUI, basato su CloudCLI {{version}}.",
+    "basedOn": "CloudCLI-MobileUI, basato su CloudCLI.",
+    "repository": "Repository",
+    "whatsNew": "Novità"
+  },
+  "phone": {
+    "swipeNavigation": "Scorri tra le schede",
+    "swipeNavigationDescription": "Sul telefono, scorri a sinistra o a destra per cambiare scheda dello spazio di lavoro; scorrendo indietro dalla prima scheda si apre il menu.",
+    "homeRecents": "Conversazioni recenti nella schermata iniziale",
+    "homeRecentsDescription": "Quando nessun progetto è aperto, elenca le conversazioni più recenti e i relativi progetti. Disattivato: la schermata originale «Scegli un progetto»."
+  },
+  "serverSwitches": {
+    "intro": "Opzioni del server: salvate sul server e usate dal suo prossimo riavvio. Un valore impostato nella configurazione del server ha sempre la precedenza.",
+    "stagingNote": "Questo è il portale di test: queste opzioni riguardano solo il portale di test (che ha un proprio database).",
+    "source": {
+      "default": "Predefinito",
+      "ui": "Impostato qui",
+      "config": "Bloccato dalla configurazione del server"
+    },
+    "lockedHint": "Impostato nella configurazione del server ({{key}}), che ha sempre la precedenza. Modificalo in _server/config.json.",
+    "appliesAfterRestart": "Salvato. Si applica dopo il riavvio del server.",
+    "restartNow": "Riavvia ora",
+    "restartManually": "Riavvia il server sul computer per usarlo.",
+    "experimental": "Sperimentale",
+    "defaultValue": "Predefinito ({{value}})",
+    "save": "Salva",
+    "codexRuntime": {
+      "label": "Runtime di Codex",
+      "description": "Come vengono eseguite le conversazioni Codex: un processo per messaggio (exec, il predefinito) oppure un app server di lunga durata con approvazioni e terminali in background.",
+      "exec": "exec (predefinito)",
+      "appserver": "appserver (sperimentale)"
+    },
+    "approvalTimeout": {
+      "label": "Timeout di approvazione",
+      "description": "Quanto a lungo una richiesta di approvazione di uno strumento attende la tua risposta prima di essere rifiutata."
+    },
+    "backgroundHold": {
+      "label": "Limite del lavoro in background",
+      "description": "Quanto a lungo una sessione con attività in background ancora in esecuzione può restare silenziosa prima che tali attività vengano fermate."
+    },
+    "fileTreeMaxEntries": {
+      "label": "Limite dell’albero dei file",
+      "description": "Quante voci la scheda File carica in una volta in un progetto molto grande (predefinito {{value}}). Le cartelle oltre il limite si caricano quando vengono aperte."
+    },
+    "extraReadRoots": {
+      "label": "Cartelle aggiuntive di sola lettura",
+      "description": "Cartelle esterne al progetto che il visualizzatore di file nella chat può aprire in sola lettura. Percorsi assoluti di cartelle esistenti, fino a 20.",
+      "placeholder": "Percorso assoluto della cartella",
+      "add": "Aggiungi cartella",
+      "remove": "Rimuovi {{path}}",
+      "confirm": "Chiunque abbia effettuato l’accesso a questo server potrà leggere dalla chat ogni file in\n{{path}}\nAggiungerla?"
     }
   }
 }
