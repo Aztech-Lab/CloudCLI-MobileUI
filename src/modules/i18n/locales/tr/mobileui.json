@@ -145,7 +145,9 @@
     "swipeNavigation": "Sekmeler arasında kaydır",
     "swipeNavigationDescription": "Telefonda çalışma alanı sekmeleri arasında geçmek için sola veya sağa kaydırın; ilk sekmeden geri kaydırmak menüyü açar.",
     "homeRecents": "Ana ekranda son sohbetler",
-    "homeRecentsDescription": "Açık proje yokken en son sohbetleri ve projelerini listeler. Kapalıyken: özgün “Bir proje seçin” ekranı."
+    "homeRecentsDescription": "Açık proje yokken en son sohbetleri ve projelerini listeler. Kapalıyken: özgün “Bir proje seçin” ekranı.",
+    "compactComposer": "Telefonda sade yazma çubuğu",
+    "compactComposerDescription": "Telefonda mesaj kutusunun altındaki düğmeler tek satırda kalır: komut listesi, zamanlama, sesli giriş ve bağlamı temizleme bir “⋯” menüsüne taşınır. / yazmak komutları yine açar. Kapalı: tüm düğmeler çubukta olur ve çubuk iki satıra taşabilir."
   },
   "serverSwitches": {
     "intro": "Sunucu anahtarları: sunucuda kaydedilir ve bir sonraki yeniden başlatmadan itibaren kullanılır. Sunucu yapılandırmasında ayarlanan değer her zaman önceliklidir.",
@@ -188,5 +190,9 @@
       "remove": "{{path}} kaldır",
       "confirm": "Bu sunucuda oturum açmış herkes sohbetten\n{{path}}\naltındaki tüm dosyaları okuyabilecek. Eklensin mi?"
     }
+  },
+  "composer": {
+    "moreActions": "Diğer işlemler",
+    "back": "Geri"
   }
 }

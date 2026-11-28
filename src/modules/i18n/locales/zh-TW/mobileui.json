@@ -145,7 +145,9 @@
     "swipeNavigation": "滑動切換分頁",
     "swipeNavigationDescription": "在手機上左右滑動切換工作區分頁；在第一個分頁向回滑動會開啟選單。",
     "homeRecents": "主畫面顯示最近對話",
-    "homeRecentsDescription": "未開啟專案時，列出最近的對話及其專案。關閉後顯示原版的「選擇專案」畫面。"
+    "homeRecentsDescription": "未開啟專案時，列出最近的對話及其專案。關閉後顯示原版的「選擇專案」畫面。",
+    "compactComposer": "手機上使用精簡輸入工具列",
+    "compactComposerDescription": "在手機上，輸入框下方的按鈕維持一列：指令清單、排程傳送、語音輸入和清除上下文收進「⋯」選單。輸入 / 仍可開啟指令清單。關閉：所有按鈕都放在工具列上，可能折成兩列。"
   },
   "serverSwitches": {
     "intro": "伺服器開關：儲存在伺服器上，下次重新啟動後生效。伺服器設定中設定的值一律優先。",
@@ -188,5 +190,9 @@
       "remove": "移除 {{path}}",
       "confirm": "登入此伺服器的任何人都將能在對話中讀取\n{{path}}\n底下的所有檔案。確定新增嗎？"
     }
+  },
+  "composer": {
+    "moreActions": "更多動作",
+    "back": "返回"
   }
 }

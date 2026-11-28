@@ -10,18 +10,25 @@ import {
  * [local] Phone and navigation preferences of CloudCLI-MobileUI, set in Settings > MobileUI.
  * Stored as the `mobileUi` user preference (one object), so they follow the user across
  * devices like the other settings. The defaults are what the app did before these switches
- * existed, so a user who never opens them sees no change.
+ * existed, so a user who never opens them sees no change; the one exception is the compact
+ * phone composer, which is the fix for a toolbar that wrapped onto two rows.
  */
 export type MobileUiPreferences = {
   /** Swipe left/right in the workspace (phones) to switch tabs or open the menu. */
   swipeNavigation: boolean;
   /** The home screen lists recent conversations and projects instead of the plain intro. */
   homeRecents: boolean;
+  /**
+   * On phones the composer toolbar stays one row: clear context, schedule, the commands list
+   * and voice input move into a "more" menu. Off: every button in the row, as upstream (it wraps).
+   */
+  compactComposer: boolean;
 };
 
 export const MOBILE_UI_DEFAULTS: MobileUiPreferences = {
   swipeNavigation: true,
   homeRecents: true,
+  compactComposer: true,
 };
 
 let cachedRaw: unknown;

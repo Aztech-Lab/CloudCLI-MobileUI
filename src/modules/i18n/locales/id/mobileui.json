@@ -145,7 +145,9 @@
     "swipeNavigation": "Geser antar-tab",
     "swipeNavigationDescription": "Di ponsel, geser ke kiri atau kanan untuk berpindah tab workspace; menggeser kembali dari tab pertama membuka menu.",
     "homeRecents": "Percakapan terbaru di layar beranda",
-    "homeRecentsDescription": "Saat tidak ada proyek yang terbuka, tampilkan percakapan terbaru beserta proyeknya. Mati: layar “pilih proyek” yang asli."
+    "homeRecentsDescription": "Saat tidak ada proyek yang terbuka, tampilkan percakapan terbaru beserta proyeknya. Mati: layar “pilih proyek” yang asli.",
+    "compactComposer": "Bilah penulisan ringkas di ponsel",
+    "compactComposerDescription": "Di ponsel, tombol di bawah kotak pesan tetap satu baris: daftar perintah, penjadwalan, input suara, dan hapus konteks pindah ke menu “⋯”. Mengetik / tetap membuka perintah. Mati: semua tombol di bilah, yang bisa terbagi menjadi dua baris."
   },
   "serverSwitches": {
     "intro": "Sakelar server: disimpan di server dan digunakan sejak server dimulai ulang berikutnya. Nilai yang diatur di konfigurasi server selalu diutamakan.",
@@ -188,5 +190,9 @@
       "remove": "Hapus {{path}}",
       "confirm": "Siapa pun yang masuk ke server ini akan dapat membaca setiap file di dalam\n{{path}}\ndari chat. Tambahkan?"
     }
+  },
+  "composer": {
+    "moreActions": "Tindakan lainnya",
+    "back": "Kembali"
   }
 }

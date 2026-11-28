@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Clock } from 'lucide-react';
@@ -49,10 +49,6 @@ export function ScheduleMessagePopover({ disabled, onSchedule }: ScheduleMessage
   // sits inside the scrolling transcript's stacking context, so a popover
   // positioned inside it is clipped by the message pane.
   const { triggerRef, menuRef, anchor, updateAnchor } = useComposerMenuAnchor(isOpen, close);
-  // Seeded an hour out, because a picker that opens on "now" is never what
-  // scheduling means.
-  const [customValue, setCustomValue] = useState(() => toLocalInputValue(new Date(Date.now() + 3_600_000)));
-
   const commit = (scheduledFor: Date) => {
     onSchedule(scheduledFor);
     setIsOpen(false);
@@ -85,6 +81,29 @@ export function ScheduleMessagePopover({ disabled, onSchedule }: ScheduleMessage
 
       {isOpen && anchor && createPortal(
         <ComposerMenuSurface anchor={anchor} menuRef={menuRef} ariaLabel={ariaLabel}>
+          {/* [local] The rows live in ScheduleMessageOptions, which the phone composer's "more" menu shows too. */}
+          <ScheduleMessageOptions onCommit={commit} />
+        </ComposerMenuSurface>,
+        document.body,
+      )}
+    </>
+  );
+}
+
+/**
+ * [local] The schedule menu's rows (quick offsets and a custom time), split out of
+ * ScheduleMessagePopover so ComposerOverflowMenu can show them on phones too.
+ */
+export function ScheduleMessageOptions({ onCommit }: { onCommit: (scheduledFor: Date) => void }) {
+  const { t } = useTranslation('chat');
+  const inputId = useId();
+  // Seeded an hour out, because a picker that opens on "now" is never what
+  // scheduling means.
+  const [customValue, setCustomValue] = useState(() => toLocalInputValue(new Date(Date.now() + 3_600_000)));
+  const commit = onCommit;
+
+  return (
+    <>
           <ComposerMenuHeading>{t('schedule.heading')}</ComposerMenuHeading>
           {QUICK_OFFSETS_MINUTES.map((minutes) => (
             <ComposerMenuItem
@@ -101,11 +120,11 @@ export function ScheduleMessagePopover({ disabled, onSchedule }: ScheduleMessage
 
           <ComposerMenuSeparator />
           <div className="px-2.5 pb-1.5">
-            <label className="block text-[11px] font-medium text-muted-foreground" htmlFor="schedule-at">
+            <label className="block text-[11px] font-medium text-muted-foreground" htmlFor={inputId}>
               {t('schedule.customLabel')}
             </label>
             <input
-              id="schedule-at"
+              id={inputId}
               type="datetime-local"
               value={customValue}
               onChange={(event) => setCustomValue(event.target.value)}
@@ -122,9 +141,6 @@ export function ScheduleMessagePopover({ disabled, onSchedule }: ScheduleMessage
               {t('schedule.confirm')}
             </button>
           </div>
-        </ComposerMenuSurface>,
-        document.body,
-      )}
     </>
   );
 }

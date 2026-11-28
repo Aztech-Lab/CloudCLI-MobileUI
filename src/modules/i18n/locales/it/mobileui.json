@@ -145,7 +145,9 @@
     "swipeNavigation": "Scorri tra le schede",
     "swipeNavigationDescription": "Sul telefono, scorri a sinistra o a destra per cambiare scheda dello spazio di lavoro; scorrendo indietro dalla prima scheda si apre il menu.",
     "homeRecents": "Conversazioni recenti nella schermata iniziale",
-    "homeRecentsDescription": "Quando nessun progetto è aperto, elenca le conversazioni più recenti e i relativi progetti. Disattivato: la schermata originale «Scegli un progetto»."
+    "homeRecentsDescription": "Quando nessun progetto è aperto, elenca le conversazioni più recenti e i relativi progetti. Disattivato: la schermata originale «Scegli un progetto».",
+    "compactComposer": "Barra di scrittura compatta sul telefono",
+    "compactComposerDescription": "Sul telefono i pulsanti sotto la casella del messaggio restano su una riga: l’elenco dei comandi, la programmazione, l’input vocale e la cancellazione del contesto passano in un menu «⋯». Digitare / apre comunque i comandi. Disattivato: tutti i pulsanti nella barra, che può andare su due righe."
   },
   "serverSwitches": {
     "intro": "Opzioni del server: salvate sul server e usate dal suo prossimo riavvio. Un valore impostato nella configurazione del server ha sempre la precedenza.",
@@ -188,5 +190,9 @@
       "remove": "Rimuovi {{path}}",
       "confirm": "Chiunque abbia effettuato l’accesso a questo server potrà leggere dalla chat ogni file in\n{{path}}\nAggiungerla?"
     }
+  },
+  "composer": {
+    "moreActions": "Altre azioni",
+    "back": "Indietro"
   }
 }

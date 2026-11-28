@@ -213,6 +213,27 @@ test('plan mode keeps its name wherever it fits inside the composer', () => {
   assert.ok(narrow.getByRole('button', { name: /^Plan Mode: / }));
 });
 
+test('[local] plan mode does not wrap a one-row (compact phone) footer either', () => {
+  // The same 416px as above, in a footer that may not wrap: the named trigger
+  // would need a second row, so plan mode shows the icon like the others.
+  layOutComposer(416);
+  const { getByRole } = render(
+    <PromptInputFooter style={{ flexWrap: 'nowrap' }}>
+      <PromptInputTools />
+      <div data-testid="composer-controls">
+        <ComposerPermissionMenu
+          permissionMode="plan"
+          permissionModes={[...MODES]}
+          onSelectPermissionMode={() => {}}
+          providerLabel="Claude"
+        />
+      </div>
+    </PromptInputFooter>,
+  );
+  assert.equal(getByRole('button').textContent, '');
+  assert.ok(getByRole('button', { name: /^Plan Mode: / }));
+});
+
 test('typing the first character neither takes the name away nor brings it in', () => {
   // The clear button joins the left-hand tools (174px -> 210px) once something
   // is typed. A name is only shown with that much room to spare, and once shown

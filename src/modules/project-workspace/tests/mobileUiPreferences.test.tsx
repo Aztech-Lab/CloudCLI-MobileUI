@@ -79,14 +79,14 @@ afterEach(() => {
 });
 
 describe('mobileUi preferences', () => {
-  it('default to the behaviour before the switches existed', () => {
-    expect(readMobileUiPreferences()).toEqual({ swipeNavigation: true, homeRecents: true });
+  it('default to the behaviour before the switches existed, plus the one-row phone composer', () => {
+    expect(readMobileUiPreferences()).toEqual({ swipeNavigation: true, homeRecents: true, compactComposer: true });
   });
 
   it('are stored as one user preference and ignore values that are not booleans', () => {
     writeMobileUiPreference('swipeNavigation', false);
     expect(readUserPreference('mobileUi', null)).toEqual({ swipeNavigation: false });
-    expect(readMobileUiPreferences()).toEqual({ swipeNavigation: false, homeRecents: true });
+    expect(readMobileUiPreferences()).toEqual({ swipeNavigation: false, homeRecents: true, compactComposer: true });
   });
 });
 

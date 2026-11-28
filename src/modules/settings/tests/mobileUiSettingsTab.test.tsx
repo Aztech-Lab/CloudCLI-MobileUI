@@ -135,6 +135,15 @@ describe('Settings > MobileUI', () => {
     expect(screen.getByRole('switch', { name: 'Swipe between tabs' }).getAttribute('aria-checked')).toBe('false');
   });
 
+  it('stores the compact phone composer switch, on by default', () => {
+    renderTab();
+    const toggle = screen.getByRole('switch', { name: 'Compact composer toolbar on phones' });
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(toggle);
+    expect(readUserPreference('mobileUi', null)).toEqual({ compactComposer: false });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+  });
+
   it('stores the reply bubble style', () => {
     renderTab();
     fireEvent.change(screen.getByRole('combobox', { name: 'Agent reply bubble' }), { target: { value: 'off' } });

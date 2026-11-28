@@ -42,6 +42,10 @@ import { ScheduledMessageList } from '@/modules/chat/composer/ScheduledMessageLi
 import ComposerModelMenu from '@/modules/chat/composer/ComposerModelMenu';
 import ComposerPermissionMenu from '@/modules/chat/composer/ComposerPermissionMenu';
 import ComposerSendMenu from '@/modules/chat/composer/ComposerSendMenu';
+// [local] One-row composer toolbar on phones (Settings > MobileUI).
+import ComposerOverflowMenu, { PhoneHiddenAction } from '@/modules/chat/composer/ComposerOverflowMenu';
+import { COMPACT_COMPOSER_CLASSES } from '@/modules/chat/composer/compactComposerToolbar';
+import { useMobileUiPreferences } from '@/shared/mobileUiPreferences';
 
 type MentionableFile = {
   name: string;
@@ -290,6 +294,10 @@ export default function ChatComposer({
   );
   const isRecording = voiceState === 'recording';
   const isTranscribing = voiceState === 'transcribing';
+  // [local] Compact phone toolbar: the low-frequency actions move into the "more"
+  // menu below `sm`. Voice stays in the row while it records, transcribes or errs.
+  const compact = useMobileUiPreferences().compactComposer;
+  const hasVoice = Boolean(onVoiceTranscript && voiceAvailable);
 
   // Detect if an interactive panel that takes the person's answer is active:
   // a question from the agent, or an MCP server's request for input.
@@ -507,7 +515,7 @@ export default function ChatComposer({
             />
         </PromptInputBody>
 
-        <PromptInputFooter className="flex-wrap gap-y-1">
+        <PromptInputFooter className={`flex-wrap gap-y-1 ${compact ? COMPACT_COMPOSER_CLASSES.footer : ''}`}>{/* [local] compact */}
           <PromptInputTools className="min-w-0">
             <PromptInputButton
               tooltip={{ content: t('input.attachFiles') }}
@@ -517,12 +525,28 @@ export default function ChatComposer({
               <PaperclipIcon />
             </PromptInputButton>
 
-            {onVoiceTranscript && voiceAvailable && (
+            {hasVoice && (
+              <PhoneHiddenAction hidden={compact && voiceState === 'idle' && !voiceError}>{/* [local] */}
               <VoiceInputButton state={voiceState} onToggle={voiceToggle} errorMsg={voiceError} />
+              </PhoneHiddenAction>
             )}
 
             <TokenUsageSummary usage={tokenBudget} onClick={onShowTokenUsage} />
 
+            {/* [local] Phones: clear context, schedule, commands and voice in one menu. */}
+            {compact && (
+              <ComposerOverflowMenu
+                onClearContext={onClearContext}
+                clearContextDisabled={isLoading}
+                onScheduleMessage={onScheduleMessage}
+                scheduleDisabled={!input.trim()}
+                onToggleCommandMenu={onToggleCommandMenu}
+                slashCommandsCount={slashCommandsCount}
+                onStartVoice={hasVoice && voiceState === 'idle' ? voiceToggle : undefined}
+              />
+            )}
+
+            <PhoneHiddenAction hidden={compact}>{/* [local] */}
             {onClearContext && (
               <PromptInputButton
                 tooltip={{ content: t('misc.clearContext') }}
@@ -549,6 +573,7 @@ export default function ChatComposer({
                 </span>
               )}
             </PromptInputButton>
+            </PhoneHiddenAction>
 
             {hasInput && (
               <PromptInputButton
@@ -562,12 +587,15 @@ export default function ChatComposer({
 
           </PromptInputTools>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className={`ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 ${compact ? COMPACT_COMPOSER_CLASSES.controls : ''}`}>{/* [local] compact */}
+            <PhoneHiddenAction hidden={compact}>{/* [local] */}
             <ScheduleMessagePopover
               disabled={!input.trim()}
               onSchedule={onScheduleMessage}
             />
+            </PhoneHiddenAction>
 
+            <div className={compact ? COMPACT_COMPOSER_CLASSES.modelSlot : 'contents'}>{/* [local] truncates first */}
             <ComposerModelMenu
               effort={effort}
               effortOptions={availableEffortOptions}
@@ -577,6 +605,7 @@ export default function ChatComposer({
               onSelectModel={onSelectModel}
               modelsLoading={modelsLoading}
             />
+            </div>
 
             <ComposerPermissionMenu
               permissionMode={permissionMode}
