@@ -145,7 +145,9 @@
     "swipeNavigation": "Swipe between tabs",
     "swipeNavigationDescription": "On a phone, swipe left or right to switch workspace tabs; swiping back from the first tab opens the menu.",
     "homeRecents": "Recent conversations on the home screen",
-    "homeRecentsDescription": "With no project open, list the latest conversations and their projects. Off: the original “choose a project” screen."
+    "homeRecentsDescription": "With no project open, list the latest conversations and their projects. Off: the original “choose a project” screen.",
+    "compactComposer": "Compact composer toolbar on phones",
+    "compactComposerDescription": "On a phone, keep the buttons under the message box on one row: the commands list, scheduling, voice input and clear context move into a “⋯” menu. Typing / still opens the commands. Off: every button in the row, which can wrap onto two rows."
   },
   "serverSwitches": {
     "intro": "Server switches: saved on the server and used from its next restart. A value set in the server configuration always wins.",
@@ -188,5 +190,9 @@
       "remove": "Remove {{path}}",
       "confirm": "Anyone signed in to this server will be able to read every file under\n{{path}}\nfrom the chat. Add it?"
     }
+  },
+  "composer": {
+    "moreActions": "More actions",
+    "back": "Back"
   }
 }

@@ -145,7 +145,9 @@
     "swipeNavigation": "Deslizar entre abas",
     "swipeNavigationDescription": "No celular, deslize para a esquerda ou direita para trocar de aba do espaço de trabalho; deslizar para trás a partir da primeira aba abre o menu.",
     "homeRecents": "Conversas recentes na tela inicial",
-    "homeRecentsDescription": "Sem projeto aberto, lista as conversas mais recentes e seus projetos. Desligado: a tela original “escolha um projeto”."
+    "homeRecentsDescription": "Sem projeto aberto, lista as conversas mais recentes e seus projetos. Desligado: a tela original “escolha um projeto”.",
+    "compactComposer": "Barra de digitação compacta no celular",
+    "compactComposerDescription": "No celular, os botões abaixo da caixa de mensagem ficam em uma linha: a lista de comandos, o agendamento, a entrada de voz e limpar o contexto vão para um menu “⋯”. Digitar / continua abrindo os comandos. Desativado: todos os botões na barra, que pode quebrar em duas linhas."
   },
   "serverSwitches": {
     "intro": "Opções do servidor: salvas no servidor e usadas a partir da próxima reinicialização. Um valor definido na configuração do servidor sempre prevalece.",
@@ -188,5 +190,9 @@
       "remove": "Remover {{path}}",
       "confirm": "Qualquer pessoa conectada a este servidor poderá ler todos os arquivos em\n{{path}}\npelo chat. Adicionar?"
     }
+  },
+  "composer": {
+    "moreActions": "Mais ações",
+    "back": "Voltar"
   }
 }

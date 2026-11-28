@@ -118,7 +118,8 @@ export function usePermissionNameFit(
       toolsWidth: tools.getBoundingClientRect().width,
       controlsWidth: controls.getBoundingClientRect().width - triggerWidth + ICON_ONLY_WIDTH,
       nameWidth: namedWidth - ICON_ONLY_WIDTH,
-      mayWrap,
+      // [local] The compact phone toolbar keeps one row (`flex-nowrap`), so nothing may wrap there.
+      mayWrap: mayWrap && footerStyle.flexWrap !== 'nowrap',
       margin: isDecided && isShown ? 0 : SHOW_MARGIN,
     });
     setFit((current) => (current?.name === name && current.isShown === next ? current : { name, isShown: next }));

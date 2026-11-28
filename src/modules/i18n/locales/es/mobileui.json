@@ -145,7 +145,9 @@
     "swipeNavigation": "Deslizar entre pestañas",
     "swipeNavigationDescription": "En el móvil, desliza a la izquierda o a la derecha para cambiar de pestaña del espacio de trabajo; deslizar hacia atrás desde la primera pestaña abre el menú.",
     "homeRecents": "Conversaciones recientes en la pantalla de inicio",
-    "homeRecentsDescription": "Sin ningún proyecto abierto, muestra las últimas conversaciones y sus proyectos. Desactivado: la pantalla original «Elige un proyecto»."
+    "homeRecentsDescription": "Sin ningún proyecto abierto, muestra las últimas conversaciones y sus proyectos. Desactivado: la pantalla original «Elige un proyecto».",
+    "compactComposer": "Barra del editor compacta en el móvil",
+    "compactComposerDescription": "En el móvil, los botones bajo el cuadro de mensaje quedan en una sola fila: la lista de comandos, programar, la entrada de voz y borrar el contexto pasan a un menú «⋯». Escribir / sigue abriendo los comandos. Desactivado: todos los botones en la barra, que puede ocupar dos filas."
   },
   "serverSwitches": {
     "intro": "Opciones del servidor: se guardan en el servidor y se aplican desde su próximo reinicio. Un valor definido en la configuración del servidor siempre tiene prioridad.",
@@ -188,5 +190,9 @@
       "remove": "Quitar {{path}}",
       "confirm": "Cualquier persona con sesión iniciada en este servidor podrá leer todos los archivos de\n{{path}}\ndesde el chat. ¿Añadirla?"
     }
+  },
+  "composer": {
+    "moreActions": "Más acciones",
+    "back": "Atrás"
   }
 }

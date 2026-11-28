@@ -145,7 +145,9 @@
     "swipeNavigation": "Přejíždění mezi kartami",
     "swipeNavigationDescription": "Na telefonu přejeďte doleva nebo doprava pro přepnutí karet pracovního prostoru; přejetí zpět z první karty otevře nabídku.",
     "homeRecents": "Nedávné konverzace na úvodní obrazovce",
-    "homeRecentsDescription": "Když není otevřený žádný projekt, zobrazit poslední konverzace a jejich projekty. Vypnuto: původní obrazovka „Vyberte projekt“."
+    "homeRecentsDescription": "Když není otevřený žádný projekt, zobrazit poslední konverzace a jejich projekty. Vypnuto: původní obrazovka „Vyberte projekt“.",
+    "compactComposer": "Kompaktní lišta pro psaní na telefonu",
+    "compactComposerDescription": "Na telefonu zůstanou tlačítka pod polem pro zprávu v jednom řádku: seznam příkazů, plánování, hlasový vstup a vymazání kontextu se přesunou do nabídky „⋯“. Napsáním / se příkazy stále otevřou. Vypnuto: všechna tlačítka v liště, která se může zalomit do dvou řádků."
   },
   "serverSwitches": {
     "intro": "Přepínače serveru: ukládají se na serveru a použijí se od jeho příštího restartu. Hodnota nastavená v konfiguraci serveru má vždy přednost.",
@@ -188,5 +190,9 @@
       "remove": "Odebrat {{path}}",
       "confirm": "Kdokoli přihlášený k tomuto serveru bude moci z chatu číst každý soubor ve složce\n{{path}}\nPřidat ji?"
     }
+  },
+  "composer": {
+    "moreActions": "Další akce",
+    "back": "Zpět"
   }
 }

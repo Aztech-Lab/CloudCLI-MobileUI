@@ -145,7 +145,9 @@
     "swipeNavigation": "滑动切换标签页",
     "swipeNavigationDescription": "在手机上左右滑动切换工作区标签页；在第一个标签页向回滑动会打开菜单。",
     "homeRecents": "主屏显示最近对话",
-    "homeRecentsDescription": "未打开项目时，列出最近的对话及其项目。关闭后显示原版的“选择项目”页面。"
+    "homeRecentsDescription": "未打开项目时，列出最近的对话及其项目。关闭后显示原版的“选择项目”页面。",
+    "compactComposer": "手机上使用紧凑输入工具栏",
+    "compactComposerDescription": "在手机上，输入框下方的按钮保持一行：命令列表、定时发送、语音输入和清除上下文收进“⋯”菜单。输入 / 仍可打开命令列表。关闭：所有按钮都放在工具栏上，可能折成两行。"
   },
   "serverSwitches": {
     "intro": "服务器开关：保存在服务器上，下次重启后生效。服务器配置中设置的值始终优先。",
@@ -188,5 +190,9 @@
       "remove": "移除 {{path}}",
       "confirm": "登录此服务器的任何人都将能在对话中读取\n{{path}}\n下的所有文件。确定添加吗？"
     }
+  },
+  "composer": {
+    "moreActions": "更多操作",
+    "back": "返回"
   }
 }
