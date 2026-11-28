@@ -19,6 +19,22 @@ import { AppError, resolveReadOnlyRootPath, validateWorkspacePath } from '@/shar
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Creates a directory symlink, or returns false when the OS refuses (Windows without
+ * Developer Mode or admin rights answers EPERM), so the caller can skip instead of fail.
+ */
+async function trySymlinkDirectory(target: string, linkPath: string): Promise<boolean> {
+  try {
+    await fsPromises.symlink(target, linkPath, 'dir');
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
+  }
+}
+
+const SYMLINK_SKIP_REASON = 'this OS refused to create a symlink (EPERM; on Windows enable Developer Mode)';
+
 function createDirectoryEntry(name: string, directory: boolean): FileTreeDirectoryEntry {
   return {
     name,
@@ -484,10 +500,15 @@ test('the temp directory can be browsed and read, but never written to', async (
       service.saveTextFile('project-1', outputPath, 'overwritten'),
       (error: unknown) => (error as AppError).code === 'PATH_OUTSIDE_PROJECT',
     );
-    await assert.rejects(
-      service.createWorkspaceFolder(path.join(temporaryDirectory, 'new-folder')),
-      (error: unknown) => (error as AppError).code === 'INVALID_WORKSPACE_PATH',
-    );
+    // Only meaningful when the temp directory lies outside the workspace root. On Windows
+    // it sits under the home folder (%LOCALAPPDATA%\Temp), which is the default root, so
+    // creating a folder there is an ordinary workspace operation.
+    if (!(await validateWorkspacePath(temporaryDirectory)).valid) {
+      await assert.rejects(
+        service.createWorkspaceFolder(path.join(temporaryDirectory, 'new-folder')),
+        (error: unknown) => (error as AppError).code === 'INVALID_WORKSPACE_PATH',
+      );
+    }
     await assert.rejects(
       service.createEntry({
         projectId: 'project-1',
@@ -525,7 +546,7 @@ test('the temp directory can be browsed and read, but never written to', async (
   }
 });
 
-test('reading through a symlink out of the temp directory is still refused', async () => {
+test('reading through a symlink out of the temp directory is still refused', async (t) => {
   const temporaryDirectory = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'file-tree-tmp-'));
   const projectRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'file-tree-project-'));
   // The link target has to sit under no read-only root. Beside this file is
@@ -537,7 +558,10 @@ test('reading through a symlink out of the temp directory is still refused', asy
   try {
     assert.equal(await resolveReadOnlyRootPath(outsideDirectory), null);
     await fsPromises.writeFile(path.join(outsideDirectory, 'secret.txt'), 'secret', 'utf8');
-    await fsPromises.symlink(outsideDirectory, path.join(temporaryDirectory, 'escape'));
+    if (!(await trySymlinkDirectory(outsideDirectory, path.join(temporaryDirectory, 'escape')))) {
+      t.skip(SYMLINK_SKIP_REASON);
+      return;
+    }
 
     const service = createRealFileSystemService(projectRoot);
     await assert.rejects(
@@ -551,7 +575,7 @@ test('reading through a symlink out of the temp directory is still refused', asy
   }
 });
 
-test('a file in another folder of the workspace can be read, but never written to', async () => {
+test('a file in another folder of the workspace can be read, but never written to', async (t) => {
   // Both sit beside this file, outside every read-only root, for the reason
   // given in the symlink test above.
   const workspaceRoot = await fsPromises.mkdtemp(path.join(testDirectory, 'file-tree-workspace-'));
@@ -565,7 +589,7 @@ test('a file in another folder of the workspace can be read, but never written t
     const reportPath = path.join(siblingDirectory, 'report.md');
     await fsPromises.writeFile(reportPath, 'what the run found', 'utf8');
     await fsPromises.writeFile(path.join(outsideDirectory, 'secret.txt'), 'secret', 'utf8');
-    await fsPromises.symlink(outsideDirectory, path.join(workspaceRoot, 'escape'));
+    const linked = await trySymlinkDirectory(outsideDirectory, path.join(workspaceRoot, 'escape'));
 
     const service = createRealFileSystemService(projectRoot, workspaceRoot);
 
@@ -585,6 +609,10 @@ test('a file in another folder of the workspace can be read, but never written t
     assert.equal(await fsPromises.readFile(reportPath, 'utf8'), 'what the run found');
 
     // A link inside the workspace does not open what lies outside it.
+    if (!linked) {
+      t.skip(`symlink part: ${SYMLINK_SKIP_REASON}`);
+      return;
+    }
     await assert.rejects(
       service.readTextFile('project-1', path.join(workspaceRoot, 'escape', 'secret.txt')),
       (error: unknown) => (error as AppError).code === 'PATH_OUTSIDE_PROJECT',
