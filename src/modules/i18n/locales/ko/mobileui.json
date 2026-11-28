@@ -1,12 +1,55 @@
 {
+  "tab": {
+    "label": "MobileUI",
+    "description": "이 에디션이 CloudCLI에 더한 모든 설정을 한곳에 모았습니다."
+  },
+  "sections": {
+    "look": "외관",
+    "conversation": "대화",
+    "files": "파일",
+    "about": "이 에디션 정보",
+    "phone": "휴대폰 및 내비게이션",
+    "agents": "에이전트 및 백그라운드"
+  },
   "autoExpandThinking": "생각 과정 자동 펼치기",
   "autoExpandThinkingDescription": "생각 블록을 기본으로 펼쳐 표시합니다(스트리밍 중 포함). 각 블록은 직접 접을 수 있습니다.",
   "skin": {
+    "label": "스킨",
+    "description": "인터페이스의 시각 스타일입니다. 라이트와 다크 모드는 모든 스킨에서 작동합니다",
+    "names": {
+      "default": "기본",
+      "otsr": "OTSR",
+      "aztecan": "Aztecan"
+    },
     "descriptions": {
-      "aztecan": "짙은 검정, 시안, 유리"
+      "otsr": "실험실 화이트, 구리색, 각진 모서리",
+      "aztecan": "짙은 검정, 시안, 유리",
+      "default": "CloudCLI 원래 모습"
     }
   },
   "skinOptions": {
+    "otsr": {
+      "dotField": {
+        "label": "점 패턴",
+        "description": "대화 뒤에 깔리는 점무늬 질감",
+        "off": "끄기",
+        "faint": "희미하게",
+        "normal": "보통",
+        "strong": "강하게"
+      },
+      "chamfers": {
+        "label": "모따기 모서리",
+        "description": "탭 줄, 입력창, 내 메시지의 모서리를 비스듬히 자릅니다"
+      },
+      "monoLabels": {
+        "label": "고정폭 탭 레이블",
+        "description": "작업 공간 탭에 계기판 스타일의 대문자 레이블을 사용합니다"
+      },
+      "squareMarks": {
+        "label": "사각형 상태 표시",
+        "description": "상태 표시를 원 대신 사각형으로 표시합니다"
+      }
+    },
     "aztecan": {
       "stars": {
         "label": "별 배경",
@@ -38,6 +81,112 @@
         "label": "알약형 탭",
         "description": "웹사이트 내비게이션처럼 탭 줄을 완전히 둥글게 표시합니다"
       }
+    }
+  },
+  "assistantBubble": {
+    "label": "에이전트 답변 말풍선",
+    "description": "대화에서 에이전트의 텍스트 답변을 감싸는 방식",
+    "off": "말풍선 없음",
+    "translucent": "반투명",
+    "solid": "불투명"
+  },
+  "serverSettings": {
+    "title": "서버",
+    "description": "이 컴퓨터에서 scripts/server의 스크립트로 시작한 CloudCLI 서버입니다.",
+    "testPortal": "테스트 포털입니다(포트 {{port}}). 재시작과 중지는 이 포털에만 적용됩니다.",
+    "loading": "서버 상태를 불러오는 중…",
+    "unavailable": "이 서버는 scripts/server의 스크립트로 시작되지 않아 여기서 제어할 수 없습니다.",
+    "status": "상태",
+    "running": "포트 {{port}}에서 실행 중",
+    "runningPid": "포트 {{port}}에서 실행 중(PID {{pid}})",
+    "stopped": "실행 중이 아님",
+    "version": "버전 {{version}}",
+    "build": "빌드",
+    "buildValue": "{{branch}} {{commit}}, {{builtAt}} 빌드",
+    "buildDirty": "커밋되지 않은 변경 사항 포함",
+    "noBuildInfo": "빌드 정보 없음",
+    "pendingBuild": "준비된 빌드",
+    "pendingBuildHint": "적용 준비 완료: 재시작하면 실행 중인 빌드가 됩니다.",
+    "activeWork": "진행 중인 작업",
+    "activeWorkNone": "없음",
+    "activeWorkValue": "작성 중인 답변: {{turns}} · 백그라운드 작업이 있는 세션: {{sessions}} · 백그라운드 작업: {{tasks}}",
+    "autostart": "로그인 시 시작",
+    "autostartDescription": "이 컴퓨터에 로그인하면 서버를 백그라운드에서 시작합니다.",
+    "autostartDisabled": "시스템에서 꺼져 있습니다(Windows: 작업 관리자 > 시작 앱). 여기서 켜면 다시 활성화됩니다.",
+    "autostartUnsupported": "이 시스템에서는 사용할 수 없습니다.",
+    "autostartLiveOnly": "정식 서버에만 적용됩니다. 그쪽에서 변경하세요.",
+    "actionsTitle": "재시작 또는 중지",
+    "actionsDescription": "두 작업 모두 작성 중인 모든 답변과 백그라운드 작업을 종료하며, 이 페이지의 연결이 끊어집니다. 재시작 후에는 자동으로 다시 연결되고, 중지 후에는 컴퓨터에서 서버를 다시 시작해야 합니다.",
+    "activateBuild": "준비된 빌드 활성화",
+    "restart": "재시작",
+    "stop": "중지",
+    "working": "처리 중…",
+    "confirmRestart": "지금 서버를 재시작할까요? 이 페이지의 연결이 잠시 끊어집니다.",
+    "confirmStop": "서버를 중지할까요? 컴퓨터에서 서버를 다시 시작할 때까지 이 페이지는 작동하지 않습니다.",
+    "confirmWork": "진행 중인 작업이 종료되며 재개할 수 없습니다. {{work}}",
+    "restartScheduled": "재시작 중… 서버가 돌아오면 이 페이지가 다시 연결됩니다.",
+    "stopScheduled": "서버를 중지하는 중입니다. 컴퓨터에서 다시 시작하세요(scripts/server/start)."
+  },
+  "showThinking": {
+    "label": "생각 과정 표시",
+    "description": "빠른 설정의 스위치와 같습니다."
+  },
+  "files": {
+    "showIgnored": "gitignore된 파일 표시",
+    "showIgnoredDescription": "파일 탭에서 gitignore된 파일과 폴더를 흐리게 표시합니다. 그곳의 눈 버튼과 같으며, 이 기기에만 저장됩니다."
+  },
+  "about": {
+    "basedOnVersion": "CloudCLI-MobileUI, CloudCLI {{version}} 기반.",
+    "basedOn": "CloudCLI-MobileUI, CloudCLI 기반.",
+    "repository": "저장소",
+    "whatsNew": "새로운 기능"
+  },
+  "phone": {
+    "swipeNavigation": "스와이프로 탭 전환",
+    "swipeNavigationDescription": "휴대폰에서 왼쪽이나 오른쪽으로 스와이프해 작업 공간 탭을 전환합니다. 첫 번째 탭에서 뒤로 스와이프하면 메뉴가 열립니다.",
+    "homeRecents": "홈 화면에 최근 대화 표시",
+    "homeRecentsDescription": "열린 프로젝트가 없을 때 최근 대화와 해당 프로젝트를 표시합니다. 끄면 원래의 ‘프로젝트 선택’ 화면이 표시됩니다."
+  },
+  "serverSwitches": {
+    "intro": "서버 스위치: 서버에 저장되며 다음 재시작부터 적용됩니다. 서버 구성에 설정된 값이 항상 우선합니다.",
+    "stagingNote": "테스트 포털입니다. 이 스위치는 테스트 포털에만 영향을 줍니다(별도의 데이터베이스 사용).",
+    "source": {
+      "default": "기본값",
+      "ui": "여기서 설정",
+      "config": "서버 구성으로 잠김"
+    },
+    "lockedHint": "서버 구성({{key}})에서 설정되었으며 항상 우선합니다. _server/config.json에서 변경하세요.",
+    "appliesAfterRestart": "저장되었습니다. 서버를 재시작하면 적용됩니다.",
+    "restartNow": "지금 재시작",
+    "restartManually": "적용하려면 컴퓨터에서 서버를 재시작하세요.",
+    "experimental": "실험적",
+    "defaultValue": "기본값({{value}})",
+    "save": "저장",
+    "codexRuntime": {
+      "label": "Codex 런타임",
+      "description": "Codex 대화 실행 방식: 메시지마다 프로세스 하나(exec, 기본값) 또는 승인과 백그라운드 터미널을 지원하는 상주 app server.",
+      "exec": "exec (기본값)",
+      "appserver": "appserver (실험적)"
+    },
+    "approvalTimeout": {
+      "label": "승인 제한 시간",
+      "description": "도구 승인 요청이 거부되기 전까지 응답을 기다리는 시간입니다."
+    },
+    "backgroundHold": {
+      "label": "백그라운드 작업 한도",
+      "description": "백그라운드 작업이 실행 중인 세션이 아무 출력 없이 유지될 수 있는 시간입니다. 초과하면 해당 작업이 중지됩니다."
+    },
+    "fileTreeMaxEntries": {
+      "label": "파일 트리 한도",
+      "description": "매우 큰 프로젝트에서 파일 탭이 한 번에 불러오는 항목 수입니다(기본값 {{value}}). 초과하는 폴더는 열 때 불러옵니다."
+    },
+    "extraReadRoots": {
+      "label": "추가 읽기 전용 폴더",
+      "description": "채팅 내 파일 뷰어가 읽기 전용으로 열 수 있는 프로젝트 외부 폴더입니다. 존재하는 폴더의 절대 경로, 최대 20개.",
+      "placeholder": "폴더 절대 경로",
+      "add": "폴더 추가",
+      "remove": "{{path}} 제거",
+      "confirm": "이 서버에 로그인한 누구나 채팅에서\n{{path}}\n아래의 모든 파일을 읽을 수 있게 됩니다. 추가할까요?"
     }
   }
 }

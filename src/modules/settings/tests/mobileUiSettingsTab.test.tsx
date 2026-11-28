@@ -245,9 +245,10 @@ describe('mobileui translations', () => {
   it('registers the namespace and falls back to English', async () => {
     expect(i18n.hasResourceBundle('en', 'mobileui')).toBe(true);
     expect(i18n.hasResourceBundle('zh-CN', 'mobileui')).toBe(true);
-    const fixed = i18n.getFixedT('cs', 'mobileui');
-    // Czech has no own string for the section title, so English is used.
-    expect(fixed('sections.look')).toBe('Look');
+    // Every shipped locale has its own strings now; a language without a bundle
+    // still falls back to English.
+    expect(i18n.getFixedT('cs', 'mobileui')('sections.look')).not.toBe('Look');
+    expect(i18n.getFixedT('nl', 'mobileui')('sections.look')).toBe('Look');
     expect(i18n.getFixedT('zh-CN', 'mobileui')('sections.look')).toBe('外观');
   });
 

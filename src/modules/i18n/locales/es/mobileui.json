@@ -1,12 +1,55 @@
 {
+  "tab": {
+    "label": "MobileUI",
+    "description": "Todo lo que esta edición añade a CloudCLI, en un solo lugar."
+  },
+  "sections": {
+    "look": "Aspecto",
+    "conversation": "Conversación",
+    "files": "Archivos",
+    "about": "Acerca de esta edición",
+    "phone": "Móvil y navegación",
+    "agents": "Agentes y segundo plano"
+  },
   "autoExpandThinking": "Expandir razonamiento automáticamente",
   "autoExpandThinkingDescription": "Abre los bloques de razonamiento por defecto, también mientras se transmiten. Puedes seguir contrayendo un bloque manualmente.",
   "skin": {
+    "label": "Estilo",
+    "description": "El estilo visual de la interfaz; los modos claro y oscuro funcionan con todos los estilos",
+    "names": {
+      "default": "Predeterminado",
+      "otsr": "OTSR",
+      "aztecan": "Aztecan"
+    },
     "descriptions": {
-      "aztecan": "Casi negro, cian, cristal"
+      "otsr": "Blanco de laboratorio, cobre, esquinas rectas",
+      "aztecan": "Casi negro, cian, cristal",
+      "default": "El aspecto original de CloudCLI"
     }
   },
   "skinOptions": {
+    "otsr": {
+      "dotField": {
+        "label": "Campo de puntos",
+        "description": "La textura de puntos detrás de la conversación",
+        "off": "Desactivado",
+        "faint": "Tenue",
+        "normal": "Normal",
+        "strong": "Intenso"
+      },
+      "chamfers": {
+        "label": "Bordes biselados",
+        "description": "Esquinas recortadas en la barra de pestañas, el editor de mensajes y tus mensajes"
+      },
+      "monoLabels": {
+        "label": "Etiquetas de pestaña monoespaciadas",
+        "description": "Etiquetas en mayúsculas de estilo instrumental en las pestañas del espacio de trabajo"
+      },
+      "squareMarks": {
+        "label": "Marcas de estado cuadradas",
+        "description": "Indicadores de estado cuadrados en lugar de redondos"
+      }
+    },
     "aztecan": {
       "stars": {
         "label": "Campo de estrellas",
@@ -27,7 +70,8 @@
         "label": "Cuadrícula de fondo",
         "description": "La cuadrícula fina del fondo",
         "off": "Desactivada",
-        "faint": "Tenue"
+        "faint": "Tenue",
+        "normal": "Normal"
       },
       "halo": {
         "label": "Halo y brillo",
@@ -37,6 +81,112 @@
         "label": "Pestañas de píldora",
         "description": "Barras de pestañas totalmente redondeadas, como la navegación del sitio web"
       }
+    }
+  },
+  "assistantBubble": {
+    "label": "Burbuja de respuesta del agente",
+    "description": "Cómo se enmarcan las respuestas escritas del agente en la conversación",
+    "off": "Sin burbuja",
+    "translucent": "Translúcida",
+    "solid": "Sólida"
+  },
+  "serverSettings": {
+    "title": "Servidor",
+    "description": "El servidor de CloudCLI en este equipo, iniciado por los scripts de scripts/server.",
+    "testPortal": "Este es el portal de pruebas (puerto {{port}}). Reiniciar y Detener solo actúan sobre él.",
+    "loading": "Cargando el estado del servidor…",
+    "unavailable": "Este servidor no se inició con los scripts de scripts/server, así que no se puede controlar desde aquí.",
+    "status": "Estado",
+    "running": "En ejecución en el puerto {{port}}",
+    "runningPid": "En ejecución en el puerto {{port}} (PID {{pid}})",
+    "stopped": "Detenido",
+    "version": "Versión {{version}}",
+    "build": "Compilación",
+    "buildValue": "{{branch}} {{commit}}, compilado {{builtAt}}",
+    "buildDirty": "con cambios sin confirmar",
+    "noBuildInfo": "Sin información de compilación",
+    "pendingBuild": "Compilación preparada",
+    "pendingBuildHint": "Lista para activarse: al reiniciar pasa a ser la compilación en ejecución.",
+    "activeWork": "Trabajo en curso",
+    "activeWorkNone": "Ninguno",
+    "activeWorkValue": "Respuestas en curso: {{turns}} · sesiones con trabajo en segundo plano: {{sessions}} · tareas en segundo plano: {{tasks}}",
+    "autostart": "Iniciar al iniciar sesión",
+    "autostartDescription": "Inicia el servidor en segundo plano cuando inicias sesión en este equipo.",
+    "autostartDisabled": "Desactivado por el sistema (en Windows: Administrador de tareas > Aplicaciones de arranque). Si lo activas aquí, se vuelve a activar allí.",
+    "autostartUnsupported": "No disponible en este sistema.",
+    "autostartLiveOnly": "Solo se aplica al servidor en producción; cámbialo allí.",
+    "actionsTitle": "Reiniciar o detener",
+    "actionsDescription": "Ambas acciones terminan todas las respuestas en curso y todas las tareas en segundo plano, y esta página pierde la conexión. Tras un reinicio se vuelve a conectar sola; tras detenerlo, hay que volver a iniciar el servidor en el equipo.",
+    "activateBuild": "Activar la compilación preparada",
+    "restart": "Reiniciar",
+    "stop": "Detener",
+    "working": "Procesando…",
+    "confirmRestart": "¿Reiniciar el servidor ahora? Esta página perderá la conexión un momento.",
+    "confirmStop": "¿Detener el servidor? Esta página dejará de funcionar hasta que el servidor se vuelva a iniciar en el equipo.",
+    "confirmWork": "El trabajo en curso se terminará y no se podrá reanudar. {{work}}",
+    "restartScheduled": "Reiniciando… Esta página se volverá a conectar cuando el servidor esté disponible.",
+    "stopScheduled": "El servidor se está deteniendo. Vuelve a iniciarlo en el equipo (scripts/server/start)."
+  },
+  "showThinking": {
+    "label": "Mostrar razonamiento",
+    "description": "El mismo interruptor que en los ajustes rápidos."
+  },
+  "files": {
+    "showIgnored": "Mostrar archivos ignorados por gitignore",
+    "showIgnoredDescription": "Muestra atenuados en la pestaña Archivos los archivos y carpetas ignorados por gitignore. Equivale al botón del ojo de esa pestaña; solo se recuerda en este dispositivo."
+  },
+  "about": {
+    "basedOnVersion": "CloudCLI-MobileUI, basado en CloudCLI {{version}}.",
+    "basedOn": "CloudCLI-MobileUI, basado en CloudCLI.",
+    "repository": "Repositorio",
+    "whatsNew": "Novedades"
+  },
+  "phone": {
+    "swipeNavigation": "Deslizar entre pestañas",
+    "swipeNavigationDescription": "En el móvil, desliza a la izquierda o a la derecha para cambiar de pestaña del espacio de trabajo; deslizar hacia atrás desde la primera pestaña abre el menú.",
+    "homeRecents": "Conversaciones recientes en la pantalla de inicio",
+    "homeRecentsDescription": "Sin ningún proyecto abierto, muestra las últimas conversaciones y sus proyectos. Desactivado: la pantalla original «Elige un proyecto»."
+  },
+  "serverSwitches": {
+    "intro": "Opciones del servidor: se guardan en el servidor y se aplican desde su próximo reinicio. Un valor definido en la configuración del servidor siempre tiene prioridad.",
+    "stagingNote": "Este es el portal de pruebas: estas opciones solo afectan al portal de pruebas (tiene su propia base de datos).",
+    "source": {
+      "default": "Predeterminado",
+      "ui": "Definido aquí",
+      "config": "Bloqueado por la configuración del servidor"
+    },
+    "lockedHint": "Definido en la configuración del servidor ({{key}}), que siempre tiene prioridad. Cámbialo en _server/config.json.",
+    "appliesAfterRestart": "Guardado. Se aplica cuando el servidor se reinicie.",
+    "restartNow": "Reiniciar ahora",
+    "restartManually": "Reinicia el servidor en el equipo para aplicarlo.",
+    "experimental": "Experimental",
+    "defaultValue": "Predeterminado ({{value}})",
+    "save": "Guardar",
+    "codexRuntime": {
+      "label": "Entorno de ejecución de Codex",
+      "description": "Cómo se ejecutan las conversaciones de Codex: un proceso por mensaje (exec, el predeterminado) o un app server de larga duración con aprobaciones y terminales en segundo plano.",
+      "exec": "exec (predeterminado)",
+      "appserver": "appserver (experimental)"
+    },
+    "approvalTimeout": {
+      "label": "Tiempo de espera de aprobación",
+      "description": "Cuánto tiempo espera una aprobación de herramienta tu respuesta antes de rechazarse."
+    },
+    "backgroundHold": {
+      "label": "Límite de trabajo en segundo plano",
+      "description": "Cuánto tiempo puede permanecer en silencio una sesión con tareas en segundo plano aún en ejecución antes de que esas tareas se detengan."
+    },
+    "fileTreeMaxEntries": {
+      "label": "Límite del árbol de archivos",
+      "description": "Cuántas entradas carga a la vez la pestaña Archivos en un proyecto muy grande (predeterminado {{value}}). Las carpetas que superen el límite se cargan al abrirlas."
+    },
+    "extraReadRoots": {
+      "label": "Carpetas adicionales de solo lectura",
+      "description": "Carpetas fuera del proyecto que el visor de archivos del chat puede abrir en modo de solo lectura. Rutas absolutas de carpetas existentes, hasta 20.",
+      "placeholder": "Ruta absoluta de la carpeta",
+      "add": "Añadir carpeta",
+      "remove": "Quitar {{path}}",
+      "confirm": "Cualquier persona con sesión iniciada en este servidor podrá leer todos los archivos de\n{{path}}\ndesde el chat. ¿Añadirla?"
     }
   }
 }
