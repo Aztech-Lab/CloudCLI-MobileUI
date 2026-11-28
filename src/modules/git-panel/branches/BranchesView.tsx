@@ -228,7 +228,7 @@ export default function BranchesView({
       </div>
 
       {/* Branch list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" data-git-panel-scroll /* [local] scroll position is remembered */>
         {filteredLocalBranches.length > 0 && (
           <>
             <SectionHeader label={t('git:branches.localSection')} count={filteredLocalBranches.length} />

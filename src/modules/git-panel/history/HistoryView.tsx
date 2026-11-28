@@ -61,7 +61,7 @@ export default function HistoryView({
   );
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto" data-git-panel-scroll /* [local] scroll position is remembered */>
       {isLoading ? (
         <div className="flex h-32 items-center justify-center">
           <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
